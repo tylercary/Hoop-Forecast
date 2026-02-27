@@ -1,308 +1,164 @@
-# 🏀⛈️ HoopForecast v2
+# HoopForecast v2
 
-A modern, full-stack NBA player points prediction application that uses AI-powered predictions (ChatGPT) to forecast player performance and compares predictions against real-time sportsbook betting lines.
+AI-powered NBA prop prediction platform with social features, virtual token wagering, and real-time sportsbook odds.
 
 ![HoopForecast v2](https://img.shields.io/badge/version-2.0-blue)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)
 ![React](https://img.shields.io/badge/React-18-blue)
 
-## ✨ Features
+## Features
 
-### 🎯 Core Functionality
-- **AI-Powered Predictions**: Uses OpenAI's ChatGPT to analyze player performance and generate accurate point predictions
-- **Real-Time Betting Lines**: Fetches live betting lines from The Odds API for comparison
-- **Player Search**: Search for any NBA player using ESPN API integration
-- **Performance Charts**: Interactive bar charts showing recent game performance vs. predictions
-- **Betting Recommendations**: Get OVER/UNDER recommendations based on AI predictions vs. betting lines
+### Predictions
+- **XGBoost ML Models** — Trained gradient boosting models for every prop type (points, assists, rebounds, 3PM, steals, blocks, and combos like PRA, P+R, P+A, R+A)
+- **Real-Time Odds** — Live betting lines from 10+ sportsbooks via The Odds API
+- **Prop Analysis** — Prediction vs. line comparison with bet rating, confidence score, and error margin
+- **Trending Props** — Homepage highlights the highest-confidence AI picks across all games
 
-### 🏠 Homepage Features
-- **Players with Lines**: Browse players who currently have betting lines available
-- **Quick Access**: Click any player card to instantly view their prediction
-- **Player Images**: Circular player headshots for visual identification
-- **Matchup Info**: See upcoming games and opponents
+### Social & Wagering
+- **User Accounts** — Firebase Auth with Google sign-in and custom usernames
+- **OVER/UNDER Picks** — Pick any prop, wager virtual tokens, and track your record
+- **Token Economy** — 50 free tokens daily, odds-based payouts on wins, +10 for correct free picks
+- **Leaderboard** — Global rankings by win rate, total wins, picks, or token balance
+- **Friends** — Send/accept friend requests and view friends' profiles
+- **Community Picks** — See what percentage of users picked OVER vs UNDER on each prop
 
-### ⚡ Performance Optimizations
-- **Smart Caching**: In-memory cache system for faster load times
-  - Player stats cached for 24 hours
-  - Predictions cached by game data hash
-  - Betting lines cached for 1 hour
-  - Homepage data cached for 30 minutes
-- **Local Image Storage**: Player images stored locally for instant loading
-- **Optimized API Calls**: Reduces API quota usage through intelligent caching
+### Player Pages
+- **Game Log Table** — Recent games with stats, sortable columns, and color-coded performance
+- **Prediction Chart** — Interactive Recharts visualization of recent performance vs. prediction line
+- **Prop Odds Table** — Side-by-side sportsbook odds comparison with logos
+- **Injury Reports** — Real-time injury data for both teams in the matchup
+- **Favorites** — Star players for quick access from your profile
 
-### 🎨 Modern UI/UX
-- **Dark Theme**: Modern dark interface inspired by PrizePicks
-- **Smooth Animations**: Loading animations and transitions
-- **Responsive Design**: Works seamlessly on desktop and mobile
-- **Real-Time Updates**: Instant feedback when selecting players
+### Performance
+- **Lazy-loaded routes** — React.lazy() code splitting for all route components
+- **Vendor chunk splitting** — Firebase, Recharts, and Framer Motion in separate cached bundles
+- **Backend compression** — gzip compression on all API responses
+- **Static asset caching** — 7-day browser cache for player images and logos
+- **Image lazy loading** — Offscreen images deferred with `loading="lazy"`
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-### Frontend
-- **React 18** - UI framework
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling
-- **Recharts** - Data visualization
-- **Axios** - HTTP client
+**Frontend:** React 18, Vite, Tailwind CSS, Framer Motion, Recharts, Firebase Auth
+**Backend:** Node.js, Express, XGBoost (via Python bridge), node-cache
+**Database:** Firebase Firestore (predictions, users, friendships)
+**APIs:** ESPN, NBA.com, The Odds API, RapidAPI (injuries)
 
-### Backend
-- **Node.js** - Runtime environment
-- **Express** - Web framework
-- **OpenAI API** - ChatGPT for predictions
-- **node-cache** - In-memory caching
-- **Axios** - HTTP client
+## Quick Start
 
-### APIs Used
-- **ESPN API** - Player search and team schedules
-- **NBA.com API** - Player stats and game logs
-- **The Odds API** - Real-time betting lines
-- **OpenAI API** - AI-powered predictions
-
-## 📋 Prerequisites
-
-- Node.js v18 or higher
-- npm or yarn
-- OpenAI API key (for predictions)
-- The Odds API key (for betting lines)
-
-## 🚀 Quick Start
-
-### 1. Clone the Repository
+### 1. Clone & Install
 
 ```bash
-git clone <repository-url>
-cd HoopForecast-v2
+git clone https://github.com/Tyler-Cary/Hoop-Forecast-v2.git
+cd Hoop-Forecast-v2
+
+# Backend
+cd backend && npm install
+
+# Frontend
+cd ../frontend && npm install
 ```
 
-### 2. Backend Setup
+### 2. Environment Variables
 
-```bash
-cd backend
-npm install
-```
-
-Create a `.env` file in the `backend` directory:
-
+**backend/.env**
 ```env
-# OpenAI API Key (required for predictions)
-OPENAI_API_KEY=your_openai_api_key_here
-
-# The Odds API Key (required for betting lines)
-ODDS_API_KEY=your_odds_api_key_here
-
-# Server Port (optional, defaults to 5001)
+ODDS_API_KEY=your_odds_api_key
+RAPIDAPI_KEY=your_rapidapi_key
 PORT=5001
 ```
 
-Start the backend server:
+**frontend/.env**
+```env
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+### 3. Run
 
 ```bash
-npm run dev
+# Terminal 1 — Backend
+cd backend && npm run dev
+
+# Terminal 2 — Frontend
+cd frontend && npm run dev
 ```
 
-The backend will run on `http://localhost:5001`
+Open **http://localhost:3000**
 
-### 3. Frontend Setup
-
-Open a new terminal:
-
-```bash
-cd frontend
-npm install
-```
-
-Start the development server:
-
-```bash
-npm run dev
-```
-
-The frontend will run on `http://localhost:5173` (or the next available port)
-
-### 4. Access the Application
-
-Open your browser and navigate to the frontend URL (usually `http://localhost:5173`)
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-HoopForecast-v2/
 ├── backend/
+│   ├── ml/                    # XGBoost models and training scripts
+│   │   ├── models/            # Trained models per prop type
+│   │   ├── train_xgboost.py   # Training pipeline
+│   │   └── predict_xgboost.py # Prediction inference
 │   ├── routes/
-│   │   ├── playerRoutes.js      # Player data endpoints
-│   │   └── searchRoutes.js      # Player search endpoint
+│   │   ├── playerRoutes.js    # Player data, predictions, resolution
+│   │   ├── trendingRoutes.js  # Trending props endpoint
+│   │   └── searchRoutes.js    # Player search
 │   ├── services/
-│   │   ├── databaseService.js    # Caching layer
-│   │   ├── imageStorageService.js # Image management
-│   │   ├── nbaApiService.js      # NBA.com & ESPN APIs
-│   │   ├── oddsService.js        # The Odds API integration
-│   │   ├── predictionService.js # ChatGPT predictions
-│   │   └── teamLogoService.js    # Team logos/names
-│   ├── public/
-│   │   └── images/
-│   │       └── players/          # Local player images
-│   ├── data/
-│   │   └── cache/                # Cache directory
-│   ├── server.js                  # Express server
-│   └── package.json
+│   │   ├── oddsService.js     # The Odds API integration
+│   │   ├── nbaApiService.js   # ESPN & NBA.com APIs
+│   │   ├── injuryService.js   # RapidAPI injury reports
+│   │   ├── propPredictionService.js  # ML prediction orchestration
+│   │   └── imageStorageService.js    # Player image management
+│   ├── middleware/
+│   │   └── optionalAuth.js    # Firebase token verification
+│   └── server.js
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Home.jsx           # Homepage with player grid
-│   │   │   ├── PlayerDetail.jsx   # Player prediction view
-│   │   │   ├── PlayerCard.jsx     # Player info card
-│   │   │   ├── PredictionChart.jsx # Performance chart
-│   │   │   ├── ComparisonBox.jsx  # Prediction vs. line comparison
-│   │   │   └── LoadingAnimation.jsx # Loading component
-│   │   ├── App.jsx                # Main app component
-│   │   ├── main.jsx               # Entry point
-│   │   └── index.css              # Global styles
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── package.json
+│   │   │   ├── Home.jsx           # Homepage with trending props & player grid
+│   │   │   ├── PlayerDetail.jsx   # Full player analysis page
+│   │   │   ├── MyPredictions.jsx  # User's pick history with wagers
+│   │   │   ├── Leaderboard.jsx    # Global rankings
+│   │   │   ├── Friends.jsx        # Friend management
+│   │   │   └── ...
+│   │   ├── contexts/
+│   │   │   └── AuthContext.jsx    # Auth, tokens, favorites state
+│   │   ├── services/
+│   │   │   └── firestoreService.js # Firestore CRUD operations
+│   │   └── App.jsx
+│   └── vite.config.js
 └── README.md
 ```
 
-## 🔌 API Endpoints
+## API Endpoints
 
-### Player Endpoints
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/player/with-lines` | Players with active betting lines |
+| `GET /api/player/:id/compare` | Full player analysis (stats, prediction, odds, injuries) |
+| `GET /api/player/:id/prediction/:propType` | ML prediction for a specific prop |
+| `POST /api/player/resolve-predictions` | Resolve pending user picks with actual results |
+| `GET /api/trending/props` | Top confidence AI picks |
+| `GET /api/search?q=name` | Search players by name |
+| `GET /api/performance` | Model accuracy metrics |
 
-- `GET /api/player/with-lines` - Get list of players with current betting lines
-- `GET /api/player/:id/compare?name=PlayerName` - Get full comparison (stats, prediction, odds)
-- `GET /api/player/:id/stats?name=PlayerName` - Get player game stats
-- `GET /api/player/:id/prediction?name=PlayerName` - Get AI prediction only
-- `GET /api/player/:id/odds?name=PlayerName` - Get betting line only
+## Token Wagering
 
-### Search Endpoints
+| Action | Tokens |
+|--------|--------|
+| Daily login bonus | +50 |
+| Correct pick (no wager) | +10 |
+| Correct pick (with wager) | +wager + profit (odds-based) |
+| Push | Wager refunded |
+| Loss | Wager lost |
+| New account | 50 starting tokens |
 
-- `GET /api/search?q=playerName` - Search for players by name
+Payout formula uses American odds:
+- Positive odds: `profit = wager * (odds / 100)`
+- Negative odds: `profit = wager * (100 / |odds|)`
 
-### Health Check
+## License
 
-- `GET /api/health` - Server health status
+ISC
 
-## 🧠 How It Works
+## Disclaimer
 
-### Prediction Flow
-
-1. **Player Selection**: User searches or clicks a player from homepage
-2. **Data Collection**: Backend fetches last 30 games (current + previous season) from NBA.com
-3. **AI Analysis**: ChatGPT analyzes game history, trends, and patterns
-4. **Prediction Generation**: AI generates prediction with confidence score and error margin
-5. **Betting Line Fetch**: Backend retrieves current betting line from The Odds API
-6. **Comparison**: App compares prediction vs. betting line and provides OVER/UNDER recommendation
-7. **Visualization**: Charts display recent performance with prediction overlay
-
-### Caching Strategy
-
-- **Player Stats**: Cached for 24 hours (stats don't change frequently)
-- **Predictions**: Cached by game data hash (same games = same prediction)
-- **Betting Lines**: Cached for 1 hour (odds change frequently)
-- **Homepage Data**: Cached for 30 minutes (refreshes regularly)
-- **Next Games**: Cached for 6 hours (schedule changes infrequently)
-
-## 🎨 UI Features
-
-### Homepage
-- Grid of players with betting lines
-- Player images in circular format
-- Matchup information (home/away teams)
-- Betting line display
-- Quick access to predictions
-
-### Player Detail Page
-- Player card with image and team info
-- Interactive bar chart showing:
-  - Recent game performance (green = over prediction, red = under)
-  - Prediction line overlay
-  - Game-by-game breakdown
-- Comparison box showing:
-  - AI prediction
-  - Betting line
-  - Recommendation (OVER/UNDER)
-  - Confidence score
-- Next game information
-
-## 🔧 Configuration
-
-### Environment Variables
-
-**Backend (.env)**
-```env
-OPENAI_API_KEY=sk-...          # Required for predictions
-ODDS_API_KEY=...               # Required for betting lines
-PORT=5001                      # Optional, defaults to 5001
-```
-
-### API Keys
-
-1. **OpenAI API Key**: Get from [OpenAI Platform](https://platform.openai.com/api-keys)
-2. **The Odds API Key**: Get from [The Odds API](https://the-odds-api.com/)
-
-## 📊 Performance
-
-- **First Load**: ~2-3 seconds (fetches from APIs and caches)
-- **Cached Load**: <100ms (served from cache)
-- **Image Loading**: Instant (served from local storage)
-- **Homepage**: <500ms (cached player list)
-
-## 🔒 Security
-
-See [SECURITY.md](./SECURITY.md) for information about known vulnerabilities and security best practices.
-
-**Note**: There are 2 moderate severity vulnerabilities in dev dependencies (esbuild via vite). These only affect the development server and do not impact production builds. They can be addressed by upgrading to Vite 7 when ready.
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**"No betting lines available"**
-- Check your The Odds API key is valid
-- Verify API quota hasn't been exceeded
-- Some players may not have lines for upcoming games
-
-**"Insufficient game data"**
-- Player needs at least 3 games in current/previous season
-- Rookie players or players with injuries may have limited data
-
-**Images not loading**
-- Images are downloaded on first access
-- Check backend logs for download errors
-- Fallback to NBA.com CDN if local download fails
-
-**Slow load times**
-- First load is slower (API calls)
-- Subsequent loads use cache (much faster)
-- Check network connection and API response times
-
-## 🚧 Future Enhancements
-
-- [ ] User accounts and favorite players
-- [ ] Historical accuracy tracking
-- [ ] Multiple prop types (assists, rebounds, etc.)
-- [ ] Email/SMS notifications for favorite players
-- [ ] Advanced filtering and sorting
-- [ ] Dark/light theme toggle
-- [ ] Mobile app version
-- [ ] Social sharing of predictions
-
-## 📝 License
-
-ISC License
-
-## ⚠️ Disclaimer
-
-This application is for **entertainment purposes only**. Predictions are not guaranteed and should not be used as the sole basis for betting decisions. Always gamble responsibly and within your means.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📧 Support
-
-For issues, questions, or feature requests, please open an issue on GitHub.
-
----
-
-**Built with ❤️ for NBA fans and sports betting enthusiasts**
+For entertainment purposes only. Predictions are not guaranteed. Always gamble responsibly.
