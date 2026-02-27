@@ -59,8 +59,10 @@ function getPropDisplayLabel(prop) {
     assists: 'Ast',
     rebounds: 'Reb',
     threes: '3PM',
+    threes_made: '3PM',
     steals: 'Stl',
     blocks: 'Blk',
+    turnovers: 'TO',
     points_rebounds: 'Pts + Reb',
     points_assists: 'Pts + Ast',
     rebounds_assists: 'Reb + Ast',
@@ -224,154 +226,94 @@ function PropOddsTable({ props, selectedProp }) {
   const bestUnderBookmaker = allBookmakers.find(bm => bm.under_odds === bestUnderOdds);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
-      className="bg-[#1a2332] rounded-xl p-6 border border-gray-700/50"
+      className="bg-[#1a2332] rounded-xl p-5 border border-gray-700/50"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-bold text-white">Prop Odds</h3>
-        <a 
-          href="#" 
-          className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-          onClick={(e) => e.preventDefault()}
-        >
-          View All Prop Odds →
-        </a>
+      <div className="mb-4 flex items-baseline gap-3">
+        <h3 className="text-xl font-bold text-white">Prop Odds</h3>
+        <span className="text-sm font-semibold text-yellow-400">{getPropDisplayLabel(selectedProp)} Over/Under</span>
       </div>
-      
-      {/* Odds Grid */}
-      <div className="overflow-x-auto">
-        <div className="flex gap-0">
-          {/* Left Label Column */}
-          <div className="flex-shrink-0 w-[100px] pr-0 mr-4">
-            <div className="h-full flex flex-col justify-center">
-              <div className="text-xs text-gray-400 font-normal mb-1">Over/Under</div>
-              <div className="text-3xl font-bold text-white leading-tight">{getPropDisplayLabel(selectedProp)}</div>
-            </div>
-              </div>
 
-          {/* Scrollable Sportsbook Cards Container */}
-          <div className="flex flex-col gap-4">
-            {/* Filter Buttons Row */}
-            <div className="flex gap-2">
-              <button className="flex-shrink-0 w-[165px] px-4 py-2.5 bg-[#3d4f66] text-white rounded-lg text-sm font-bold hover:bg-[#4a5d77] transition-colors">
-                OPEN LINE
-              </button>
-              <button className="flex-shrink-0 w-[165px] px-4 py-2.5 bg-[#f9c744] text-gray-900 rounded-lg text-sm font-bold hover:bg-[#fad15c] transition-colors flex items-center justify-center gap-2">
-                <span className="text-base">⚙</span>
-                BEST ODDS
-              </button>
-              {allBookmakers.map((bookmaker, idx) => {
-              const sportsbookInfo = getSportsbookInfo(bookmaker.bookmaker_key || bookmaker.bookmaker);
-              return (
-                  <button
-                    key={`${bookmaker.bookmaker_key || bookmaker.bookmaker}-${idx}`}
-                    className="flex-shrink-0 w-[165px] px-3 py-2.5 bg-[#2a3544] hover:bg-[#344052] rounded-lg text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2 border border-gray-600/50"
-                    >
-                      <img
-                      src={sportsbookInfo?.logo}
-                        alt={sportsbookInfo?.displayName || bookmaker.bookmaker}
-                      className="w-6 h-6 object-contain"
-                        onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-xs truncate">
-                      {sportsbookInfo?.displayName || bookmaker.bookmaker.toUpperCase()}
-                    </span>
-                  </button>
-              );
-            })}
-          </div>
-          
-            {/* Odds Cards Row */}
-            <div className="flex gap-2">
-            {/* OPEN LINE Card */}
-            <div className="flex-shrink-0 w-[165px]">
-              <div className="mb-2">
-                <OddsRow 
-                  type="over" 
-                  line={consensusLine} 
-                  odds={consensusOverOdds}
-                  isBest={false}
-                        />
-                      </div>
-              <div>
-                <OddsRow 
-                  type="under" 
-                  line={consensusLine} 
-                  odds={consensusUnderOdds}
-                  isBest={false}
-                />
-                </div>
-          </div>
-          
-            {/* BEST ODDS Card */}
-            <div className="flex-shrink-0 w-[165px]">
-              <div className="mb-2 relative">
-                {bestOverBookmaker ? (
-                  <>
-                    <div className="absolute top-2 right-2 z-10 flex items-center justify-center">
-                      <img
-                        src={getSportsbookInfo(bestOverBookmaker.bookmaker_key || bestOverBookmaker.bookmaker)?.logo}
-                        alt=""
-                        className="w-6 h-6 object-contain rounded"
-                        onError={(e) => e.target.style.display = 'none'}
-                        />
-                      </div>
-                    <OddsRow 
-                      type="over" 
-                      line={bestOverBookmaker.line} 
-                      odds={bestOverBookmaker.over_odds}
-                      isBest={true}
-                    />
-                  </>
-                ) : (
-                  <OddsRow type="over" line={null} odds={null} isBest={false} />
-                )}
-              </div>
-              <div className="relative">
-                {bestUnderBookmaker ? (
-                  <>
-                    <div className="absolute top-2 right-2 z-10 flex items-center justify-center">
-                      <img
-                        src={getSportsbookInfo(bestUnderBookmaker.bookmaker_key || bestUnderBookmaker.bookmaker)?.logo}
-                        alt=""
-                        className="w-6 h-6 object-contain rounded"
-                        onError={(e) => e.target.style.display = 'none'}
-                      />
-                </div>
-                    <OddsRow 
-                      type="under" 
-                      line={bestUnderBookmaker.line} 
-                      odds={bestUnderBookmaker.under_odds}
-                      isBest={true}
-                    />
-                  </>
-                ) : (
-                  <OddsRow type="under" line={null} odds={null} isBest={false} />
-                )}
-              </div>
-            </div>
+      <div className="overflow-x-auto pb-2">
+        <div className="flex gap-2 min-w-min">
 
-            {/* Individual Sportsbook Cards */}
-            {allBookmakers.map((bookmaker, idx) => {
-              const sportsbookInfo = getSportsbookInfo(bookmaker.bookmaker_key || bookmaker.bookmaker);
-              return (
-                <SportsbookCard
-                  key={`${bookmaker.bookmaker_key || bookmaker.bookmaker}-card-${idx}`}
-                  bookmaker={bookmaker}
-                  bestOverOdds={bestOverOdds}
-                  bestUnderOdds={bestUnderOdds}
-                  sportsbookInfo={sportsbookInfo}
-                />
-              );
-            })}
+          {/* OPEN LINE Column */}
+          <div className="flex-shrink-0 w-36 flex flex-col">
+            <div className="h-10 mb-2 flex items-center justify-center rounded-lg bg-[#2a3544] border border-gray-600/30">
+              <span className="text-xs font-bold text-gray-300">CONSENSUS</span>
+            </div>
+            <div className="mb-1.5">
+              <OddsRow type="over" line={consensusLine} odds={consensusOverOdds} isBest={false} />
+            </div>
+            <OddsRow type="under" line={consensusLine} odds={consensusUnderOdds} isBest={false} />
+          </div>
+
+          {/* BEST ODDS Column */}
+          <div className="flex-shrink-0 w-36 flex flex-col">
+            <div className="h-10 mb-2 flex items-center justify-center rounded-lg bg-[#f9c744]">
+              <span className="text-xs font-bold text-gray-900">BEST ODDS</span>
+            </div>
+            <div className="mb-1.5 relative">
+              {bestOverBookmaker ? (
+                <>
+                  <div className="absolute top-1.5 right-1.5 z-10">
+                    <img
+                      src={getSportsbookInfo(bestOverBookmaker.bookmaker_key || bestOverBookmaker.bookmaker)?.logo}
+                      alt="" className="w-5 h-5 object-contain rounded"
+                      onError={(e) => e.target.style.display = 'none'}
+                    />
+                  </div>
+                  <OddsRow type="over" line={bestOverBookmaker.line} odds={bestOverBookmaker.over_odds} isBest={true} />
+                </>
+              ) : (
+                <OddsRow type="over" line={null} odds={null} isBest={false} />
+              )}
+            </div>
+            <div className="relative">
+              {bestUnderBookmaker ? (
+                <>
+                  <div className="absolute top-1.5 right-1.5 z-10">
+                    <img
+                      src={getSportsbookInfo(bestUnderBookmaker.bookmaker_key || bestUnderBookmaker.bookmaker)?.logo}
+                      alt="" className="w-5 h-5 object-contain rounded"
+                      onError={(e) => e.target.style.display = 'none'}
+                    />
+                  </div>
+                  <OddsRow type="under" line={bestUnderBookmaker.line} odds={bestUnderBookmaker.under_odds} isBest={true} />
+                </>
+              ) : (
+                <OddsRow type="under" line={null} odds={null} isBest={false} />
+              )}
             </div>
           </div>
+
+          {/* Individual Sportsbook Columns */}
+          {allBookmakers.map((bookmaker, idx) => {
+            const info = getSportsbookInfo(bookmaker.bookmaker_key || bookmaker.bookmaker);
+            const isOverBest = bookmaker.over_odds === bestOverOdds;
+            const isUnderBest = bookmaker.under_odds === bestUnderOdds;
+            return (
+              <div key={`${bookmaker.bookmaker_key || bookmaker.bookmaker}-${idx}`} className="flex-shrink-0 w-36 flex flex-col">
+                <div className="h-10 mb-2 flex items-center justify-center gap-1.5 rounded-lg bg-[#2a3544] border border-gray-600/30 px-2">
+                  <img
+                    src={info?.logo} alt=""
+                    className="w-5 h-5 object-contain flex-shrink-0"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <span className="text-[10px] font-semibold text-white truncate">
+                    {info?.displayName || bookmaker.bookmaker.toUpperCase()}
+                  </span>
+                </div>
+                <div className="mb-1.5">
+                  <OddsRow type="over" line={bookmaker.line} odds={bookmaker.over_odds} isBest={isOverBest} />
+                </div>
+                <OddsRow type="under" line={bookmaker.line} odds={bookmaker.under_odds} isBest={isUnderBest} />
+              </div>
+            );
+          })}
         </div>
       </div>
     </motion.div>

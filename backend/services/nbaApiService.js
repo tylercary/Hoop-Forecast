@@ -370,7 +370,7 @@ export async function searchPlayer(playerName) {
             IsOnlyCurrentSeason: 0
           },
           headers: NBA_HEADERS,
-          timeout: 30000, // Increased timeout to 30s for slow API responses
+          timeout: 10000, // Reduced to 10s to fail faster if NBA.com is slow
           validateStatus: (status) => status < 500 // Don't throw on 403/404
         });
         
@@ -428,7 +428,15 @@ export async function searchPlayer(playerName) {
         const normalizedName = normalizeName(displayNameRaw);
         if (!normalizedName) return false;
         if (searchTokens.length === 0) return false;
-        return searchTokens.every(token => normalizedName.includes(token));
+        // Exact token match
+        if (searchTokens.every(token => normalizedName.includes(token))) return true;
+        // Prefix match: handles cases like "Nicolas" matching "Nic" (Odds API vs NBA.com name differences)
+        const nameTokens = normalizedName.split(' ').filter(Boolean);
+        return searchTokens.every(searchToken =>
+          nameTokens.some(nameToken =>
+            nameToken.startsWith(searchToken) || searchToken.startsWith(nameToken)
+          )
+        );
       });
       
       const mappedPlayers = matches.slice(0, 50).map(player => {
@@ -468,7 +476,11 @@ export async function searchPlayer(playerName) {
     
     return null;
   } catch (error) {
-    console.error('Error searching NBA.com:', error.message);
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      console.error('⚠️  NBA.com search timed out - API may be slow or down');
+      throw new Error('NBA.com API is currently slow or unavailable. Please try again in a moment.');
+    }
+    console.error('❌ Error searching NBA.com:', error.message);
     throw error;
   }
 }
@@ -504,7 +516,7 @@ export async function getPlayerGameLog(playerId, options = {}) {
         response = await axios.get(url, {
           params,
           headers: NBA_HEADERS,
-          timeout: 30000, // Increased timeout to 30s for slow API responses
+          timeout: 10000, // Reduced to 10s to fail faster if NBA.com is slow
           validateStatus: (status) => status < 500
         });
         
@@ -935,7 +947,7 @@ export async function getTeamRecord(teamAbbrev) {
  * Get ESPN team ID from NBA team abbreviation
  * Note: ESPN uses different abbreviations for some teams (e.g., GS instead of GSW, UTAH instead of UTA)
  */
-function getEspnTeamId(abbrev) {
+export function getEspnTeamId(abbrev) {
   const teamMap = {
     'ATL': '1',      // Atlanta Hawks
     'BOS': '2',      // Boston Celtics
@@ -1147,6 +1159,116 @@ export async function getPlayerInfo(playerId) {
   } catch (error) {
     console.error('Error fetching player info:', error.message);
     throw error;
+  }
+}
+
+// Cache for team searches (1 hour)
+const teamSearchCache = new NodeCache({ stdTTL: 3600, useClones: false });
+
+/**
+ * Search for NBA teams by name, city, or abbreviation using ESPN API
+ */
+export async function searchTeamsESPN(query) {
+  try {
+    const searchTerm = query.toLowerCase().trim();
+
+    // Try to use cached teams list
+    let teams = teamSearchCache.get('all_teams');
+    if (!teams) {
+      const teamsUrl = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/teams';
+      const response = await axios.get(teamsUrl, {
+        params: { region: 'us', lang: 'en', contentorigin: 'espn', limit: 50 },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      const leagues = response.data?.sports?.[0]?.leagues || [];
+      teams = (leagues[0]?.teams || []).map((t) => t.team).filter(Boolean);
+      teamSearchCache.set('all_teams', teams);
+    }
+
+    const results = teams
+      .filter((team) => {
+        const abbrev = (team.abbreviation || '').toLowerCase();
+        const displayName = (team.displayName || '').toLowerCase();
+        const shortName = (team.shortDisplayName || '').toLowerCase();
+        const location = (team.location || '').toLowerCase();
+        const nickname = (team.name || '').toLowerCase();
+        return (
+          abbrev.includes(searchTerm) ||
+          displayName.includes(searchTerm) ||
+          shortName.includes(searchTerm) ||
+          location.includes(searchTerm) ||
+          nickname.includes(searchTerm)
+        );
+      })
+      .map((team) => ({
+        id: team.id,
+        abbreviation: team.abbreviation,
+        displayName: team.displayName,
+        shortDisplayName: team.shortDisplayName,
+        location: team.location,
+        nickname: team.name,
+        logo: team.logos?.[0]?.href || null,
+        record: team.record?.items?.[0]?.summary || null,
+      }));
+
+    console.log(`✅ Found ${results.length} matching teams for "${query}"`);
+    return results;
+  } catch (error) {
+    console.error('❌ Error searching teams:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Get full roster for a team by ESPN team ID
+ */
+export async function getTeamRoster(espnTeamId) {
+  try {
+    const cacheKey = `roster:${espnTeamId}`;
+    const cached = teamSearchCache.get(cacheKey);
+    if (cached) return cached;
+
+    const rosterUrl = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${espnTeamId}/roster`;
+    const response = await axios.get(rosterUrl, {
+      params: { region: 'us', lang: 'en', contentorigin: 'espn' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    const athletesGroups = Array.isArray(response.data?.athletes) ? response.data.athletes : [];
+    const athletes = athletesGroups.flatMap((group) => {
+      if (!group) return [];
+      return Array.isArray(group.items) ? group.items : group;
+    });
+
+    const roster = athletes.map((athlete) => {
+      const base = athlete.athlete || athlete;
+      const positionInfo = athlete.position || base.position || {};
+      return {
+        id: base.id || athlete.id,
+        firstName: base.firstName || '',
+        lastName: base.lastName || '',
+        displayName: base.displayName || `${base.firstName || ''} ${base.lastName || ''}`.trim(),
+        position: positionInfo.abbreviation || positionInfo.name || 'N/A',
+        jersey: base.jersey || athlete.jersey || null,
+        headshot: base.headshot?.href || base.headshot || null,
+      };
+    });
+
+    // Cache for 6 hours
+    teamSearchCache.set(cacheKey, roster, 21600);
+    return roster;
+  } catch (error) {
+    console.error(`❌ Error fetching roster for team ${espnTeamId}:`, error.message);
+    return [];
   }
 }
 

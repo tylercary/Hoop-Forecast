@@ -110,39 +110,48 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
       return game.assists || 0;
     } else if (selectedProp === 'rebounds') {
       return game.rebounds || 0;
-    } else if (selectedProp === 'threes') {
+    } else if (selectedProp === 'threes' || selectedProp === 'threes_made') {
       return game.threes_made || game.threes || 0;
     } else if (selectedProp === 'steals') {
       return game.steals || 0;
     } else if (selectedProp === 'blocks') {
       return game.blocks || 0;
-    } else if (selectedProp === 'points_rebounds') {
+    } else if (selectedProp === 'turnovers') {
+      return game.turnovers || 0;
+    } else if (selectedProp === 'pr' || selectedProp === 'points_rebounds') {
       // Combined: Points + Rebounds
       return (game.points || 0) + (game.rebounds || 0);
-    } else if (selectedProp === 'points_assists') {
+    } else if (selectedProp === 'pa' || selectedProp === 'points_assists') {
       // Combined: Points + Assists
       return (game.points || 0) + (game.assists || 0);
+    } else if (selectedProp === 'ra' || selectedProp === 'rebounds_assists') {
+      // Combined: Rebounds + Assists
+      return (game.rebounds || 0) + (game.assists || 0);
+    } else if (selectedProp === 'pra' || selectedProp === 'points_rebounds_assists') {
+      // Combined: Points + Rebounds + Assists
+      return (game.points || 0) + (game.rebounds || 0) + (game.assists || 0);
     }
     return game.points || 0;
   };
 
-  const getOverUnder = (game) => {
-    if (!line) return null;
+  const getOverUnder = (game, gameLine) => {
+    if (!gameLine) return null;
     const value = getPropValue(game);
-    const lineValue = parseFloat(line);
-    
+    const lineValue = parseFloat(gameLine);
+
     if (isNaN(lineValue)) return null;
-    
+
     if (value >= lineValue) {
-      return { status: 'O', bgColor: 'bg-green-500/20', textColor: 'text-green-400' };
+      return { status: 'O', bgColor: 'bg-green-600', textColor: 'text-white' };
     } else {
-      return { status: 'U', bgColor: 'bg-red-500/20', textColor: 'text-red-400' };
+      return { status: 'U', bgColor: 'bg-red-600', textColor: 'text-white' };
     }
   };
 
   // Calculate over/under record
   const overUnderRecord = filteredStats.reduce((acc, game) => {
-    const ou = getOverUnder(game);
+    const gameLine = game.betting_line || game.line || line;
+    const ou = getOverUnder(game, gameLine);
     if (ou) {
       if (ou.status === 'O') acc.over++;
       else acc.under++;
@@ -255,23 +264,29 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
       transition={{ duration: 0.2, ease: "easeOut" }}
       className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700"
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-xl font-bold text-white mb-1">
-            {seasonFilter === 'H2H' && nextGameOpponent 
-              ? `Head-to-Head vs ${nextGameOpponent}` 
+          <h3 className="text-2xl font-bold text-white mb-2">
+            {seasonFilter === 'H2H' && nextGameOpponent
+              ? `Head-to-Head vs ${nextGameOpponent}`
               : 'Player Game Log'}
           </h3>
-          {overUnderRecord.over + overUnderRecord.under > 0 && seasonFilter !== 'H2H' && (
+          <div className="flex items-center gap-4">
             <p className="text-sm text-gray-400">
-              The Over has hit <span className="text-green-400 font-semibold">{overUnderRecord.over}/{overUnderRecord.over + overUnderRecord.under}</span> this season based on lines for each game.
+              <span className="text-white font-semibold">{filteredStats.length}</span> games displayed
             </p>
-          )}
-          {seasonFilter === 'H2H' && overUnderRecord.over + overUnderRecord.under > 0 && filteredStats.length > 0 && (
-            <p className="text-sm text-gray-400">
-              The Over has hit <span className="text-green-400 font-semibold">{overUnderRecord.over}/{overUnderRecord.over + overUnderRecord.under}</span> in games against {nextGameOpponent}.
-            </p>
-          )}
+            {overUnderRecord.over + overUnderRecord.under > 0 && line && (
+              <div className="text-sm">
+                <p className="text-gray-400">
+                  Over/Under: <span className="text-green-400 font-semibold">{overUnderRecord.over}W</span> - <span className="text-red-400 font-semibold">{overUnderRecord.under}L</span>
+                  {' '}({((overUnderRecord.over / (overUnderRecord.over + overUnderRecord.under)) * 100).toFixed(0)}%)
+                </p>
+                <p className="text-gray-500 text-xs mt-0.5">
+                  Based on current line: {parseFloat(line).toFixed(1)}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
         <select
           value={seasonFilter}
@@ -287,30 +302,39 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-700">
-              <th className="text-left py-3 px-4 text-gray-400 font-semibold">Date</th>
-              <th className="text-left py-3 px-4 text-gray-400 font-semibold">Matchup</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">Score</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">Minutes</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">Prop Line</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">
-                {selectedProp === 'points_rebounds' ? 'PTS + REBS' : 
-                 selectedProp === 'points_assists' ? 'PTS + AST' : 
+            <tr className="border-b-2 border-gray-600 bg-gray-700/20">
+              <th className="text-left py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Date</th>
+              <th className="text-left py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Matchup</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Result</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">MIN</th>
+              <th className="text-center py-3 px-4 text-yellow-400 font-bold uppercase text-xs tracking-wider bg-yellow-500/10">
+                {selectedProp === 'pr' || selectedProp === 'points_rebounds' ? 'PTS+REB' :
+                 selectedProp === 'pa' || selectedProp === 'points_assists' ? 'PTS+AST' :
+                 selectedProp === 'ra' || selectedProp === 'rebounds_assists' ? 'REB+AST' :
+                 selectedProp === 'pra' || selectedProp === 'points_rebounds_assists' ? 'PTS+REB+AST' :
+                 selectedProp === 'threes' || selectedProp === 'threes_made' ? '3PM' :
+                 selectedProp === 'steals' ? 'STL' :
+                 selectedProp === 'blocks' ? 'BLK' :
+                 selectedProp === 'turnovers' ? 'TO' :
+                 selectedProp === 'assists' ? 'AST' :
+                 selectedProp === 'rebounds' ? 'REB' :
                  'PTS'}
               </th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">REBS</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">ASSISTS</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">3s Scored</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">STEALS</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">BLOCKS</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">FGM-FGA (%)</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">FTM-FTA (%)</th>
-              <th className="text-center py-3 px-4 text-gray-400 font-semibold">3PM-3PA (%)</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">REB</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">AST</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">3PM</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">STL</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">BLK</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">FG%</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">FT%</th>
+              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">3P%</th>
             </tr>
           </thead>
           <tbody>
             {filteredStats.slice(0, 20).map((game, idx) => {
-              const ou = getOverUnder(game);
+              // Get betting line for this specific game (use game's line if available, otherwise use current line)
+              const gameLine = game.betting_line || game.line || line;
+              const ou = getOverUnder(game, gameLine);
               const propValue = getPropValue(game);
               const fgm = game.field_goals_made || game.fgm || 0;
               const fga = game.field_goals_attempted || game.fga || 0;
@@ -321,59 +345,74 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
               const tpm = game.three_pointers_made || game.threes_made || game.tpm || 0;
               const tpa = game.three_pointers_attempted || game.threes_attempted || game.tpa || 0;
               const tpPct = tpa > 0 ? ((tpm / tpa) * 100).toFixed(0) : 0;
-              
+
               const isAway = game.home === false;
               const opponentLabel = isAway ? `@${game.opponent}` : game.opponent;
               
               return (
-                <motion.tr 
-                  key={idx} 
+                <motion.tr
+                  key={idx}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.01, duration: 0.15 }}
                   whileHover={{ backgroundColor: 'rgba(55, 65, 81, 0.5)' }}
-                  className="border-b border-gray-700 transition-colors"
+                  className="border-b border-gray-700/50 transition-colors"
                 >
                   <td className="py-3 px-4 text-gray-300 font-medium">{formatDate(game.date)}</td>
                   <td className="py-3 px-4 text-white font-medium">{opponentLabel || 'N/A'}</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{formatScore(game)}</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{game.minutes || 0}</td>
-                  <td className={`py-3 px-4 text-center font-semibold ${ou ? ou.bgColor : 'text-gray-400'}`}>
-                    {line ? parseFloat(line).toFixed(1) : 'N/A'}
+                  <td className="py-3 px-4 text-center">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                      formatScore(game) === 'W' ? 'bg-green-500/20 text-green-400' :
+                      formatScore(game) === 'L' ? 'bg-red-500/20 text-red-400' :
+                      'text-gray-400'
+                    }`}>
+                      {formatScore(game)}
+                    </span>
                   </td>
-                  <td className={`py-3 px-4 text-center font-semibold ${ou ? ou.textColor : 'text-white'}`}>
-                    {propValue} {ou ? ou.status : ''}
+                  <td className="py-3 px-4 text-center text-gray-300 font-medium">{game.minutes || 0}</td>
+                  <td className="py-3 px-4 text-center bg-yellow-500/10">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="font-bold text-lg text-white">{propValue}</span>
+                      {line && ou && (
+                        <span className={`${ou.bgColor} ${ou.textColor} px-2 py-0.5 rounded font-bold text-xs`}>
+                          {ou.status}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4 text-center text-gray-300">{game.rebounds || 0}</td>
                   <td className="py-3 px-4 text-center text-gray-300">{game.assists || 0}</td>
                   <td className="py-3 px-4 text-center text-gray-300">{game.threes_made || game.threes || 0}</td>
                   <td className="py-3 px-4 text-center text-gray-300">{game.steals || 0}</td>
                   <td className="py-3 px-4 text-center text-gray-300">{game.blocks || 0}</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{fgm}-{fga} ({fgPct}%)</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{ftm}-{fta} ({ftPct}%)</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{tpm}-{tpa} ({tpPct}%)</td>
+                  <td className="py-3 px-4 text-center text-gray-400 text-xs">{fgm}-{fga} ({fgPct}%)</td>
+                  <td className="py-3 px-4 text-center text-gray-400 text-xs">{ftm}-{fta} ({ftPct}%)</td>
+                  <td className="py-3 px-4 text-center text-gray-400 text-xs">{tpm}-{tpa} ({tpPct}%)</td>
                 </motion.tr>
               );
             })}
             {/* Averages Row */}
             {averages && (
-              <tr className="border-t-2 border-gray-600 bg-gray-700/30 font-semibold">
-                <td className="py-3 px-4 text-white">Averages</td>
-                <td className="py-3 px-4"></td>
-                <td className="py-3 px-4"></td>
-                <td className="py-3 px-4"></td>
-                <td className="py-3 px-4 text-center text-white">{averages.minutes}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.propLine}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.propValue}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.rebounds}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.assists}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.threes}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.steals}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.blocks}</td>
-                <td className="py-3 px-4 text-center text-white">{averages.fgPct}%</td>
-                <td className="py-3 px-4 text-center text-white">{averages.ftPct}%</td>
-                <td className="py-3 px-4 text-center text-white">{averages.tpPct}%</td>
-              </tr>
+              <motion.tr
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="border-t-2 border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-transparent"
+              >
+                <td className="py-4 px-4 text-yellow-400 font-bold uppercase text-sm">Season Avg</td>
+                <td className="py-4 px-4"></td>
+                <td className="py-4 px-4"></td>
+                <td className="py-4 px-4 text-center text-white font-semibold">{averages.minutes}</td>
+                <td className="py-4 px-4 text-center text-yellow-400 font-bold text-lg bg-yellow-500/20">{averages.propValue}</td>
+                <td className="py-4 px-4 text-center text-white font-semibold">{averages.rebounds}</td>
+                <td className="py-4 px-4 text-center text-white font-semibold">{averages.assists}</td>
+                <td className="py-4 px-4 text-center text-white font-semibold">{averages.threes}</td>
+                <td className="py-4 px-4 text-center text-white font-semibold">{averages.steals}</td>
+                <td className="py-4 px-4 text-center text-white font-semibold">{averages.blocks}</td>
+                <td className="py-4 px-4 text-center text-gray-300 text-xs font-semibold">{averages.fgPct}%</td>
+                <td className="py-4 px-4 text-center text-gray-300 text-xs font-semibold">{averages.ftPct}%</td>
+                <td className="py-4 px-4 text-center text-gray-300 text-xs font-semibold">{averages.tpPct}%</td>
+              </motion.tr>
             )}
           </tbody>
         </table>

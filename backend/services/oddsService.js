@@ -9,18 +9,26 @@ const THE_ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 /**
  * Bookmaker priority list - used to select best line
  * Priority 0 = highest priority (DraftKings)
+ * Updated to include all major US sportsbooks in order of reputation/market share
  */
 const BOOKMAKER_PRIORITY = {
   'draftkings': 0,
   'fanduel': 1,
   'betmgm': 2,
   'caesars': 3,
-  'fanatics': 4,
-  'barstool': 5,
+  'betrivers': 4,
+  'fanatics': 5,
   'espnbet': 6,
-  'prizepicks': 7,
-  'underdog': 8,
-  'bovada': 9
+  'hardrock': 7,
+  'pointsbet': 8,
+  'wynnbet': 9,
+  'unibet': 10,
+  'barstool': 11,
+  'prizepicks': 12,
+  'underdog': 13,
+  'bovada': 14,
+  'foxbet': 15,
+  'sugarhouse': 16
 };
 
 /**
@@ -530,7 +538,9 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
     }
 
     // Step 3: Try to find player in events
-    const eventsToCheck = targetEvent ? [targetEvent] : eventsResponse.data.slice(0, 5);
+    // If we have a target event, only check that one
+    // Otherwise, check ALL events (not just first 5) to ensure we find the player
+    const eventsToCheck = targetEvent ? [targetEvent] : eventsResponse.data;
     const allMarkets = [
       'player_points',
       'player_rebounds',
@@ -575,6 +585,13 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
           return result;
         }
       } catch (err) {
+        const status = err.response?.status;
+        const errorCode = err.response?.data?.error_code;
+        // Bail immediately on quota/auth errors — no point retrying other events
+        if (status === 401 || status === 403 || errorCode === 'OUT_OF_USAGE_CREDITS') {
+          console.log(`❌ Odds API quota/auth error (${status}). Stopping further requests.`);
+          return createEmptyPropsObject(playerName);
+        }
         console.log(`⚠️ Error fetching odds for event ${event.id}: ${err.message}`);
         continue;
       }

@@ -1,6 +1,12 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import axios from 'axios';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, Check, Users, Coins } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
+import { savePrediction, updatePrediction, deletePrediction, getCommunityPicks } from '../services/firestoreService';
+import api from '../utils/api';
 import PlayerCard from './PlayerCard';
 import PredictionChart from './PredictionChart';
 import LoadingAnimation from './LoadingAnimation';
@@ -19,9 +25,15 @@ import {
   getBetRatingColor
 } from '../utils/propCalculations';
 
-const API_BASE = '/api';
 
-function PlayerDetail({ player, onBack }) {
+function PlayerDetail() {
+  const { playerId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isFavorite, toggleFavorite, tokens, deductTokens, addTokens } = useAuth();
+
+  // Get player from navigation state, or use a fallback
+  const player = location.state?.player || { id: playerId, name: 'Loading...' };
   const [comparisonData, setComparisonData] = useState(null);
   const [loading, setLoading] = useState(true); // Start with loading true
   const [error, setError] = useState(null);
@@ -29,8 +41,23 @@ function PlayerDetail({ player, onBack }) {
   const [loadingPredictions, setLoadingPredictions] = useState({}); // Track loading state for each prop
   const [propPredictions, setPropPredictions] = useState({}); // Store predictions for each prop
   const [showReasoning, setShowReasoning] = useState(false); // Toggle for prediction reasoning
+  const [userPredictions, setUserPredictions] = useState({}); // Cache: { propType: prediction }
+  const [predictionSaving, setPredictionSaving] = useState(false);
+  const [predictionSaved, setPredictionSaved] = useState(false);
+  const [communityPicks, setCommunityPicks] = useState({});
+  const communityCache = useRef({});
+  const [wagerAmount, setWagerAmount] = useState(0);
+  const [pendingPick, setPendingPick] = useState(null); // 'over' or 'under' before confirming wager
+
+  // Reset pending pick when switching prop tabs
+  useEffect(() => {
+    setPendingPick(null);
+  }, [selectedProp]);
 
   useEffect(() => {
+    // Scroll to top when player changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     // Reset loading state immediately when player changes
     setLoading(true);
     setError(null);
@@ -57,6 +84,65 @@ function PlayerDetail({ player, onBack }) {
       }
     }
   }, [comparisonData, selectedProp]); // selectedProp needed to check current selection
+
+  // Load all user predictions for this player's game (single query, cached)
+  useEffect(() => {
+    if (!user || !comparisonData?.next_game?.date) {
+      setUserPredictions({});
+      return;
+    }
+    let cancelled = false;
+    async function loadUserPredictions() {
+      try {
+        // Single where clause to avoid composite index requirement
+        const q = query(
+          collection(db, 'predictions'),
+          where('userId', '==', user.uid)
+        );
+        const snap = await getDocs(q);
+        if (!cancelled) {
+          const byProp = {};
+          const pid = String(player.id);
+          const gd = comparisonData.next_game.date;
+          snap.docs.forEach((d) => {
+            const data = { id: d.id, ...d.data() };
+            if (data.playerId === pid && data.gameDate === gd) {
+              byProp[data.propType] = data;
+            }
+          });
+          setUserPredictions(byProp);
+        }
+      } catch (err) {
+        console.error('[loadUserPredictions] Error loading user predictions:', err);
+        if (!cancelled) setUserPredictions({});
+      }
+    }
+    loadUserPredictions();
+    return () => { cancelled = true; };
+  }, [user, comparisonData?.next_game?.date, player.id]);
+
+  // Load community picks for current prop
+  useEffect(() => {
+    if (!comparisonData?.next_game?.date || !selectedProp) return;
+
+    const cacheKey = `${player.id}-${selectedProp}-${comparisonData.next_game.date}`;
+    if (communityCache.current[cacheKey]) {
+      setCommunityPicks((prev) => ({ ...prev, [selectedProp]: communityCache.current[cacheKey] }));
+      return;
+    }
+
+    let cancelled = false;
+    getCommunityPicks(player.id, selectedProp, comparisonData.next_game.date)
+      .then((data) => {
+        if (!cancelled) {
+          communityCache.current[cacheKey] = data;
+          setCommunityPicks((prev) => ({ ...prev, [selectedProp]: data }));
+        }
+      })
+      .catch((err) => console.error('[CommunityPicks] Error:', err));
+
+    return () => { cancelled = true; };
+  }, [selectedProp, comparisonData?.next_game?.date, player.id]);
 
   // Lazy load prediction when prop tab is clicked
   useEffect(() => {
@@ -109,8 +195,8 @@ function PlayerDetail({ player, onBack }) {
         const params = new URLSearchParams();
         params.append('name', playerName);
         
-        const url = `${API_BASE}/player/${player.id || '0'}/prediction/${selectedProp}?${params.toString()}`;
-        const response = await axios.get(url);
+        const url = `/player/${player.id || '0'}/prediction/${selectedProp}?${params.toString()}`;
+        const response = await api.get(url);
         
         // Get the actual prediction value - ensure it's a valid number
         const predictedValue = response.data[`predicted_${selectedProp}`] || response.data.predicted_value || response.data.predicted_points;
@@ -131,7 +217,7 @@ function PlayerDetail({ player, onBack }) {
             // This is valid - prediction exists but no betting line
             console.log(`[FetchPrediction] Prediction exists but no betting line for ${selectedProp}`);
           } else {
-            throw new Error(`Invalid prediction received from API`);
+          throw new Error(`Invalid prediction received from API`);
           }
         }
         
@@ -186,8 +272,8 @@ function PlayerDetail({ player, onBack }) {
       params.append('name', playerName);
       
       // Use any ID (doesn't matter since we use name)
-      const url = `${API_BASE}/player/${player.id || '0'}/compare?${params.toString()}`;
-      const response = await axios.get(url);
+      const url = `/player/${player.id || '0'}/compare?${params.toString()}`;
+      const response = await api.get(url);
       console.log('Received comparison data:', response.data);
       
       console.log('Received comparison data:', response.data);
@@ -218,6 +304,141 @@ function PlayerDetail({ player, onBack }) {
     }
   };
 
+  const [predictionError, setPredictionError] = useState('');
+
+  // Check if a prediction can still be edited (game hasn't started yet)
+  const canEditPrediction = (prediction) => {
+    const commenceTime = prediction?.commenceTime || comparisonData?.next_game?.commence_time;
+    if (!commenceTime) return true; // If no commence time, allow edit
+    const gameStart = new Date(commenceTime).getTime();
+    const now = Date.now();
+    return now < gameStart - 5 * 60 * 1000; // 5 minutes before game
+  };
+
+  const handlePredict = async (pick) => {
+    if (!user || !comparisonData?.next_game?.date || predictionSaving) return;
+    const propData = comparisonData.props[selectedProp];
+    if (!propData?.line) return;
+
+    const existing = userPredictions[selectedProp];
+
+    // If same pick, do nothing
+    if (existing && existing.pick === pick) return;
+
+    // If existing prediction, check if game already started
+    if (existing && !canEditPrediction(existing)) {
+      setPredictionError('Game has already started — prediction locked.');
+      return;
+    }
+
+    setPredictionSaving(true);
+    setPredictionError('');
+    try {
+      const playerName = comparisonData.player || `${player.first_name || ''} ${player.last_name || ''}`.trim();
+
+      // Get odds for the selected pick
+      const oddsForPick = pick === 'over' ? (propData.over_odds || -110) : (propData.under_odds || -110);
+      const actualWager = Math.min(wagerAmount, tokens);
+
+      if (existing?.id) {
+        // Update existing prediction
+        await updatePrediction(existing.id, { pick, line: propData.line });
+        setUserPredictions((prev) => ({
+          ...prev,
+          [selectedProp]: { ...prev[selectedProp], pick, line: propData.line },
+        }));
+      } else {
+        // Create new prediction
+        const docRef = await savePrediction(user.uid, {
+          userName: user.displayName || user.email?.split('@')[0] || 'User',
+          playerId: String(player.id),
+          playerName,
+          propType: selectedProp,
+          line: propData.line,
+          pick,
+          gameDate: comparisonData.next_game.date,
+          opponent: comparisonData.next_game.opponent || '',
+          commenceTime: comparisonData.next_game.commence_time || null,
+          wager: actualWager,
+          oddsUsed: oddsForPick,
+        });
+        setUserPredictions((prev) => ({
+          ...prev,
+          [selectedProp]: { id: docRef.id, pick, line: propData.line, wager: actualWager, oddsUsed: oddsForPick, commenceTime: comparisonData.next_game.commence_time || null },
+        }));
+        // Deduct tokens immediately (optimistic)
+        if (actualWager > 0) {
+          deductTokens(actualWager);
+        }
+      }
+      // Optimistic community update
+      setCommunityPicks((prev) => {
+        const current = prev[selectedProp] || { overCount: 0, underCount: 0, total: 0 };
+        let newOver = current.overCount;
+        let newUnder = current.underCount;
+        if (!existing?.id) {
+          if (pick === 'over') newOver++; else newUnder++;
+        } else {
+          if (existing.pick === 'over') { newOver--; newUnder++; } else { newUnder--; newOver++; }
+        }
+        const newTotal = newOver + newUnder;
+        const updated = { ...current, overCount: newOver, underCount: newUnder, total: newTotal, overPercent: newTotal > 0 ? Math.round((newOver / newTotal) * 100) : 50, underPercent: newTotal > 0 ? Math.round((newUnder / newTotal) * 100) : 50 };
+        const cacheKey = `${player.id}-${selectedProp}-${comparisonData.next_game.date}`;
+        communityCache.current[cacheKey] = updated;
+        return { ...prev, [selectedProp]: updated };
+      });
+
+      setPredictionSaved(true);
+      setTimeout(() => setPredictionSaved(false), 3000);
+    } catch (err) {
+      console.error('Error saving prediction:', err);
+      setPredictionError(err.message || 'Failed to save prediction');
+    } finally {
+      setPredictionSaving(false);
+    }
+  };
+
+  const handleDeletePrediction = async () => {
+    const existing = userPredictions[selectedProp];
+    if (!existing?.id || predictionSaving) return;
+    if (!canEditPrediction(existing)) {
+      setPredictionError('Game has already started — prediction locked.');
+      return;
+    }
+    setPredictionSaving(true);
+    setPredictionError('');
+    try {
+      await deletePrediction(existing.id);
+      // Refund wager tokens
+      if (existing.wager > 0) {
+        addTokens(existing.wager);
+      }
+      setUserPredictions((prev) => {
+        const updated = { ...prev };
+        delete updated[selectedProp];
+        return updated;
+      });
+      // Optimistic community decrement
+      setCommunityPicks((prev) => {
+        const current = prev[selectedProp] || { overCount: 0, underCount: 0, total: 0 };
+        let newOver = current.overCount;
+        let newUnder = current.underCount;
+        if (existing.pick === 'over') newOver = Math.max(0, newOver - 1);
+        else newUnder = Math.max(0, newUnder - 1);
+        const newTotal = newOver + newUnder;
+        const updated = { ...current, overCount: newOver, underCount: newUnder, total: newTotal, overPercent: newTotal > 0 ? Math.round((newOver / newTotal) * 100) : 50, underPercent: newTotal > 0 ? Math.round((newUnder / newTotal) * 100) : 50 };
+        const cacheKey = `${player.id}-${selectedProp}-${comparisonData.next_game.date}`;
+        communityCache.current[cacheKey] = updated;
+        return { ...prev, [selectedProp]: updated };
+      });
+    } catch (err) {
+      console.error('Error deleting prediction:', err);
+      setPredictionError(err.message || 'Failed to delete prediction');
+    } finally {
+      setPredictionSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full">
@@ -225,7 +446,7 @@ function PlayerDetail({ player, onBack }) {
         <div className="max-w-7xl mx-auto px-4 mb-4">
           <div className="flex items-center gap-2 text-sm">
             <button
-              onClick={onBack}
+              onClick={() => navigate(-1)}
               className="hover:text-white transition-colors text-gray-400"
             >
               ← Back
@@ -296,7 +517,7 @@ function PlayerDetail({ player, onBack }) {
         <div className="max-w-7xl mx-auto px-4">
           <div className="space-y-6 mb-6">
             {/* Top Section: 6 Metric Cards Skeleton (including Season Prop Record) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
                   <div className="h-4 w-24 bg-gray-700 rounded animate-pulse mb-3"></div>
@@ -414,7 +635,7 @@ function PlayerDetail({ player, onBack }) {
     return (
       <div className="max-w-6xl mx-auto">
         <button
-          onClick={onBack}
+          onClick={() => navigate(-1)}
           className="mb-4 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
         >
           ← Back
@@ -455,12 +676,12 @@ function PlayerDetail({ player, onBack }) {
         transition={{ duration: 0.2 }}
         className="max-w-7xl mx-auto px-4 mb-4"
       >
-        <div className="flex items-center gap-2 text-sm text-gray-400">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
           <motion.button
-            onClick={onBack}
+            onClick={() => navigate(-1)}
             whileHover={{ x: -4, scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="hover:text-white transition-colors flex items-center gap-1"
+            className="hover:text-white transition-colors flex items-center gap-1 text-gray-400"
           >
             <motion.span
               animate={{ x: [0, -4, 0] }}
@@ -470,160 +691,174 @@ function PlayerDetail({ player, onBack }) {
             </motion.span>
             Back
           </motion.button>
-          <span>/</span>
-          <span className="text-white">Prop Bet Analyzer</span>
-          <span>/</span>
-          <span className="text-white">{comparisonData?.player || `${player.first_name} ${player.last_name}`}</span>
+          <span>›</span>
+          <span className="text-gray-300 font-medium">{comparisonData?.player || `${player.first_name} ${player.last_name}`}</span>
         </div>
       </motion.div>
 
-      {/* Player Header with Matchup - Full Width Banner (Edge to Edge) */}
+      {/* Player Header */}
       <div className="w-screen relative" style={{ left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw' }}>
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="bg-gray-800 shadow-xl p-6 mb-6 border-b border-t border-gray-700"
+          className="bg-[#0f1923] border-b border-gray-800 mb-6 overflow-hidden"
+          style={{ minHeight: '160px' }}
         >
-          <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-start gap-8">
-          {/* Player Image */}
-          {comparisonData?.player_image && (
-            <img 
-              src={comparisonData.player_image} 
-              alt={comparisonData.player || 'Player'}
-              className="w-40 h-40 rounded-full object-cover border-4 border-gray-600 flex-shrink-0"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-          )}
-          
-          {/* Player Info */}
-          <div className="flex-1">
-            <div className="text-sm text-gray-400 mb-1">Prop Bet Analyzer</div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              {comparisonData?.player || `${player.first_name} ${player.last_name}`}
-            </h1>
-            <div className="flex items-center gap-4 text-gray-400">
-              <span>{player.position || 'N/A'}</span>
-              {comparisonData?.next_game && (
-                <>
-                  <span>•</span>
-                  <span>
-                    {comparisonData.player_team_name || player.team?.abbreviation || 'N/A'} {comparisonData.next_game.isHome ? 'vs' : '@'} {comparisonData.next_game.opponent_name || comparisonData.next_game.opponent || 'TBD'}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-          
-          {/* Matchup Section - To the right of player info */}
-          {comparisonData?.next_game && (
-            <div className="flex items-center gap-8 flex-shrink-0">
-              {comparisonData.player_team_logo && (
-                <div className="text-center">
-                  <img 
-                    src={comparisonData.player_team_logo} 
-                    alt={comparisonData.player_team_name || 'Team'}
-                    className="w-20 h-20 mx-auto mb-2 object-contain"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
+          <div className="max-w-7xl mx-auto flex items-stretch" style={{ minHeight: '160px' }}>
+
+            {/* Player Image — diagonal clip with team-color background */}
+            {comparisonData?.player_image && (
+              <div
+                className="relative flex-shrink-0 overflow-hidden"
+                style={{ width: '230px' }}
+              >
+                {comparisonData.player_team_logo && (
+                  <img
+                    src={comparisonData.player_team_logo}
+                    alt=""
+                    className="absolute -right-4 bottom-0 h-full w-auto object-contain pointer-events-none"
                   />
-                  <div className="text-sm font-semibold text-white mb-1">
-                    {comparisonData.player_team_name || 'Team'}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {comparisonData.player_team_record || 'N/A'}
-                  </div>
-                </div>
-              )}
-              <div className="text-center">
-                <div className="text-lg font-bold text-white mb-1">
-                  {comparisonData.next_game.date ? (() => {
-                    try {
-                      const date = new Date(comparisonData.next_game.date);
-                      if (isNaN(date.getTime())) {
-                        return comparisonData.next_game.date;
-                      }
-                      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
-                    } catch (e) {
-                      return comparisonData.next_game.date || 'TBD';
-                    }
-                  })() : 'TBD'}
-                </div>
-                <div className="text-xs text-gray-400">
-                  {comparisonData.next_game.date ? (() => {
-                    try {
-                      const date = new Date(comparisonData.next_game.date);
-                      if (isNaN(date.getTime())) {
-                        return comparisonData.next_game.time || '';
-                      }
-                      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
-                      const time = comparisonData.next_game.time || '';
-                      return time ? `${dayOfWeek}, ${time}` : dayOfWeek;
-                    } catch (e) {
-                      return comparisonData.next_game.time || '';
-                    }
-                  })() : comparisonData.next_game.time || ''}
-                </div>
+                )}
+                <img
+                  src={comparisonData.player_image}
+                  alt={comparisonData.player || 'Player'}
+                  className="relative z-10 h-full w-full object-cover object-top"
+                  onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                />
               </div>
-              {/* Opponent Team - Always show if opponent exists, even without logo */}
-              {(() => {
-                const nextGame = comparisonData.next_game;
-                // Check multiple possible fields for opponent
-                const opponent = nextGame?.opponent || nextGame?.opponent_name || null;
-                const opponentName = nextGame?.opponent_name || nextGame?.opponent || null;
-                const hasOpponent = !!opponent;
-                
-                // Debug logging for Nickeil Alexander-Walker specifically
-                if (comparisonData.player && comparisonData.player.toLowerCase().includes('nickeil')) {
-                  console.log('🔍 Debug next_game for Nickeil:', {
-                    next_game: nextGame,
-                    opponent: nextGame?.opponent,
-                    opponent_name: nextGame?.opponent_name,
-                    opponent_logo: nextGame?.opponent_logo,
-                    opponent_record: nextGame?.opponent_record,
-                    hasOpponent: hasOpponent,
-                    full_comparisonData: comparisonData
-                  });
-                }
-                
-                if (!hasOpponent) {
-                  // If no opponent in next_game, try to extract from header text as fallback
-                  const headerText = `${comparisonData.player_team_name || ''} ${nextGame?.isHome ? 'vs' : '@'} ${nextGame?.opponent_name || nextGame?.opponent || ''}`;
-                  if (headerText.includes('@') || headerText.includes('vs')) {
-                    console.log('⚠️ No opponent in next_game, but header text suggests opponent exists');
-                  }
-                  return null;
-                }
-                
+            )}
+
+            {/* Player Info */}
+            <div className="flex-1 flex flex-col justify-center px-8 py-5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h1 className="text-2xl font-bold text-white tracking-tight">
+                  {comparisonData?.player || `${player.first_name} ${player.last_name}`}
+                </h1>
+                {user && (
+                  <button
+                    onClick={() => {
+                      const name = comparisonData?.player || `${player.first_name} ${player.last_name}`;
+                      toggleFavorite(playerId, name);
+                    }}
+                    className="p-1 rounded-lg hover:bg-gray-700/50 transition-colors"
+                    title={isFavorite(playerId) ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <Star
+                      size={20}
+                      className={isFavorite(playerId) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                    />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap mb-3">
+                {(comparisonData?.position && comparisonData.position !== 'N/A') && (
+                  <span className="px-2 py-0.5 bg-slate-700/80 text-gray-300 rounded text-xs font-semibold border border-slate-600/50">{comparisonData.position}</span>
+                )}
+                {comparisonData?.player_team && (
+                  <span className="text-gray-300 font-medium">{comparisonData.player_team}</span>
+                )}
+                {comparisonData?.next_game && (
+                  <>
+                    <span className="text-gray-600">{comparisonData.next_game.isHome ? 'vs' : '@'}</span>
+                    <span className="text-gray-300 font-medium">{comparisonData.next_game.opponent || 'TBD'}</span>
+                  </>
+                )}
+              </div>
+              {/* Season Averages — current season only */}
+              {comparisonData?.stats?.length > 0 && (() => {
+                // Filter to current season only (use the most recent game's season tag)
+                const currentSeason = comparisonData.stats[0]?.season;
+                const games = currentSeason
+                  ? comparisonData.stats.filter(g => g.season === currentSeason)
+                  : comparisonData.stats;
+                const count = games.length || 1;
+                const ppg = (games.reduce((s, g) => s + (g.pts || 0), 0) / count).toFixed(1);
+                const rpg = (games.reduce((s, g) => s + (g.reb || 0), 0) / count).toFixed(1);
+                const apg = (games.reduce((s, g) => s + (g.ast || 0), 0) / count).toFixed(1);
                 return (
-                  <div className="text-center">
-                    {nextGame.opponent_logo && (
-                      <img 
-                        src={nextGame.opponent_logo} 
-                        alt={opponentName}
-                        className="w-20 h-20 mx-auto mb-2 object-contain"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    )}
-                    <div className="text-sm font-semibold text-white mb-1">
-                      {opponentName || 'Opponent'}
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <span className="text-white text-base font-bold">{ppg}</span>
+                      <span className="text-gray-500 text-[10px] font-semibold uppercase ml-1">PPG</span>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {nextGame.opponent_record || 'N/A'}
+                    <div className="w-px h-4 bg-gray-700" />
+                    <div className="text-center">
+                      <span className="text-white text-base font-bold">{rpg}</span>
+                      <span className="text-gray-500 text-[10px] font-semibold uppercase ml-1">RPG</span>
+                    </div>
+                    <div className="w-px h-4 bg-gray-700" />
+                    <div className="text-center">
+                      <span className="text-white text-base font-bold">{apg}</span>
+                      <span className="text-gray-500 text-[10px] font-semibold uppercase ml-1">APG</span>
                     </div>
                   </div>
                 );
               })()}
             </div>
-          )}
-        </div>
-        </div>
+
+            {/* Divider */}
+            {comparisonData?.next_game && (
+              <div className="w-px bg-gray-700/50 flex-shrink-0 my-6" />
+            )}
+
+            {/* Matchup */}
+            {comparisonData?.next_game && (() => {
+              const nextGame = comparisonData.next_game;
+              const opponent = nextGame?.opponent_name || nextGame?.opponent || null;
+
+              if (comparisonData.player && comparisonData.player.toLowerCase().includes('nickeil')) {
+                console.log('🔍 Debug next_game for Nickeil:', {
+                  next_game: nextGame,
+                  opponent: nextGame?.opponent,
+                  opponent_name: nextGame?.opponent_name,
+                  opponent_logo: nextGame?.opponent_logo,
+                  opponent_record: nextGame?.opponent_record,
+                  full_comparisonData: comparisonData
+                });
+              }
+
+              const dateStr = nextGame.date ? (() => {
+                try {
+                  const d = new Date(nextGame.date);
+                  if (isNaN(d.getTime())) return nextGame.date;
+                  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+                } catch { return nextGame.date; }
+              })() : 'TBD';
+
+              return (
+                <div className="flex items-center gap-5 px-8 py-5 flex-shrink-0">
+                  {/* Home team */}
+                  <div className="flex flex-col items-center gap-1 text-center" style={{ minWidth: '72px' }}>
+                    {comparisonData.player_team_logo && (
+                      <img src={comparisonData.player_team_logo} alt="" className="w-11 h-11 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                    )}
+                    <span className="text-xs font-bold text-white">{comparisonData.player_team_name || 'TBD'}</span>
+                    {comparisonData.player_team_record && <span className="text-xs text-gray-500">{comparisonData.player_team_record}</span>}
+                  </div>
+
+                  {/* Date & Time */}
+                  <div className="text-center px-2">
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{dateStr}</div>
+                    {nextGame.time && nextGame.time !== 'TBD' && (
+                      <div className="text-xs text-gray-500 mt-0.5">{nextGame.time}</div>
+                    )}
+                  </div>
+
+                  {/* Away team */}
+                  {opponent && (
+                    <div className="flex flex-col items-center gap-1 text-center" style={{ minWidth: '72px' }}>
+                      {nextGame.opponent_logo && (
+                        <img src={nextGame.opponent_logo} alt="" className="w-11 h-11 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                      )}
+                      <span className="text-xs font-bold text-white">{opponent}</span>
+                      {nextGame.opponent_record && <span className="text-xs text-gray-500">{nextGame.opponent_record}</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
         </motion.div>
       </div>
 
@@ -676,7 +911,13 @@ function PlayerDetail({ player, onBack }) {
           {comparisonData?.props?.[selectedProp] ? (
             <>
               {/* Top Section: Metric Cards + Season Prop Record */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="bg-[#1a1f2e] rounded-lg shadow-xl border border-gray-700 mb-6 relative"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
                 {(() => {
                   const propData = comparisonData.props[selectedProp];
                   const line = propData?.line;
@@ -744,31 +985,45 @@ function PlayerDetail({ player, onBack }) {
                     : 50.0; // Default to 50% if no data
                   
                   // Get odds for EV calculation (use best odds from all_bookmakers or single bookmaker)
+                  // IMPORTANT: Only use odds from bookmakers with the SAME line as consensus
                   const bestOverOdds = propData?.all_bookmakers?.length > 0
-                    ? Math.max(...propData.all_bookmakers.map(bm => bm.over_odds || -110).filter(o => o != null))
+                    ? Math.max(...propData.all_bookmakers
+                        .filter(bm => bm.line === line) // Only same line
+                        .map(bm => bm.over_odds || -110)
+                        .filter(o => o != null))
                     : propData?.over_odds;
-                  
+
                   const bestUnderOdds = propData?.all_bookmakers?.length > 0
-                    ? Math.max(...propData.all_bookmakers.map(bm => bm.under_odds || -110).filter(o => o != null))
+                    ? Math.max(...propData.all_bookmakers
+                        .filter(bm => bm.line === line) // Only same line
+                        .map(bm => bm.under_odds || -110)
+                        .filter(o => o != null))
                     : propData?.under_odds;
                   
                   const oddsToUse = recommendation === 'OVER' ? bestOverOdds : bestUnderOdds;
                   
-                  // Calculate EV - ALWAYS calculate, use default odds if needed
+                  // Only calculate EV and bet rating if we have valid prediction data
+                  const hasPrediction = prediction != null && !isNaN(prediction) && !loadingPredictions[selectedProp];
+                  
+                  // Calculate EV - ONLY if we have prediction
                   const oddsForEV = oddsToUse != null ? oddsToUse : -110; // Default to -110 if no odds
-                  const ev = (coverProbability != null)
+                  const ev = (hasPrediction && coverProbability != null)
                     ? calculateExpectedValue(coverProbability, oddsForEV)
-                    : 0.0; // Default to 0% if no data
+                    : null; // null instead of 0 when no data
                   
-                  // Calculate bet rating - ALWAYS calculate
-                  const predictionDiff = (prediction != null && line != null) ? prediction - line : 0;
-                  const confidence = comparisonData.confidence || 
-                    (propPredictions[selectedProp]?.confidence) ||
-                    (propData?.prediction_confidence) ||
-                    50; // Default confidence
+                  // Calculate bet rating - ONLY if we have prediction
+                  const predictionDiff = (hasPrediction && line != null) ? prediction - line : null;
+                  const confidence = hasPrediction 
+                    ? (comparisonData.confidence || 
+                       propPredictions[selectedProp]?.confidence ||
+                       propData?.prediction_confidence ||
+                       50)
+                    : null;
                   
-                  // Always calculate bet rating
-                  const betRating = calculateBetRating(ev, coverProbability, predictionDiff, confidence);
+                  // Only calculate bet rating if we have all necessary data
+                  const betRating = (hasPrediction && ev != null && coverProbability != null && predictionDiff != null && confidence != null)
+                    ? calculateBetRating(ev, coverProbability, predictionDiff, confidence)
+                    : null;
                   
                   // Calculate season prop record
                   let seasonRecord = null;
@@ -827,71 +1082,335 @@ function PlayerDetail({ player, onBack }) {
                         title="Consensus Line"
                         value={line != null ? `${line.toFixed(1)} ${propLabel} (o/u)` : 'N/A'}
                         color="text-white"
-                        valueSize="text-xl"
+                        valueSize="text-base sm:text-lg lg:text-xl"
                         index={0}
                       />
-                      
+
                       {/* Projection */}
                       <PropMetricCard
                         title="Projection"
-                        value={prediction != null 
+                        value={prediction != null
                           ? `${prediction.toFixed(1)} ${propLabel} ${recommendation ? `(${recommendation.toLowerCase()})` : ''}`
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
                         color={recommendation === 'OVER' ? 'text-green-400' : recommendation === 'UNDER' ? 'text-red-400' : 'text-yellow-400'}
-                        valueSize="text-xl"
+                        valueSize="text-base sm:text-lg lg:text-xl"
                         index={1}
                       />
                       
                       {/* Cover Probability */}
                       <PropMetricCard
                         title="Cover Probability"
-                        value={`${coverProbability.toFixed(0)}%`}
-                        color={getCoverProbabilityColor(coverProbability)}
-                        progressBar={coverProbability}
+                        value={hasPrediction && coverProbability != null
+                          ? `${coverProbability.toFixed(0)}%`
+                          : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
+                        color={hasPrediction && coverProbability != null ? getCoverProbabilityColor(coverProbability) : 'text-gray-400'}
+                        progressBar={hasPrediction && coverProbability != null ? coverProbability : null}
                         infoTooltip="The probability that the bet will cover based on our model's prediction and historical performance."
                         infoTooltipLabel="Cover Probability"
-                        valueSize="text-3xl"
+                        valueSize="text-2xl sm:text-3xl"
                         index={2}
                       />
-                      
+
                       {/* Expected Value */}
                       <PropMetricCard
                         title="Expected Value"
-                        value={`${ev > 0 ? '+' : ''}${ev.toFixed(1)}%`}
-                        color={getEVColor(ev)}
+                        value={ev != null
+                          ? `${ev > 0 ? '+' : ''}${ev.toFixed(1)}%`
+                          : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
+                        color={ev != null ? getEVColor(ev) : 'text-gray-400'}
                         infoTooltip="The expected value of the bet calculated from cover probability and current odds. Positive EV indicates a profitable bet over time."
                         infoTooltipLabel="Expected Value"
-                        valueSize="text-3xl"
+                        valueSize="text-2xl sm:text-3xl"
                         index={3}
                       />
                       
                       {/* Bet Rating */}
                       <PropMetricCard
                         title="Bet Rating"
-                        customValue={
-                          <span className={`inline-flex items-center px-4 py-2 rounded-full text-2xl font-bold ${getBetRatingColor(betRating)} bg-gray-700 border-2 ${getBetRatingColor(betRating).replace('text-', 'border-')}`}>
+                        customValue={betRating != null ? (
+                          <span className={`inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xl sm:text-2xl font-bold ${getBetRatingColor(betRating)} bg-gray-700 border-2 ${getBetRatingColor(betRating).replace('text-', 'border-')}`}>
                             {betRating}
                           </span>
-                        }
-                        color={getBetRatingColor(betRating)}
+                        ) : null}
+                        value={betRating == null ? (loadingPredictions[selectedProp] ? 'Loading...' : 'N/A') : undefined}
+                        color={betRating != null ? getBetRatingColor(betRating) : 'text-gray-400'}
                         infoTooltip="Overall bet rating (A+ to F) based on expected value, model confidence, and prediction edge over the betting line."
                         infoTooltipLabel="Bet Rating"
                         index={4}
                       />
-                      
+
                       {/* Season Prop Record */}
                       <PropMetricCard
                         title="Season Prop Record"
                         value={seasonRecordDisplay}
                         color="text-white"
-                        valueSize="text-xl"
+                        valueSize="text-base sm:text-lg lg:text-xl"
                         index={5}
                       />
                     </>
                   );
                 })()}
-              </div>
-              
+                </div>
+              </motion.div>
+
+              {/* Social Prediction Poll */}
+              {user && comparisonData?.next_game?.date && comparisonData?.props?.[selectedProp]?.line && (() => {
+                const propLine = parseFloat(comparisonData.props[selectedProp].line).toFixed(1);
+                const userPick = userPredictions[selectedProp];
+                const community = communityPicks[selectedProp] || { overCount: 0, underCount: 0, total: 0, overPercent: 50, underPercent: 50 };
+                const hasCommunityData = community.total > 0;
+                const userAgreesWithMajority = userPick && (
+                  (userPick.pick === 'over' && community.overPercent >= 50) ||
+                  (userPick.pick === 'under' && community.underPercent > 50)
+                );
+
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                    className="bg-[#1a2332] rounded-xl border border-gray-700/50 mb-4 overflow-hidden"
+                  >
+                    {/* Header */}
+                    <div className="px-5 pt-4 pb-3 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                          <Users size={16} className="text-yellow-500" />
+                          Make Your Prediction
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {comparisonData.next_game.opponent ? `vs ${comparisonData.next_game.opponent} · ` : ''}{comparisonData.next_game.date}
+                        </p>
+                      </div>
+                      {hasCommunityData && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-700/50 border border-gray-600/50"
+                        >
+                          <Users size={12} className="text-gray-400" />
+                          <span className="text-xs font-medium text-gray-300">
+                            {community.total} pick{community.total !== 1 ? 's' : ''}
+                          </span>
+                        </motion.div>
+                      )}
+                    </div>
+
+                    <div className="px-5 pb-4">
+                      {/* Line Display */}
+                      <div className="text-center mb-4">
+                        <span className="text-2xl font-bold text-white">{propLine}</span>
+                        <span className="text-sm text-gray-400 ml-2">{selectedProp.replace(/_/g, ' ')}</span>
+                      </div>
+
+                      {/* OVER / UNDER Buttons */}
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <motion.button
+                          onClick={() => {
+                            if (userPick) { handlePredict('over'); }
+                            else { setPendingPick(pendingPick === 'over' ? null : 'over'); }
+                          }}
+                          disabled={predictionSaving}
+                          whileHover={{ scale: 1.02, y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          className={`relative py-4 px-4 rounded-xl text-center font-bold transition-all overflow-hidden ${
+                            userPick?.pick === 'over' || pendingPick === 'over'
+                              ? 'bg-green-500/20 border-2 border-green-500 text-green-400 shadow-lg shadow-green-500/20'
+                              : 'bg-gray-700/50 border-2 border-gray-600/50 text-gray-300 hover:border-green-500/50 hover:bg-green-500/10'
+                          } disabled:opacity-50`}
+                        >
+                          <div className="text-lg font-bold">OVER</div>
+                          <div className="text-xs opacity-70 mt-0.5">{propLine}</div>
+                          {userPick?.pick === 'over' && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="mt-1">
+                              <Check size={16} className="mx-auto text-green-400" />
+                            </motion.div>
+                          )}
+                        </motion.button>
+
+                        <motion.button
+                          onClick={() => {
+                            if (userPick) { handlePredict('under'); }
+                            else { setPendingPick(pendingPick === 'under' ? null : 'under'); }
+                          }}
+                          disabled={predictionSaving}
+                          whileHover={{ scale: 1.02, y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          className={`relative py-4 px-4 rounded-xl text-center font-bold transition-all overflow-hidden ${
+                            userPick?.pick === 'under' || pendingPick === 'under'
+                              ? 'bg-red-500/20 border-2 border-red-500 text-red-400 shadow-lg shadow-red-500/20'
+                              : 'bg-gray-700/50 border-2 border-gray-600/50 text-gray-300 hover:border-red-500/50 hover:bg-red-500/10'
+                          } disabled:opacity-50`}
+                        >
+                          <div className="text-lg font-bold">UNDER</div>
+                          <div className="text-xs opacity-70 mt-0.5">{propLine}</div>
+                          {userPick?.pick === 'under' && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="mt-1">
+                              <Check size={16} className="mx-auto text-red-400" />
+                            </motion.div>
+                          )}
+                        </motion.button>
+                      </div>
+
+                      {/* Wager + Confirm (after selecting a side) */}
+                      <AnimatePresence>
+                        {!userPick && pendingPick && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <div className="flex flex-col items-center gap-1.5 mb-3">
+                              <div className="flex items-center justify-center gap-2.5">
+                                {tokens > 0 && (
+                                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-700/60 border border-gray-600/50">
+                                    <Coins size={13} className="text-yellow-500" />
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={wagerAmount === 0 ? '' : String(wagerAmount)}
+                                      onChange={(e) => {
+                                        const raw = e.target.value.replace(/\D/g, '');
+                                        if (raw === '') { setWagerAmount(0); return; }
+                                        setWagerAmount(Math.min(parseInt(raw, 10), tokens));
+                                      }}
+                                      placeholder="0"
+                                      className="w-12 bg-transparent text-yellow-400 text-sm font-bold text-center focus:outline-none"
+                                    />
+                                    <span className="text-[11px] text-gray-500 font-medium">/ {tokens}</span>
+                                  </div>
+                                )}
+                                {(() => {
+                                  const odds = pendingPick === 'over'
+                                    ? (comparisonData.props[selectedProp]?.over_odds || -110)
+                                    : (comparisonData.props[selectedProp]?.under_odds || -110);
+                                  if (wagerAmount > 0) {
+                                    const profit = odds > 0 ? wagerAmount * (odds / 100) : wagerAmount * (100 / Math.abs(odds));
+                                    return (
+                                      <span className="text-[11px] text-gray-500">
+                                        win <span className="text-green-400 font-semibold">+{Math.round(wagerAmount + profit)}</span>
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="text-[11px] text-gray-500">
+                                      win <span className="text-green-400 font-semibold">+10</span>
+                                    </span>
+                                  );
+                                })()}
+                                <motion.button
+                                  onClick={() => { handlePredict(pendingPick); setPendingPick(null); }}
+                                  disabled={predictionSaving}
+                                  whileTap={{ scale: 0.95 }}
+                                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 ${
+                                    pendingPick === 'over'
+                                      ? 'bg-green-500 text-white hover:bg-green-600'
+                                      : 'bg-red-500 text-white hover:bg-red-600'
+                                  }`}
+                                >
+                                  Confirm
+                                </motion.button>
+                              </div>
+                              {tokens > 0 && wagerAmount === 0 && (
+                                <p className="text-[10px] text-gray-600">Wager is optional — leave empty to pick for free</p>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Community Split Bar */}
+                      <AnimatePresence>
+                        {hasCommunityData && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <div className="relative h-8 rounded-lg overflow-hidden flex mb-2">
+                              {community.overPercent > 0 && (
+                                <motion.div
+                                  initial={{ width: '50%' }}
+                                  animate={{ width: `${community.overPercent}%` }}
+                                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                                  className="bg-green-500/30 flex items-center justify-start px-3"
+                                >
+                                  <span className="text-xs font-bold text-green-400 whitespace-nowrap">
+                                    {community.overPercent}% Over
+                                  </span>
+                                </motion.div>
+                              )}
+                              {community.underPercent > 0 && (
+                                <motion.div
+                                  initial={{ width: '50%' }}
+                                  animate={{ width: `${community.underPercent}%` }}
+                                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                                  className="bg-red-500/30 flex items-center justify-end px-3"
+                                >
+                                  <span className="text-xs font-bold text-red-400 whitespace-nowrap">
+                                    {community.underPercent}% Under
+                                  </span>
+                                </motion.div>
+                              )}
+                            </div>
+
+                            {userPick && (
+                              <motion.p
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="text-xs text-gray-400 text-center"
+                              >
+                                {userAgreesWithMajority ? "You're with the majority" : "You're going against the crowd"}
+                                {' · '}
+                                <span className={userPick.pick === 'over' ? 'text-green-400' : 'text-red-400'}>
+                                  {userPick.pick === 'over' ? community.overCount - 1 : community.underCount - 1}
+                                </span>
+                                {' '}other{(userPick.pick === 'over' ? community.overCount - 1 : community.underCount - 1) !== 1 ? 's' : ''} picked {userPick.pick.toUpperCase()}
+                              </motion.p>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Undo + Saved */}
+                      <AnimatePresence>
+                        {userPick && canEditPrediction(userPick) && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-700/50"
+                          >
+                            <button
+                              onClick={handleDeletePrediction}
+                              disabled={predictionSaving}
+                              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600 transition-colors disabled:opacity-50"
+                            >
+                              Undo Pick
+                            </button>
+                            {predictionSaved && (
+                              <motion.span
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex items-center gap-1 text-xs text-green-400"
+                              >
+                                <Check size={14} /> Saved
+                              </motion.span>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {predictionError && (
+                        <p className="text-red-400 text-xs mt-2 text-center">{predictionError}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })()}
+
               {/* Prediction Reasoning Toggle */}
               {(() => {
                 const propData = comparisonData.props[selectedProp];

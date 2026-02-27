@@ -1,7 +1,7 @@
 import { predictPropFromGames as unifiedPredictProp } from './unifiedPredictionService.js';
 
 /**
- * Predict any prop type from games array using fine-tuned model
+ * Predict any prop type from games array
  * This delegates to the unified prediction service
  * @param {array} games - Array of game data
  * @param {string} playerName - Player name

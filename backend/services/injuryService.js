@@ -6,9 +6,10 @@
 
 import axios from 'axios';
 import NodeCache from 'node-cache';
+import { imageExists, getImageUrl } from './imageStorageService.js';
 
-// Cache injuries for 1 hour (injuries can change frequently)
-const injuryCache = new NodeCache({ stdTTL: 3600 });
+// Cache injuries for 5 minutes (injuries can change frequently)
+const injuryCache = new NodeCache({ stdTTL: 300 });
 
 /**
  * Fetch injuries from RapidAPI NBA Injuries Reports API
@@ -19,6 +20,7 @@ async function fetchInjuriesFromRapidAPI(date = null) {
   try {
     const rapidApiKey = process.env.RAPIDAPI_KEY;
     if (!rapidApiKey) {
+      console.log('⚠️ No RapidAPI key configured - injuries unavailable');
       return [];
     }
     
@@ -46,7 +48,7 @@ async function fetchInjuriesFromRapidAPI(date = null) {
     const datesToTryLimited = datesToTry.slice(0, 2); // Only try today and yesterday
     const datePromises = datesToTryLimited.map(async (tryDate) => {
       const injuryUrl = `https://nba-injuries-reports.p.rapidapi.com/injuries/nba/${tryDate}`;
-      
+
       try {
         const response = await axios.get(injuryUrl, {
           headers: {
@@ -56,11 +58,17 @@ async function fetchInjuriesFromRapidAPI(date = null) {
           },
           timeout: 8000 // Reduced timeout for faster failure
         });
-        
-        if (Array.isArray(response.data) && response.data.length > 0) {
-          return { date: tryDate, data: response.data };
+
+        // Check if response.data is directly an array
+        if (Array.isArray(response.data)) {
+          if (response.data.length > 0) {
+            return { date: tryDate, data: response.data };
+          }
+          // Empty array - try next date
+          return null;
         }
-        
+
+        // Check for nested data structures
         if (response.data && typeof response.data === 'object') {
           if (Array.isArray(response.data.data) && response.data.data.length > 0) {
             return { date: tryDate, data: response.data.data };
@@ -72,7 +80,7 @@ async function fetchInjuriesFromRapidAPI(date = null) {
             return { date: tryDate, data: response.data.items };
           }
         }
-        
+
         return null;
       } catch (dateError) {
         // Silently fail - try next date
@@ -84,11 +92,13 @@ async function fetchInjuriesFromRapidAPI(date = null) {
     const results = await Promise.allSettled(datePromises);
     for (const result of results) {
       if (result.status === 'fulfilled' && result.value && result.value.data) {
+        console.log(`✅ [INJURY API] Fetched ${result.value.data.length} injuries from RapidAPI (date: ${result.value.date})`);
         return result.value.data;
       }
     }
-    
+
     // If all failed, return empty array
+    console.log('⚠️ [INJURY API] No injury data returned from RapidAPI for recent dates');
     return [];
   } catch (error) {
     console.error(`❌ [INJURY API] Error fetching from RapidAPI:`, error.message);
@@ -213,23 +223,54 @@ function normalizeStatus(status) {
   return 'active';
 }
 
-// Cache for player image lookups to avoid expensive ESPN searches
+// Cache for player image lookups to avoid expensive file system checks
 const playerImageCache = new Map();
 
 /**
+ * Format player name to match local image filename format
+ * e.g., "LeBron James" -> "lebron_james"
+ */
+function formatPlayerNameForImage(playerName) {
+  if (!playerName) return null;
+  return playerName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+/**
+ * Check if player image exists locally and return URL
+ * @param {string} playerName - Player's name
+ * @returns {string|null} Image URL or null if not found
+ */
+function getPlayerImageUrl(playerName) {
+  if (!playerName) return null;
+
+  // Check cache first
+  if (playerImageCache.has(playerName)) {
+    return playerImageCache.get(playerName);
+  }
+
+  // Format name for filename
+  const formattedName = formatPlayerNameForImage(playerName);
+  if (!formattedName) {
+    playerImageCache.set(playerName, null);
+    return null;
+  }
+
+  // Construct image URL (frontend will handle 404s gracefully)
+  const imageUrl = `/images/players/${formattedName}.png`;
+
+  // Cache the result
+  playerImageCache.set(playerName, imageUrl);
+  return imageUrl;
+}
+
+/**
  * Format injury from RapidAPI to our standard format
- * Lightweight - only checks local images, no expensive API calls
- * Images will be fetched lazily on frontend if needed
+ * Checks for local player images
  */
 function formatInjury(injury) {
-  let headshot = null;
-  
-  // Only check local images - skip expensive ESPN searches for performance
-  // This is much faster than searching through all 30 NBA teams for each injured player
-  if (imageExists(injury.player)) {
-    headshot = getImageUrl(injury.player);
-  }
-  
+  // Only set headshot if the local image file actually exists
+  const headshot = imageExists(injury.player) ? getImageUrl(injury.player) : null;
+
   return {
     playerName: injury.player,
     position: 'Unknown', // Position not available from RapidAPI
@@ -265,25 +306,32 @@ export async function getTeamInjuries(teamAbbrev) {
     // Fetch from RapidAPI ONLY
     const rapidApiInjuries = await fetchInjuriesFromRapidAPI();
     if (rapidApiInjuries && rapidApiInjuries.length > 0) {
-      // Filter injuries for this team
+      // Filter injuries for this team and exclude G-League/Two-Way roster moves
       const teamInjuries = rapidApiInjuries.filter(injury => {
         const injuryTeamAbbrev = getTeamAbbrevFromFullName(injury.team);
-        return injuryTeamAbbrev === teamAbbrev;
+
+        // Exclude G-League and Two-Way players (not real injuries)
+        const isGLeagueOrTwoWay = injury.reason && (
+          injury.reason.toLowerCase().includes('g league') ||
+          injury.reason.toLowerCase().includes('two-way') ||
+          injury.reason.toLowerCase().includes('two way')
+        );
+
+        return injuryTeamAbbrev === teamAbbrev && !isGLeagueOrTwoWay;
       });
-      
-      console.log(`📊 Filtered to ${teamInjuries.length} injuries for ${teamAbbrev}`);
-      
+
       if (teamInjuries.length > 0) {
         // Convert to our format with structured status (synchronous - no API calls)
         const formattedInjuries = teamInjuries.map(formatInjury);
-        
+
+        console.log(`✅ [INJURIES] Found ${formattedInjuries.length} injuries for ${teamAbbrev}`);
         injuryCache.set(cacheKey, formattedInjuries);
         return formattedInjuries;
       }
     }
-    
+
     // No injuries found from RapidAPI
-    console.log(`⚠️  No injuries found for ${teamAbbrev} from RapidAPI`);
+    console.log(`⚠️ [INJURIES] No injuries found for ${teamAbbrev}`);
     injuryCache.set(cacheKey, []);
     return [];
   } catch (error) {
@@ -324,27 +372,45 @@ export async function getMatchupInjuries(playerTeamAbbrev, opponentAbbrev, event
     const rapidApiInjuries = await fetchInjuriesFromRapidAPI();
     
     if (rapidApiInjuries && rapidApiInjuries.length > 0) {
-      // Filter injuries for each team (no logging for performance)
+      // Filter injuries for each team, excluding G-League/Two-Way roster moves
       const playerTeamInjuriesRaw = rapidApiInjuries.filter(injury => {
         if (!injury.team) {
           return false;
         }
         const injuryTeamAbbrev = getTeamAbbrevFromFullName(injury.team);
-        return injuryTeamAbbrev === playerTeamAbbrev.toUpperCase();
+
+        // Exclude G-League and Two-Way players (not real injuries)
+        const isGLeagueOrTwoWay = injury.reason && (
+          injury.reason.toLowerCase().includes('g league') ||
+          injury.reason.toLowerCase().includes('two-way') ||
+          injury.reason.toLowerCase().includes('two way')
+        );
+
+        return injuryTeamAbbrev === playerTeamAbbrev.toUpperCase() && !isGLeagueOrTwoWay;
       });
-      
+
       const opponentInjuriesRaw = rapidApiInjuries.filter(injury => {
         if (!injury.team) {
           return false;
         }
         const injuryTeamAbbrev = getTeamAbbrevFromFullName(injury.team);
-        return injuryTeamAbbrev === opponentAbbrev.toUpperCase();
+
+        // Exclude G-League and Two-Way players (not real injuries)
+        const isGLeagueOrTwoWay = injury.reason && (
+          injury.reason.toLowerCase().includes('g league') ||
+          injury.reason.toLowerCase().includes('two-way') ||
+          injury.reason.toLowerCase().includes('two way')
+        );
+
+        return injuryTeamAbbrev === opponentAbbrev.toUpperCase() && !isGLeagueOrTwoWay;
       });
       
       // Format injuries with structured status (synchronous - no expensive API calls)
       const playerTeamInjuries = playerTeamInjuriesRaw.map(formatInjury);
       const opponentInjuries = opponentInjuriesRaw.map(formatInjury);
-      
+
+      console.log(`✅ [MATCHUP INJURIES] ${playerTeamAbbrev}: ${playerTeamInjuries.length} injuries, ${opponentAbbrev}: ${opponentInjuries.length} injuries`);
+
       return {
         playerTeamInjuries,
         opponentInjuries,
@@ -352,8 +418,9 @@ export async function getMatchupInjuries(playerTeamAbbrev, opponentAbbrev, event
         hasOpponentInjuries: opponentInjuries.length > 0
       };
     }
-    
+
     // No injuries found from RapidAPI - return empty arrays
+    console.log(`⚠️ [MATCHUP INJURIES] No injury data available from RapidAPI`);
     return {
       playerTeamInjuries: [],
       opponentInjuries: [],

@@ -1,24 +1,8 @@
-import OpenAI from 'openai';
 import dotenv from 'dotenv';
-import { storePrediction } from './predictionTrackingService.js';
+import { storePrediction, getPlayerBias } from './predictionTrackingService.js';
+import { predictProp as mlPredictProp, areModelsAvailable } from '../ml/mlPredictionService.js';
 
 dotenv.config();
-
-// Initialize OpenAI client (lazy initialization)
-let openai = null;
-
-function getOpenAIClient() {
-  if (!openai) {
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file.');
-    }
-    openai = new OpenAI({
-      apiKey: OPENAI_API_KEY
-    });
-  }
-  return openai;
-}
 
 /**
  * Prop type mapping to standardized format
@@ -60,18 +44,22 @@ export function getPropValue(game, propType) {
              parseFloat(game.threes || game.threes_made) || 0;
     case 'turnovers':
       return typeof game.turnovers === 'number' ? game.turnovers : parseFloat(game.turnovers) || 0;
+    case 'pr':
     case 'points_rebounds':
       const pts1 = typeof game.points === 'number' ? game.points : parseFloat(game.points) || 0;
       const reb1 = typeof game.rebounds === 'number' ? game.rebounds : parseFloat(game.rebounds) || 0;
       return pts1 + reb1;
+    case 'pa':
     case 'points_assists':
       const pts2 = typeof game.points === 'number' ? game.points : parseFloat(game.points) || 0;
       const ast1 = typeof game.assists === 'number' ? game.assists : parseFloat(game.assists) || 0;
       return pts2 + ast1;
+    case 'ra':
     case 'rebounds_assists':
       const reb2 = typeof game.rebounds === 'number' ? game.rebounds : parseFloat(game.rebounds) || 0;
       const ast2 = typeof game.assists === 'number' ? game.assists : parseFloat(game.assists) || 0;
       return reb2 + ast2;
+    case 'pra':
     case 'points_rebounds_assists':
       const pts3 = typeof game.points === 'number' ? game.points : parseFloat(game.points) || 0;
       const reb3 = typeof game.rebounds === 'number' ? game.rebounds : parseFloat(game.rebounds) || 0;
@@ -245,213 +233,6 @@ function calculateStdDev(values) {
 }
 
 /**
- * Build prop-specific features for fine-tuned model
- */
-function buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData, bettingLine) {
-  const chronologicalGames = [...games].reverse();
-  const valuesArray = chronologicalGames.map(g => getPropValue(g, propType));
-
-  const avgValue = valuesArray.reduce((a, b) => a + b, 0) / valuesArray.length;
-  const stdDev = calculateStdDev(valuesArray);
-  const volatility = avgValue > 0 ? (stdDev / avgValue) * 100 : 0;
-
-  const recent3Count = Math.min(3, valuesArray.length);
-  const recent5Count = Math.min(5, valuesArray.length);
-  const recent3Avg = valuesArray.slice(-recent3Count).reduce((a, b) => a + b, 0) / recent3Count;
-  const recent5Avg = valuesArray.slice(-recent5Count).reduce((a, b) => a + b, 0) / recent5Count;
-
-  // Minutes calculations
-  const minutesData = chronologicalGames.map(g => parseMinutes(g.minutes)).filter(m => m !== null);
-  const avgMinutes = minutesData.length > 0
-    ? minutesData.reduce((sum, mins) => sum + mins, 0) / minutesData.length
-    : null;
-  
-  const recent3Minutes = minutesData.slice(-recent3Count).filter(m => m !== null);
-  const recent3MinutesAvg = recent3Minutes.length > 0
-    ? recent3Minutes.reduce((sum, mins) => sum + mins, 0) / recent3Minutes.length
-    : null;
-
-  // Injury status
-  const playerInjury = getPlayerInjuryStatus(injuryData, playerName);
-
-  // Format opponent injuries (prop-specific context)
-  const oppInjuries = injuryData?.opponentInjuries || [];
-  const oppInjuriesFormatted = formatOpponentInjuries(oppInjuries, propType);
-
-  // Usage rate (estimated from points per minute and minutes played)
-  const pointsArray = chronologicalGames.map(g => {
-    const pts = typeof g.points === 'number' ? g.points : parseFloat(g.points) || 0;
-    return Math.max(0, pts);
-  });
-  const avgPoints = pointsArray.reduce((a, b) => a + b, 0) / pointsArray.length;
-  const usageRate = avgMinutes && avgMinutes > 0 && avgPoints > 0 
-    ? Math.min(100, Math.max(0, (avgPoints / avgMinutes) * 2.5))
-    : null;
-
-  // Prop-specific calculations
-  let reboundShare = null;
-  let potentialAssists = null;
-  let threePointAttempts = null;
-
-  // For rebounds: calculate rebound share
-  if (propType === 'rebounds' || propType === 'points_rebounds' || propType === 'rebounds_assists' || propType === 'points_rebounds_assists') {
-    // Estimate rebound share (simplified - would need team rebounds)
-    const avgRebounds = avgValue;
-    reboundShare = avgMinutes && avgMinutes > 0 ? (avgRebounds / avgMinutes) * 0.15 : null; // Rough estimate
-  }
-
-  // For assists: estimate potential assists
-  if (propType === 'assists' || propType === 'points_assists' || propType === 'rebounds_assists' || propType === 'points_rebounds_assists') {
-    // Potential assists estimate (simplified)
-    potentialAssists = avgValue * 1.5; // Rough estimate
-  }
-
-  // For 3PM: get three point attempts
-  if (propType === 'threes' || propType === 'threes_made') {
-    const threeAttemptsArray = chronologicalGames.map(g => {
-      const tpa = typeof g.three_pointers_attempted === 'number' ? g.three_pointers_attempted :
-                  typeof g.tpa === 'number' ? g.tpa :
-                  typeof g.three_point_attempts === 'number' ? g.three_point_attempts :
-                  parseFloat(g.three_pointers_attempted || g.tpa || g.three_point_attempts) || 0;
-      return Math.max(0, tpa);
-    });
-    threePointAttempts = threeAttemptsArray.reduce((a, b) => a + b, 0) / threeAttemptsArray.length;
-  }
-
-  // Pace and defensive stats (would ideally come from team stats APIs)
-  // For now, use null if not available (matches training format)
-  const pace = null; // Would need team pace data
-  const oppDef = null; // Would need opponent defensive rating (prop-specific)
-  const oppVsPosition = null; // Would need position-specific defensive stats (prop-specific)
-
-  return {
-    playerName,
-    propType,
-    vegasLine: bettingLine || null,
-    recentAvg3: Math.round(recent3Avg * 10) / 10,
-    recentAvg5: Math.round(recent5Avg * 10) / 10,
-    seasonAvg: Math.round(avgValue * 10) / 10,
-    minutes: recent3MinutesAvg || avgMinutes || null,
-    usageRate: usageRate ? Math.round(usageRate * 10) / 10 : null,
-    pace,
-    oppDef,
-    oppVsPosition,
-    injuryStatus: playerInjury.status,
-    oppInjuries: oppInjuriesFormatted,
-    // Prop-specific features
-    reboundShare: reboundShare ? Math.round(reboundShare * 10) / 10 : null,
-    potentialAssists: potentialAssists ? Math.round(potentialAssists * 10) / 10 : null,
-    threePointAttempts: threePointAttempts ? Math.round(threePointAttempts * 10) / 10 : null,
-    // Keep for backward compatibility
-    gamesCount: games.length,
-    volatility: Math.round(volatility * 10) / 10,
-    stdDev: Math.round(stdDev * 10) / 10,
-    nextGameInfo
-  };
-}
-
-/**
- * Generate numeric prediction using fine-tuned model - EXACT TRAINING FORMAT
- */
-async function generateNumericPrediction(features, maxRetries = 3) {
-  const {
-    playerName, propType, vegasLine, recentAvg3, recentAvg5, seasonAvg,
-    minutes, usageRate, pace, oppDef, oppVsPosition, injuryStatus, oppInjuries
-  } = features;
-
-  // Map prop type to standardized format
-  const propTypeFormatted = PROP_TYPE_MAP[propType] || propType.toUpperCase();
-
-  // Build input in EXACT training format
-  const formatValue = (val) => {
-    if (val === null || val === undefined) return 'null';
-    if (typeof val === 'number') return val.toFixed(1);
-    return val.toString();
-  };
-
-  // Use season avg as fallback for vegas_line if not available
-  const vegasLineValue = vegasLine || seasonAvg;
-
-  const userInput = `player: ${playerName}
-prop_type: ${propTypeFormatted}
-vegas_line: ${formatValue(vegasLineValue)}
-season_avg: ${seasonAvg.toFixed(1)}
-recent_avg_5: ${recentAvg5.toFixed(1)}
-recent_avg_3: ${recentAvg3.toFixed(1)}
-usage: ${formatValue(usageRate)}
-minutes: ${formatValue(minutes)}
-pace: ${formatValue(pace)}
-opp_def: ${formatValue(oppDef)}
-opp_vs_position: ${formatValue(oppVsPosition)}
-injury: ${injuryStatus || 'active'}
-opp_injuries: ${oppInjuries || 'none'}`;
-
-  // LOG EXACT PROMPT FOR VERIFICATION
-  console.log(`\n📤 [MODEL INPUT - ${propTypeFormatted}] Exact prompt sent to fine-tuned model:`);
-  console.log('='.repeat(80));
-  console.log(userInput);
-  console.log('='.repeat(80));
-
-  const systemMessage = "Predict NBA stats using structured features. Output only a number.";
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(`📤 [PREDICTION-${propTypeFormatted}] Attempt ${attempt}/${maxRetries} - Calling fine-tuned model...`);
-
-    try {
-      const completion = await getOpenAIClient().chat.completions.create({
-        model: process.env.FINE_TUNED_MODEL_ID || "ft:gpt-3.5-turbo-0125:personal::CdszvDdV",
-        messages: [
-          {
-            role: "system",
-            content: systemMessage
-          },
-          {
-            role: "user",
-            content: userInput
-          }
-        ],
-        temperature: 0.0,
-        top_p: 1.0,
-        max_tokens: 10
-      });
-
-      const responseText = completion.choices[0].message.content.trim();
-      console.log(`📥 [PREDICTION-${propTypeFormatted}] Raw model output (attempt ${attempt}):`, responseText);
-
-      // Extract number from response (model outputs just a number)
-      const numberMatch = responseText.match(/(\d+\.?\d*)/);
-      if (!numberMatch) {
-        throw new Error(`No number found in response: ${responseText}`);
-      }
-
-      const predictedValue = parseFloat(numberMatch[1]);
-
-      if (!Number.isFinite(predictedValue) || predictedValue < 0) {
-        throw new Error(`Invalid prediction: ${predictedValue}. Must be a finite positive number.`);
-      }
-
-      // Special case: if player is OUT, prediction must be 0
-      if (injuryStatus === 'out' && predictedValue !== 0) {
-        console.log(`🏥 [PREDICTION-${propTypeFormatted}] Player is OUT, setting prediction to 0`);
-        return 0;
-      }
-
-      console.log(`✅ [PREDICTION-${propTypeFormatted}] Valid prediction extracted: ${predictedValue}`);
-      return predictedValue;
-    } catch (error) {
-      console.error(`❌ [PREDICTION-${propTypeFormatted}] Attempt ${attempt} failed:`, error.message);
-      if (attempt < maxRetries) {
-        console.log(`🔄 [PREDICTION-${propTypeFormatted}] Retrying...`);
-        continue;
-      }
-      throw new Error(`Failed to generate prediction after ${maxRetries} attempts: ${error.message}`);
-    }
-  }
-
-  throw new Error('Failed to generate valid prediction after all retries');
-}
-
-/**
  * Generate natural language analysis for any prop prediction
  * @param {number} predictedValue - The predicted value
  * @param {number|null} vegasLine - The Vegas betting line
@@ -459,7 +240,7 @@ opp_injuries: ${oppInjuries || 'none'}`;
  * @param {string} propType - The prop type (e.g., 'points', 'rebounds', 'assists')
  * @returns {string} Natural language analysis
  */
-function generateAnalysis(predictedValue, vegasLine, stats, propType) {
+function generateAnalysis(predictedValue, vegasLine, stats, propType, coverProbability = null) {
   const { overall_avg, recent_3_avg, recent_5_avg, volatility, std_dev } = stats;
   
   // Get prop display name for combined stats
@@ -619,18 +400,31 @@ function generateAnalysis(predictedValue, vegasLine, stats, propType) {
     }
   }
   
-  // Reference to Vegas line if available
+  // Reference to Vegas line with cover probability if available
   if (vegasLine !== null && vegasLine !== undefined) {
     const lineDiff = predictedValue - vegasLine;
-    if (Math.abs(lineDiff) < 0.5) {
-      sentences.push(`This projection closely matches the Vegas line of ${vegasLine.toFixed(1)}.`);
-    } else if (lineDiff > 0) {
-      sentences.push(`The model projects above the Vegas line of ${vegasLine.toFixed(1)}, suggesting potential value on the over.`);
+
+    // Add cover probability context if available
+    if (coverProbability !== null && coverProbability !== undefined) {
+      if (coverProbability > 55) {
+        sentences.push(`With a ${coverProbability.toFixed(1)}% probability of hitting the over on the ${vegasLine.toFixed(1)} line, this represents strong value on the OVER.`);
+      } else if (coverProbability < 45) {
+        sentences.push(`With a ${coverProbability.toFixed(1)}% probability of hitting the over on the ${vegasLine.toFixed(1)} line, this suggests value on the UNDER.`);
+      } else {
+        sentences.push(`The ${coverProbability.toFixed(1)}% probability of hitting the over on the ${vegasLine.toFixed(1)} line indicates this is close to a coin flip.`);
+      }
     } else {
-      sentences.push(`The model projects below the Vegas line of ${vegasLine.toFixed(1)}, suggesting potential value on the under.`);
+      // Fallback if cover probability not available
+      if (Math.abs(lineDiff) < 0.5) {
+        sentences.push(`This projection closely matches the Vegas line of ${vegasLine.toFixed(1)}.`);
+      } else if (lineDiff > 0) {
+        sentences.push(`The model projects above the Vegas line of ${vegasLine.toFixed(1)}.`);
+      } else {
+        sentences.push(`The model projects below the Vegas line of ${vegasLine.toFixed(1)}.`);
+      }
     }
   }
-  
+
   // Join sentences with proper spacing
   return sentences.join(' ');
 }
@@ -666,20 +460,106 @@ function calculateErrorMargin(volatility) {
 }
 
 /**
- * Calculate recommendation based on model output vs vegas line
+ * Error function approximation for normal distribution
  */
-function calculateRecommendation(predictedValue, vegasLine) {
+function erf(x) {
+  const a1 =  0.254829592;
+  const a2 = -0.284496736;
+  const a3 =  1.421413741;
+  const a4 = -1.453152027;
+  const a5 =  1.061405429;
+  const p  =  0.3275911;
+
+  const sign = x < 0 ? -1 : 1;
+  x = Math.abs(x);
+
+  const t = 1.0 / (1.0 + p * x);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+
+  return sign * y;
+}
+
+/**
+ * Calculate cover probability using normal distribution
+ */
+function calculateCoverProbability(prediction, line, stdDev) {
+  if (!prediction || !line) return null;
+
+  // Use stdDev as error margin, or estimate if not available
+  const errorMargin = stdDev || Math.max(2, Math.abs(prediction - line) * 0.3);
+
+  // Calculate z-score for OVER probability
+  const zScore = (prediction - line) / errorMargin;
+
+  // P(X > line) using cumulative distribution function
+  const probability = 0.5 * (1 + erf(zScore / Math.sqrt(2)));
+
+  return Math.max(0, Math.min(1, probability)) * 100; // Return as percentage
+}
+
+/**
+ * Calculate recommendation based on cover probability (not just mean prediction)
+ * This accounts for volatility and actual hit probability
+ */
+function calculateRecommendation(predictedValue, vegasLine, stdDev = null) {
   if (!vegasLine) return null;
-  
-  const diff = predictedValue - vegasLine;
-  
-  if (diff > 0.5) return 'OVER';
-  if (diff < -0.5) return 'UNDER';
+
+  // Calculate cover probability accounting for volatility
+  const coverProbability = calculateCoverProbability(predictedValue, vegasLine, stdDev);
+
+  if (!coverProbability) return null;
+
+  // Recommend OVER if cover probability > 55% (accounting for vig)
+  if (coverProbability > 55) return 'OVER';
+
+  // Recommend UNDER if cover probability < 45% (accounting for vig)
+  if (coverProbability < 45) return 'UNDER';
+
+  // No strong recommendation if probability is between 45-55%
   return null;
 }
 
 /**
- * Predict any prop type from games array using fine-tuned model
+ * Build prop-specific features from game history for prediction pipeline
+ */
+function buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData, bettingLine) {
+  const chronologicalGames = [...games].reverse();
+  const valuesArray = chronologicalGames.map(g => getPropValue(g, propType));
+
+  const avgValue = valuesArray.reduce((a, b) => a + b, 0) / valuesArray.length;
+  const stdDev = calculateStdDev(valuesArray);
+  const volatility = avgValue > 0 ? (stdDev / avgValue) * 100 : 0;
+
+  const recent3Count = Math.min(3, valuesArray.length);
+  const recent5Count = Math.min(5, valuesArray.length);
+  const recent3Avg = valuesArray.slice(-recent3Count).reduce((a, b) => a + b, 0) / recent3Count;
+  const recent5Avg = valuesArray.slice(-recent5Count).reduce((a, b) => a + b, 0) / recent5Count;
+
+  // Injury status
+  const playerInjury = getPlayerInjuryStatus(injuryData, playerName);
+
+  // Format opponent injuries
+  const oppInjuries = injuryData?.opponentInjuries || [];
+  const oppInjuriesFormatted = formatOpponentInjuries(oppInjuries, propType);
+
+  return {
+    playerName,
+    propType,
+    vegasLine: bettingLine || null,
+    recentAvg3: Math.round(recent3Avg * 10) / 10,
+    recentAvg5: Math.round(recent5Avg * 10) / 10,
+    seasonAvg: Math.round(avgValue * 10) / 10,
+    injuryStatus: playerInjury.status,
+    oppInjuries: oppInjuriesFormatted,
+    gamesCount: games.length,
+    volatility: Math.round(volatility * 10) / 10,
+    stdDev: Math.round(stdDev * 10) / 10,
+    nextGameInfo
+  };
+}
+
+/**
+ * Predict any prop type from games array using XGBoost models
  * This is the UNIFIED prediction function for ALL props
  */
 export async function predictPropFromGames(games, playerName, propType = 'points', nextGameInfo = null, injuryData = null, bettingLine = null) {
@@ -728,18 +608,64 @@ export async function predictPropFromGames(games, playerName, propType = 'points
         error_margin: 0,
         recommendation: null,
         games_used: games.length,
-        method: 'fine_tuned_model',
+        method: 'player_out',
         prop_type: propType,
         stats: statsForAnalysis
       };
     }
 
-    // Step 3: Generate numeric prediction using fine-tuned model ONLY
-    console.log(`🔮 [PIPELINE-${propTypeFormatted}] Step 3: Calling fine-tuned model...`);
-    const predictedValue = await generateNumericPrediction(features);
+    // Step 3: Generate numeric prediction using XGBoost ML models
+    console.log(`🔮 [PIPELINE-${propTypeFormatted}] Step 3: Generating prediction...`);
+    let predictedValue;
+    let predictionMethod = 'xgboost_model';
+    let mlFeatureVector = null; // Full feature vector for tracking/retraining
 
-    // Step 4: Use model output directly (NO adjustments)
-    const finalPredictedValue = predictedValue;
+    const mlModelsAvailable = areModelsAvailable();
+    if (mlModelsAvailable) {
+      try {
+        console.log(`🧠 [PIPELINE-${propTypeFormatted}] Using XGBoost model...`);
+        const mlResult = await mlPredictProp(games, propTypeFormatted);
+        predictedValue = mlResult.prediction;
+        mlFeatureVector = mlResult.features;
+        console.log(`✅ [PIPELINE-${propTypeFormatted}] XGBoost prediction: ${predictedValue.toFixed(2)}`);
+      } catch (mlError) {
+        console.error(`❌ [PIPELINE-${propTypeFormatted}] ML model failed: ${mlError.message}`);
+        // Statistical fallback: use weighted recent average
+        console.log(`🔄 [PIPELINE-${propTypeFormatted}] Falling back to statistical average...`);
+        predictedValue = features.recentAvg3 * 0.5 + features.recentAvg5 * 0.3 + features.seasonAvg * 0.2;
+        predictionMethod = 'statistical_fallback';
+      }
+    } else {
+      console.log(`⚠️  [PIPELINE-${propTypeFormatted}] ML models not available, using statistical average...`);
+      predictedValue = features.recentAvg3 * 0.5 + features.recentAvg5 * 0.3 + features.seasonAvg * 0.2;
+      predictionMethod = 'statistical_fallback';
+    }
+
+    // Step 4: Apply recent form blending when there's significant deviation from model output.
+    // The ML model regresses toward season averages, so we blend 30% toward the
+    // recent 3-game average when it diverges by more than 2 points. This ensures
+    // hot/cold streaks are reflected in the projection (capped at ±5 point adjustment).
+    let finalPredictedValue = predictedValue;
+    const recentAvg3 = features.recentAvg3;
+    const recentDeviation = recentAvg3 - predictedValue;
+
+    if (Math.abs(recentDeviation) > 2 && recentAvg3 > 0) {
+      const rawAdjustment = recentDeviation * 0.30;
+      const adjustment = Math.sign(rawAdjustment) * Math.min(Math.abs(rawAdjustment), 5);
+      finalPredictedValue = predictedValue + adjustment;
+      console.log(`📈 [PIPELINE-${propTypeFormatted}] Recent form adjustment: ${predictedValue.toFixed(1)} → ${finalPredictedValue.toFixed(1)} (3-game avg: ${recentAvg3.toFixed(1)})`);
+    }
+
+    // Step 4b: Apply per-player bias correction from historical prediction errors.
+    // If the model consistently over/under-predicts for this player, correct for it.
+    const playerBias = getPlayerBias(playerName, propType);
+    if (playerBias !== null) {
+      const cappedBias = Math.sign(playerBias) * Math.min(Math.abs(playerBias), 5);
+      const beforeBias = finalPredictedValue;
+      finalPredictedValue += cappedBias;
+      console.log(`🎯 [PIPELINE-${propTypeFormatted}] Bias correction: ${beforeBias.toFixed(1)} → ${finalPredictedValue.toFixed(1)} (historical bias: ${playerBias > 0 ? '+' : ''}${playerBias.toFixed(1)})`);
+    }
+
     console.log(`✅ [PIPELINE-${propTypeFormatted}] Model prediction: ${finalPredictedValue.toFixed(1)}`);
 
     // Step 5: Calculate confidence from |prediction - vegas_line|
@@ -748,8 +674,10 @@ export async function predictPropFromGames(games, playerName, propType = 'points
     // Step 6: Calculate error margin from volatility (2.0 to 6.0)
     const errorMargin = calculateErrorMargin(features.volatility);
 
-    // Step 7: Calculate recommendation from model_output vs vegas_line
-    const recommendation = calculateRecommendation(finalPredictedValue, features.vegasLine);
+    // Step 7: Calculate recommendation using cover probability (accounts for volatility)
+    const coverProbability = calculateCoverProbability(finalPredictedValue, features.vegasLine, features.stdDev);
+    const recommendation = calculateRecommendation(finalPredictedValue, features.vegasLine, features.stdDev);
+    console.log(`📊 [PIPELINE-${propTypeFormatted}] Cover probability: ${coverProbability?.toFixed(1)}% | Recommendation: ${recommendation || 'NONE'}`);
 
     // Step 8: Build result object
     // Ensure we always have the correct field name for the prop type
@@ -765,8 +693,8 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       std_dev: features.stdDev
     };
     
-    // Generate natural language analysis using shared function
-    const analysis = generateAnalysis(finalPredictedValue, features.vegasLine, statsForAnalysis, propType);
+    // Generate natural language analysis using shared function (include cover probability)
+    const analysis = generateAnalysis(finalPredictedValue, features.vegasLine, statsForAnalysis, propType, coverProbability);
     
     const predictionResult = {
       player: playerName,
@@ -778,7 +706,7 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       error_margin: Math.round(errorMargin * 10) / 10,
       recommendation: recommendation,
       games_used: games.length,
-      method: 'fine_tuned_model',
+      method: predictionMethod,
       prop_type: propType,
       stats: statsForAnalysis
     };
@@ -797,9 +725,9 @@ export async function predictPropFromGames(games, playerName, propType = 'points
     });
 
     // Store prediction for tracking (if next game info is available)
-    if (nextGameInfo && nextGameInfo.date && propType === 'points') {
+    if (nextGameInfo && nextGameInfo.date) {
       try {
-        storePrediction(playerName, predictionResult, games, nextGameInfo);
+        storePrediction(playerName, predictionResult, games, nextGameInfo, propType, mlFeatureVector);
       } catch (trackError) {
         console.warn('⚠️ Failed to store prediction for tracking:', trackError.message);
       }

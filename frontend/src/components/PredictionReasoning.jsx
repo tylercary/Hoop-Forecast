@@ -56,9 +56,9 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
   console.log(`[PredictionReasoning] analysis value:`, analysis?.substring(0, 100));
   const predictedValue = propPrediction[`predicted_${selectedProp}`] || propPrediction.predicted_value || propPrediction.predicted_points || 'N/A';
   // Confidence can be string ("Low"|"Medium"|"High") or number (0-100)
-  const confidenceRaw = propPrediction.confidence || stats.chatgpt_confidence || stats.confidence;
+  const confidenceRaw = propPrediction.confidence || stats.confidence;
   const confidence = typeof confidenceRaw === 'string' ? confidenceRaw : (typeof confidenceRaw === 'number' ? `${confidenceRaw.toFixed(1)}%` : 'N/A');
-  const errorMargin = propPrediction.error_margin || stats.chatgpt_error_margin || stats.error_margin || 'N/A';
+  const errorMargin = propPrediction.error_margin || stats.error_margin || 'N/A';
   // Confidence level is the string version (Low/Medium/High)
   const confidenceLevel = typeof confidenceRaw === 'string' ? confidenceRaw : (stats.confidence_level || propPrediction.confidence_level || null);
 

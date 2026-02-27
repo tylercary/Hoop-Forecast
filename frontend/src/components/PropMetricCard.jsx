@@ -6,25 +6,30 @@ import InfoTooltip from './InfoTooltip';
  * NO LOCKS - All values are always displayed
  */
 
-function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, infoTooltip, infoTooltipLabel, progressBar, customValue, valueSize = 'text-3xl', index = 0 }) {
+function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, infoTooltip, infoTooltipLabel, progressBar, customValue, valueSize = 'text-3xl', index = 0, unified = true }) {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ 
-        delay: index * 0.03, 
+      transition={{
+        delay: index * 0.03,
         duration: 0.2,
         ease: "easeOut"
       }}
-      whileHover={{ y: -2, transition: { duration: 0.1 } }}
-      className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700 flex-1 min-w-[200px] hover:border-gray-600 transition-colors"
+      whileHover={unified ? undefined : { y: -2, transition: { duration: 0.1 } }}
+      className={unified
+        ? "p-4 sm:p-6 flex-1 min-w-0 relative"
+        : "bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 border border-gray-700 flex-1 min-w-0 hover:border-gray-600 transition-colors"
+      }
     >
-      <div className="flex items-center mb-2">
-        <span className="text-sm text-gray-400 font-medium">{title}</span>
+      {/* Minimal divider - only show if not the first item and in unified mode */}
+      {unified && index > 0 && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-[60%] bg-gray-600"></div>
+      )}
+      <div className="flex items-center gap-1.5 mb-2 min-h-[24px]">
+        <span className="text-sm text-gray-400 font-medium leading-tight">{title}</span>
         {infoTooltip && (
-          <span className="ml-1">
-            <InfoTooltip text={infoTooltip} label={infoTooltipLabel} id={`tooltip-${title}`} />
-          </span>
+          <InfoTooltip text={infoTooltip} label={infoTooltipLabel} id={`tooltip-${title}`} />
         )}
       </div>
       
@@ -56,11 +61,11 @@ function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, in
           {customValue}
         </motion.div>
       ) : (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.03 + 0.05, duration: 0.2 }}
-          className={`${valueSize} font-bold ${color} mb-1`}
+          className={`${valueSize} font-bold ${color} mb-1 break-words leading-tight`}
         >
           {value || 'N/A'}
         </motion.div>

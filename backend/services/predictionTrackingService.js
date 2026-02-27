@@ -14,6 +14,23 @@ if (!fs.existsSync(PREDICTIONS_DIR)) {
   fs.mkdirSync(PREDICTIONS_DIR, { recursive: true });
 }
 
+// Map from prop type names to ML-formatted prop keys
+const PROP_TYPE_FORMAT_MAP = {
+  'points': 'PTS',
+  'rebounds': 'REB',
+  'assists': 'AST',
+  'threes': '3PM',
+  'threes_made': '3PM',
+  'pra': 'PRA',
+  'points_rebounds_assists': 'PRA',
+  'pr': 'PR',
+  'points_rebounds': 'PR',
+  'pa': 'PA',
+  'points_assists': 'PA',
+  'ra': 'RA',
+  'rebounds_assists': 'RA'
+};
+
 /**
  * Load predictions from file
  */
@@ -46,35 +63,62 @@ function savePredictions(data) {
  * @param {object} prediction - Prediction data
  * @param {array} gameHistory - Games used for prediction
  * @param {object} nextGameInfo - Info about the next game being predicted
+ * @param {string} propType - Prop type (e.g., 'points', 'assists', 'rebounds')
+ * @param {object|null} featureVector - Full ML feature vector used for prediction (for retraining)
  */
-export function storePrediction(playerName, prediction, gameHistory, nextGameInfo = {}) {
+export function storePrediction(playerName, prediction, gameHistory, nextGameInfo = {}, propType = 'points', featureVector = null) {
   const data = loadPredictions();
-  
+  const gameDate = nextGameInfo.date || null;
+
+  // Deduplication: skip if same player + prop_type + game date already exists
+  const existing = data.predictions.find(p =>
+    p.player_name?.toLowerCase() === playerName.toLowerCase() &&
+    p.prop_type === propType &&
+    p.next_game?.date === gameDate &&
+    gameDate != null
+  );
+  if (existing) {
+    return existing.id; // Already tracked, return existing ID
+  }
+
+  // Get the predicted value for this prop type
+  const predictedValue = prediction[`predicted_${propType}`] || prediction.predicted_points || prediction.predicted_value;
+
+  // Build a stat-key hash from the game history
+  const statKey = propType === 'points' ? 'points' : (propType === 'assists' ? 'assists' : (propType === 'rebounds' ? 'rebounds' : propType));
+  const hashParts = gameHistory.map(g => `${g.date}-${g[statKey] ?? g.pts ?? ''}`).join('|');
+
   const predictionRecord = {
     id: `pred_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     player_name: playerName,
-    predicted_points: prediction.predicted_points,
+    prop_type: propType,
+    predicted_value: predictedValue,
+    predicted_points: propType === 'points' ? predictedValue : null, // backward compat
     confidence: prediction.confidence,
     error_margin: prediction.error_margin,
-    method: prediction.method || 'chatgpt_model',
+    method: prediction.method || 'xgboost_model',
     stats: prediction.stats || {},
-    game_history_hash: gameHistory.map(g => `${g.date}-${g.points}`).join('|'),
+    game_history_hash: hashParts,
     next_game: {
-      date: nextGameInfo.date || null,
+      date: gameDate,
       opponent: nextGameInfo.opponent || null,
       is_home: nextGameInfo.isHome || null,
       team: nextGameInfo.team || null
     },
+    feature_vector: featureVector || null, // Full ML features for retraining
+    prop_type_formatted: prediction.method === 'xgboost_model' ? (PROP_TYPE_FORMAT_MAP[propType] || propType.toUpperCase()) : null,
     created_at: new Date().toISOString(),
-    actual_points: null, // Will be filled when outcome is known
-    accuracy: null, // Will be calculated when outcome is known
+    actual_value: null, // Will be filled when outcome is known
+    actual_points: null, // backward compat
+    accuracy: null,
     evaluated: false
   };
-  
+
   data.predictions.push(predictionRecord);
   savePredictions(data);
-  
-  console.log(`📝 Stored prediction for ${playerName}: ${prediction.predicted_points} pts`);
+
+  const propLabel = propType === 'points' ? 'pts' : propType;
+  console.log(`📝 Stored prediction for ${playerName}: ${predictedValue} ${propLabel}`);
   return predictionRecord.id;
 }
 
@@ -92,15 +136,17 @@ export function updatePredictionOutcome(predictionId, actualPoints) {
     return null;
   }
   
-  prediction.actual_points = actualPoints;
+  prediction.actual_points = actualPoints; // backward compat
+  prediction.actual_value = actualPoints;
   prediction.evaluated = true;
   prediction.evaluated_at = new Date().toISOString();
-  
+
   // Calculate accuracy metrics
-  const error = Math.abs(prediction.predicted_points - actualPoints);
+  const predictedVal = prediction.predicted_value ?? prediction.predicted_points;
+  const error = Math.abs(predictedVal - actualPoints);
   prediction.absolute_error = error;
-  prediction.percentage_error = prediction.predicted_points > 0 
-    ? (error / prediction.predicted_points) * 100 
+  prediction.percentage_error = predictedVal > 0
+    ? (error / predictedVal) * 100
     : null;
   prediction.within_margin = error <= prediction.error_margin;
   prediction.within_2x_margin = error <= (prediction.error_margin * 2);
@@ -119,6 +165,28 @@ export function updatePredictionOutcome(predictionId, actualPoints) {
   savePredictions(data);
   console.log(`✅ Updated prediction ${predictionId}: actual ${actualPoints} pts, error: ${error.toFixed(1)}`);
   
+  return prediction;
+}
+
+/**
+ * Mark a prediction as DNP (player did not play)
+ * Removes it from pending evaluations without counting as a hit/miss
+ */
+export function markPredictionDNP(predictionId) {
+  const data = loadPredictions();
+  const prediction = data.predictions.find(p => p.id === predictionId);
+  if (!prediction) return null;
+
+  prediction.evaluated = true;
+  prediction.evaluated_at = new Date().toISOString();
+  prediction.actual_value = null;
+  prediction.actual_points = null;
+  prediction.accuracy = null;
+  prediction.dnp = true;
+  prediction.dnp_reason = 'Player did not play (injury/rest/DNP)';
+
+  savePredictions(data);
+  console.log(`🚫 Marked prediction ${predictionId} as DNP for ${prediction.player_name}`);
   return prediction;
 }
 
@@ -156,18 +224,46 @@ export function getAccuracyStats() {
 
 /**
  * Get predictions that need evaluation (games that have likely been played)
+ * Auto-expires predictions older than 30 days as unevaluable
  */
 export function getPendingEvaluations() {
   const data = loadPredictions();
   const now = new Date();
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  
-  return data.predictions.filter(p => {
-    if (p.evaluated || !p.next_game.date) return false;
-    
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  let expired = 0;
+  const pending = [];
+
+  for (const p of data.predictions) {
+    if (p.evaluated || !p.next_game || !p.next_game.date) continue;
+
     const gameDate = new Date(p.next_game.date);
-    return gameDate < oneDayAgo; // Game was at least 1 day ago
-  });
+
+    // Auto-expire predictions older than 30 days
+    if (gameDate < thirtyDaysAgo) {
+      p.evaluated = true;
+      p.evaluated_at = now.toISOString();
+      p.actual_value = null;
+      p.actual_points = null;
+      p.accuracy = null;
+      p.expired = true;
+      p.expired_reason = 'Game date older than 30 days, NBA API no longer has this data';
+      expired++;
+      continue;
+    }
+
+    if (gameDate < oneDayAgo) {
+      pending.push(p);
+    }
+  }
+
+  if (expired > 0) {
+    savePredictions(data);
+    console.log(`🗑️ Auto-expired ${expired} predictions older than 30 days`);
+  }
+
+  return pending;
 }
 
 /**
@@ -183,65 +279,74 @@ export function findPredictionByGame(playerName, gameDate) {
 }
 
 /**
- * Export predictions for fine-tuning (OpenAI format)
+ * Export evaluated predictions as CSV for XGBoost retraining
  * @param {number} minAccuracy - Minimum accuracy threshold (default: 70)
- * @param {string} model - Model to fine-tune: 'gpt-4o-mini' or 'gpt-4o' (default: 'gpt-4o-mini')
  */
-export function exportForFineTuning(minAccuracy = 70, model = 'gpt-4o-mini') {
+export function exportForRetraining(minAccuracy = 70) {
   const data = loadPredictions();
-  const evaluated = data.predictions.filter(p => 
-    p.evaluated && 
-    p.accuracy >= minAccuracy &&
-    p.method === 'chatgpt_model'
+  const evaluated = data.predictions.filter(p =>
+    p.evaluated &&
+    p.accuracy >= minAccuracy
   );
-  
+
   if (evaluated.length === 0) {
-    return { message: 'No high-quality predictions available for fine-tuning' };
+    return { message: 'No high-quality predictions available for retraining' };
   }
-  
-  // Format for OpenAI fine-tuning (conversation format)
-  const trainingData = evaluated.map(pred => {
-    // Reconstruct the prompt (simplified - you'd need the full prompt)
-    // Note: In production, you'd want to store the full prompt with each prediction
-    const prompt = `Predict points for ${pred.player_name} based on game history.`;
-    
-    // Create the expected response format
-    const response = {
-      prediction: {
-        predicted_points: pred.predicted_points,
-        confidence: pred.confidence,
-        error_margin: pred.error_margin
-      }
-    };
-    
-    return {
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert NBA data scientist."
-        },
-        {
-          role: "user",
-          content: prompt
-        },
-        {
-          role: "assistant",
-          content: JSON.stringify(response)
-        }
-      ]
-    };
-  });
-  
+
   return {
-    count: trainingData.length,
-    format: 'openai_fine_tuning',
-    model: model,
-    data: trainingData,
-    filename: `fine_tuning_data_${model}_${Date.now()}.jsonl`,
-    recommended_model: model === 'gpt-4o-mini' 
-      ? 'Recommended: Start with gpt-4o-mini for cost efficiency. Upgrade to gpt-4o if accuracy needs improvement.'
-      : 'Using gpt-4o for maximum accuracy. Higher cost but better performance.'
+    count: evaluated.length,
+    format: 'xgboost_training',
+    data: evaluated,
+    message: `${evaluated.length} evaluated predictions available. Run 'node backend/scripts/retrainFromTracking.js' to retrain XGBoost models.`
   };
+}
+
+/**
+ * Get per-player prediction bias for a specific prop type.
+ * Computes weighted mean signed error (actual - predicted) from evaluated predictions.
+ * Recent predictions are weighted more heavily (exponential decay).
+ * Returns null if fewer than 3 evaluated predictions exist.
+ *
+ * @param {string} playerName - Player name
+ * @param {string} propType - Prop type (e.g., 'points', 'assists')
+ * @returns {number|null} Mean signed bias (positive = model under-predicts, negative = over-predicts)
+ */
+export function getPlayerBias(playerName, propType = 'points') {
+  const data = loadPredictions();
+  const playerPreds = data.predictions.filter(p =>
+    p.evaluated &&
+    p.player_name.toLowerCase() === playerName.toLowerCase() &&
+    (p.prop_type || 'points') === propType
+  );
+
+  if (playerPreds.length < 3) return null;
+
+  // Sort by evaluation date (most recent last)
+  playerPreds.sort((a, b) => new Date(a.evaluated_at || a.created_at) - new Date(b.evaluated_at || b.created_at));
+
+  // Use last 20 predictions max
+  const recent = playerPreds.slice(-20);
+
+  // Exponential decay weights: most recent prediction gets weight 1.0
+  let weightedSum = 0;
+  let totalWeight = 0;
+  const decayRate = 0.15; // ~85% retention per step
+
+  for (let i = 0; i < recent.length; i++) {
+    const pred = recent[i];
+    const actual = pred.actual_value ?? pred.actual_points;
+    const predicted = pred.predicted_value ?? pred.predicted_points;
+    if (actual == null || predicted == null) continue;
+
+    const signedError = actual - predicted;
+    const weight = Math.exp(-decayRate * (recent.length - 1 - i));
+    weightedSum += signedError * weight;
+    totalWeight += weight;
+  }
+
+  if (totalWeight === 0) return null;
+
+  return weightedSum / totalWeight;
 }
 
 console.log('✅ Prediction tracking service initialized');

@@ -10,10 +10,10 @@ function LoadingAnimation({ message = "Loading player prediction..." }) {
     >
       {/* Animated spinner with glow effect */}
       <div className="relative">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 border-4 border-gray-700 border-t-yellow-500 rounded-full"
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="w-16 h-16 border-4 border-gray-700 border-t-yellow-500 rounded-full"
         />
         <motion.div
           animate={{ 

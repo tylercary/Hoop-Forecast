@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**
- * Clean, modern info tooltip component
- * BettingPros-style with smooth animations
+ * Simple, reliable info tooltip component
+ * Always appears above the icon, shifted left to stay on screen
  */
 function InfoTooltip({ text, label, id }) {
   const [isHovered, setIsHovered] = useState(false);
   const uniqueId = id || `tooltip-${Math.random().toString(36).substr(2, 9)}`;
 
   return (
-    <div className="relative inline-flex items-center z-50">
+    <div className="relative inline-flex items-center">
       <button
         type="button"
         className="inline-flex items-center justify-center focus:outline-none hover:opacity-80 transition-opacity"
@@ -35,57 +35,35 @@ function InfoTooltip({ text, label, id }) {
           />
         </svg>
       </button>
-      
-      {/* Tooltip */}
+
+      {/* Tooltip - appears above and to the left */}
       <AnimatePresence mode="wait">
         {isHovered && (
           <motion.div
             key={uniqueId}
-            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+            initial={{ opacity: 0, y: 5, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.95 }}
-            transition={{ duration: 0.1, ease: 'easeOut' }}
-            className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 pointer-events-none"
-            style={{ 
-              minWidth: '280px', 
-              maxWidth: '400px',
-              zIndex: 9999
+            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute bottom-full right-0 mb-2 pointer-events-none z-[9999]"
+            style={{
+              width: '300px',
             }}
           >
-            <div 
-              className="text-white text-sm rounded-lg px-4 py-3 shadow-2xl border border-gray-600 whitespace-normal relative" 
-              style={{ 
-                backgroundColor: '#111827',
-                opacity: 1
+            <div
+              className="text-white text-sm rounded-lg px-4 py-3 shadow-2xl border border-gray-600 relative"
+              style={{
+                backgroundColor: '#1f2937',
               }}
             >
               {label && (
-                <div className="font-bold mb-2 text-white text-base border-b border-gray-700 pb-1.5">
+                <div className="font-semibold mb-1.5 text-white text-sm">
                   {label}
                 </div>
               )}
-              <div className="text-gray-200 leading-relaxed text-sm">
+              <div className="text-gray-300 leading-relaxed text-xs">
                 {text}
               </div>
-            </div>
-            {/* Arrow pointing down at the icon - positioned at center of icon (7px from left edge of 14px icon) */}
-            <div 
-              className="absolute top-full -mt-0.5" 
-              style={{ 
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 10000
-              }}
-            >
-              <div 
-                className="w-2.5 h-2.5 transform rotate-45" 
-                style={{ 
-                  backgroundColor: '#111827',
-                  borderRight: '1px solid #4b5563',
-                  borderBottom: '1px solid #4b5563',
-                  opacity: 1
-                }}
-              ></div>
             </div>
           </motion.div>
         )}
@@ -95,4 +73,3 @@ function InfoTooltip({ text, label, id }) {
 }
 
 export default InfoTooltip;
-

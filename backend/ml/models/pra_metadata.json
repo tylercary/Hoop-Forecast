@@ -1,0 +1,36 @@
+{
+  "prop_type": "PRA",
+  "feature_columns": [
+    "pra_avg_3",
+    "pra_avg_5",
+    "pra_avg_10",
+    "pts_avg_10",
+    "reb_avg_10",
+    "ast_avg_10",
+    "min_avg_5",
+    "min_avg_10",
+    "usage",
+    "is_home",
+    "pts_hot_streak",
+    "reb_hot_streak",
+    "ast_hot_streak",
+    "pts_momentum",
+    "reb_momentum",
+    "ast_momentum",
+    "days_rest",
+    "is_back_to_back",
+    "games_in_last_week",
+    "win_streak",
+    "loss_streak",
+    "recent_win_pct"
+  ],
+  "num_features": 22,
+  "trained_date": "2026-02-11T23:10:48.787227",
+  "metrics": {
+    "train_mae": 5.995088757574125,
+    "val_mae": 6.201507032636326,
+    "train_rmse": 7.841104693057274,
+    "val_rmse": 8.076037282174868,
+    "best_val_loss": 5.704338444603814
+  }
+}

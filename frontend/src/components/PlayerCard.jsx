@@ -31,7 +31,7 @@ function PlayerCard({ player, comparisonData }) {
             />
           )}
           <p className="text-gray-600">
-            {player.position} • {comparisonData?.player_team_name || player.team?.abbreviation || 'Free Agent'}
+            {(comparisonData?.position && comparisonData.position !== 'N/A') ? `${comparisonData.position} · ` : ''}{comparisonData?.player_team_name || player.team?.abbreviation || 'Free Agent'}
           </p>
         </div>
 

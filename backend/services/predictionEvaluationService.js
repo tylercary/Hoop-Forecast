@@ -1,5 +1,5 @@
-import { getPendingEvaluations, updatePredictionOutcome, findPredictionByGame } from './predictionTrackingService.js';
-import { getPlayerStatsFromNBA, searchPlayer } from './nbaApiService.js';
+import { getPendingEvaluations, updatePredictionOutcome, findPredictionByGame, markPredictionDNP } from './predictionTrackingService.js';
+import { getPlayerStatsFromNBA } from './nbaApiService.js';
 
 /**
  * Automatically evaluate pending predictions by fetching actual game results
@@ -21,60 +21,86 @@ export async function evaluatePendingPredictions() {
   }
   
   console.log(`📊 Found ${pending.length} pending predictions to evaluate`);
-  
+
   const results = {
     evaluated: 0,
     failed: 0,
     skipped: 0,
+    expired: 0,
     results: []
   };
-  
+
+  // Cache player stats to avoid duplicate API calls for the same player
+  const playerStatsCache = new Map();
+
   // Process predictions with rate limiting (avoid API overload)
   for (let i = 0; i < pending.length; i++) {
     const prediction = pending[i];
-    
-    // Add delay between requests to avoid rate limiting (except for first request)
-    if (i > 0) {
-      const delay = 2000; // 2 seconds between requests
-      console.log(`   ⏳ Waiting ${delay}ms before next request...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+
+    // Skip already-expired predictions (auto-expired by getPendingEvaluations)
+    if (prediction.expired) {
+      results.expired++;
+      continue;
     }
-    
+
     try {
-      console.log(`\n🔍 Evaluating prediction ${i + 1}/${pending.length}: ${prediction.player_name} (${prediction.id})`);
+      const propType = prediction.prop_type || 'points';
+      const predictedVal = prediction.predicted_value ?? prediction.predicted_points;
+      const propLabel = propType === 'points' ? 'pts' : propType;
+      console.log(`\n🔍 Evaluating prediction ${i + 1}/${pending.length}: ${prediction.player_name} [${propType}] (${prediction.id})`);
       console.log(`   Game date: ${prediction.next_game.date}`);
-      console.log(`   Predicted: ${prediction.predicted_points} pts`);
-      
-      // Fetch player's recent games to find the actual result
-      // Retry logic with exponential backoff for timeout errors
-      let stats = null;
-      let retries = 0;
-      const maxRetries = 2;
-      
-      while (retries <= maxRetries && !stats) {
-        try {
-          stats = await getPlayerStatsFromNBA(prediction.player_name);
-        } catch (error) {
-          if (error.message.includes('timeout') && retries < maxRetries) {
-            retries++;
-            const backoffDelay = 3000 * retries; // 3s, 6s
-            console.log(`   ⚠️  Timeout error (attempt ${retries}/${maxRetries + 1}), retrying in ${backoffDelay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, backoffDelay));
-            continue;
-          }
-          throw error; // Re-throw if not a timeout or max retries reached
+      console.log(`   Predicted: ${predictedVal} ${propLabel}`);
+
+      // Fetch player's recent games (use cache to avoid duplicate API calls)
+      const playerKey = prediction.player_name.toLowerCase();
+      let stats = playerStatsCache.get(playerKey) ?? null;
+
+      if (!stats) {
+        // Add delay between API requests (not for cached lookups)
+        if (playerStatsCache.size > 0) {
+          const delay = 2000;
+          console.log(`   ⏳ Waiting ${delay}ms before next request...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
+
+        // Retry logic with exponential backoff for timeout errors
+        let retries = 0;
+        const maxRetries = 2;
+
+        while (retries <= maxRetries && !stats) {
+          try {
+            stats = await getPlayerStatsFromNBA(prediction.player_name);
+          } catch (error) {
+            if (error.message.includes('timeout') && retries < maxRetries) {
+              retries++;
+              const backoffDelay = 3000 * retries;
+              console.log(`   ⚠️  Timeout error (attempt ${retries}/${maxRetries + 1}), retrying in ${backoffDelay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, backoffDelay));
+              continue;
+            }
+            throw error;
+          }
+        }
+
+        // Cache regardless of result (avoid re-fetching failures)
+        playerStatsCache.set(playerKey, stats || { games: [] });
+      } else {
+        console.log(`   📋 Using cached stats for ${prediction.player_name}`);
       }
       
       if (!stats || !stats.games || stats.games.length === 0) {
-        console.log(`   ⚠️ No game data found, skipping...`);
-        results.skipped++;
-        results.results.push({
-          predictionId: prediction.id,
-          player: prediction.player_name,
-          status: 'skipped',
-          reason: 'No game data available'
-        });
+        // If game date is 3+ days ago and no stats exist, mark as DNP
+        const daysSinceGame = (Date.now() - new Date(prediction.next_game.date).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceGame >= 3) {
+          console.log(`   🚫 No game data found and game was ${Math.floor(daysSinceGame)} days ago — marking as DNP`);
+          markPredictionDNP(prediction.id);
+          results.evaluated++;
+          results.results.push({ predictionId: prediction.id, player: prediction.player_name, status: 'dnp', reason: 'No game data available' });
+        } else {
+          console.log(`   ⚠️ No game data found, skipping (game was recent)...`);
+          results.skipped++;
+          results.results.push({ predictionId: prediction.id, player: prediction.player_name, status: 'skipped', reason: 'No game data available' });
+        }
         continue;
       }
       
@@ -93,38 +119,56 @@ export async function evaluatePendingPredictions() {
       });
       
       if (!matchingGame) {
-        console.log(`   ⚠️ Game not found for date ${targetDate}, skipping...`);
-        console.log(`   Available game dates: ${stats.games.slice(0, 5).map(g => g.date).join(', ')}`);
-        results.skipped++;
-        results.results.push({
-          predictionId: prediction.id,
-          player: prediction.player_name,
-          status: 'skipped',
-          reason: `Game not found for date ${targetDate}`
-        });
+        // If game date is 3+ days ago, player likely didn't play (DNP/injury/rest)
+        const daysSinceGame = (Date.now() - new Date(targetDate).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceGame >= 3) {
+          console.log(`   🚫 No game on ${targetDate} (${Math.floor(daysSinceGame)} days ago) — marking as DNP`);
+          console.log(`   Available game dates: ${stats.games.slice(0, 5).map(g => g.date).join(', ')}`);
+          markPredictionDNP(prediction.id);
+          results.evaluated++;
+          results.results.push({ predictionId: prediction.id, player: prediction.player_name, status: 'dnp', reason: `Player did not play on ${targetDate}` });
+        } else {
+          console.log(`   ⚠️ Game not found for date ${targetDate}, skipping (game was recent)...`);
+          console.log(`   Available game dates: ${stats.games.slice(0, 5).map(g => g.date).join(', ')}`);
+          results.skipped++;
+          results.results.push({ predictionId: prediction.id, player: prediction.player_name, status: 'skipped', reason: `Game not found for date ${targetDate}` });
+        }
         continue;
       }
       
-      const actualPoints = typeof matchingGame.points === 'number' 
-        ? matchingGame.points 
-        : parseFloat(matchingGame.points) || 0;
-      
-      console.log(`   ✅ Found game result: ${actualPoints} pts vs ${matchingGame.opponent}`);
-      
+      // Extract actual value based on prop type
+      const statMap = {
+        'points': g => g.pts ?? g.points ?? 0,
+        'rebounds': g => g.reb ?? g.rebounds ?? 0,
+        'assists': g => g.ast ?? g.assists ?? 0,
+        'threes': g => g.tpm ?? g.threes ?? g.three_pointers_made ?? 0,
+        'steals': g => g.stl ?? g.steals ?? 0,
+        'blocks': g => g.blk ?? g.blocks ?? 0,
+        'pra': g => (g.pts ?? 0) + (g.reb ?? 0) + (g.ast ?? 0),
+        'pr': g => (g.pts ?? 0) + (g.reb ?? 0),
+        'pa': g => (g.pts ?? 0) + (g.ast ?? 0),
+        'ra': g => (g.reb ?? 0) + (g.ast ?? 0),
+      };
+      const extractor = statMap[propType] || statMap['points'];
+      const actualValue = extractor(matchingGame);
+
+      console.log(`   ✅ Found game result: ${actualValue} ${propLabel} vs ${matchingGame.opponent}`);
+
       // Update the prediction with actual outcome
-      const updated = updatePredictionOutcome(prediction.id, actualPoints);
-      
+      const updated = updatePredictionOutcome(prediction.id, actualValue);
+
       if (updated) {
-        const error = Math.abs(prediction.predicted_points - actualPoints);
-        console.log(`   📊 Error: ${error.toFixed(1)} pts, Accuracy: ${updated.accuracy}%`);
-        
+        const error = Math.abs(predictedVal - actualValue);
+        console.log(`   📊 Error: ${error.toFixed(1)} ${propLabel}, Accuracy: ${updated.accuracy}%`);
+
         results.evaluated++;
         results.results.push({
           predictionId: prediction.id,
           player: prediction.player_name,
+          prop_type: propType,
           status: 'evaluated',
-          predicted: prediction.predicted_points,
-          actual: actualPoints,
+          predicted: predictedVal,
+          actual: actualValue,
           error: error,
           accuracy: updated.accuracy,
           withinMargin: updated.within_margin
@@ -154,6 +198,9 @@ export async function evaluatePendingPredictions() {
   console.log(`   - Evaluated: ${results.evaluated}`);
   console.log(`   - Failed: ${results.failed}`);
   console.log(`   - Skipped: ${results.skipped}`);
+  if (results.expired > 0) {
+    console.log(`   - Expired: ${results.expired}`);
+  }
   
   return results;
 }

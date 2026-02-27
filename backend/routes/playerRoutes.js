@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPlayerStatsFromNBA } from '../services/nbaApiService.js';
+import { getPlayerStatsFromNBA, getTeamRecord, searchPlayer, searchPlayersESPN } from '../services/nbaApiService.js';
 import { getPlayerOdds } from '../services/oddsService.js';
 import { predictPointsFromGames } from '../services/predictionService.js';
 import { 
@@ -11,18 +11,22 @@ import {
   imageMetadataCache,
   createGamesHash 
 } from '../services/databaseService.js';
-import { getImageUrl, imageExists } from '../services/imageStorageService.js';
-import { 
-  getAccuracyStats, 
-  updatePredictionOutcome, 
+import { getImageUrl, imageExists, downloadPlayerImage } from '../services/imageStorageService.js';
+import {
+  getAccuracyStats,
+  updatePredictionOutcome,
   getPendingEvaluations,
-  exportForFineTuning 
+  exportForRetraining
 } from '../services/predictionTrackingService.js';
 import { 
   evaluatePendingPredictions,
   evaluatePredictionById,
   evaluatePredictionByGame
 } from '../services/predictionEvaluationService.js';
+import { getTeamAbbrevFromFullName } from '../services/teamMappingService.js';
+import { getMatchupInjuries } from '../services/injuryService.js';
+import { generatePropPrediction } from '../services/compareService.js';
+import { getTeamLogo, getTeamName } from '../services/teamLogoService.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
 
@@ -132,7 +136,13 @@ router.get('/with-lines', async (req, res) => {
           console.log(`✅ Found ${playersFoundInEvent} players in event ${event.id}`);
         }
       } catch (err) {
-        // Log the error to see what's happening
+        const status = err.response?.status;
+        const errorCode = err.response?.data?.error_code;
+        // Bail immediately on quota/auth errors
+        if (status === 401 || status === 403 || errorCode === 'OUT_OF_USAGE_CREDITS') {
+          console.log(`❌ Odds API quota/auth error (${status}). Stopping event scan.`);
+          break;
+        }
         if (err.response) {
           console.log(`❌ Error fetching odds for event ${event.id}: ${err.response.status} - ${err.response.statusText}`);
           if (err.response.data) {
@@ -141,15 +151,13 @@ router.get('/with-lines', async (req, res) => {
         } else {
           console.log(`❌ Error fetching odds for event ${event.id}: ${err.message}`);
         }
-        // Skip events that fail (no player props available or quota exceeded)
         continue;
       }
     }
 
     // Step 3: Download and store player images locally (using ESPN to avoid NBA.com rate limits)
     console.log(`🖼️ Downloading images for ${playersWithLines.length} players...`);
-    const { downloadPlayerImage, getImageUrl, imageExists } = await import('../services/imageStorageService.js');
-    const { searchPlayersESPN } = await import('../services/nbaApiService.js');
+    // Using static imports from top of file
     
     // Process images in smaller batches to avoid overwhelming APIs
     const batchSize = 5;
@@ -174,7 +182,7 @@ router.get('/with-lines', async (req, res) => {
               // ESPN sometimes includes external IDs, but we'll need to search NBA.com
               // For now, try NBA.com search with short timeout
               try {
-                const { searchPlayer } = await import('../services/nbaApiService.js');
+                // Using static import from top of file
                 const searchPromise = searchPlayer(player.name);
                 const timeoutPromise = new Promise((_, reject) => 
                   setTimeout(() => reject(new Error('timeout')), 3000)
@@ -280,7 +288,7 @@ router.get('/:id/prediction/:propType', async (req, res) => {
     }
     
     // Get player stats
-    const { getPlayerStatsFromNBA } = await import('../services/nbaApiService.js');
+    // Using static import from top of file
     const stats = await getPlayerStatsFromNBA(playerName);
     
     if (!stats.games || stats.games.length < 3) {
@@ -315,7 +323,7 @@ router.get('/:id/prediction/:propType', async (req, res) => {
       // ALSO extract game info for matchup data
       let bettingLine = null;
       try {
-        const { getPlayerOdds } = await import('../services/oddsService.js');
+        // Using static import from top of file
         const oddsResult = await getPlayerOdds(null, playerName);
         bettingLine = oddsResult?.[propType]?.line || null;
         console.log(`📊 Betting line for ${propType} from The Odds API: ${bettingLine || 'not available'}`);
@@ -323,7 +331,7 @@ router.get('/:id/prediction/:propType', async (req, res) => {
         // Extract game info from Odds API if available
         if (oddsResult?._gameInfo) {
           const gameInfo = oddsResult._gameInfo;
-          const { getTeamAbbrevFromFullName } = await import('../services/teamMappingService.js');
+          // Using static import from top of file
           const homeTeamAbbrev = getTeamAbbrevFromFullName(gameInfo.home_team);
           const awayTeamAbbrev = getTeamAbbrevFromFullName(gameInfo.away_team);
           
@@ -357,7 +365,7 @@ router.get('/:id/prediction/:propType', async (req, res) => {
       
       // Generate prediction using compareService - ensures we use ONLY the correct vegas line
       try {
-        const { generatePropPrediction } = await import('../services/compareService.js');
+        // Using static import from top of file
         const propPrediction = await generatePropPrediction(
           stats.games,
           playerName,
@@ -482,41 +490,13 @@ router.get('/:id/compare', async (req, res) => {
     // NO LONGER using ESPN getNextGame - Odds API is the only source
     let nextGame = null;
     
-    // 2b. Get team records and injury data in parallel (independent operations)
-    const { getTeamRecord } = await import('../services/nbaApiService.js');
-    const { getMatchupInjuries } = await import('../services/injuryService.js');
-    
-    // Parallelize independent operations (all can run simultaneously)
-    const [playerTeamRecordResult, opponentRecordResult, matchupInjuriesResult] = await Promise.allSettled([
-      // Get player team record
-      teamAbbrev && teamAbbrev !== 'N/A' ? getTeamRecord(teamAbbrev) : Promise.resolve(null),
-      // Get opponent record
-      nextGame && nextGame.opponent ? getTeamRecord(nextGame.opponent) : Promise.resolve(null),
-      // Get injury data (if we have team info and next game)
-      (teamAbbrev && teamAbbrev !== 'N/A' && nextGame && nextGame.opponent) 
-        ? getMatchupInjuries(teamAbbrev, nextGame.opponent, nextGame.eventId || null)
-        : Promise.resolve({ playerTeamInjuries: [], opponentInjuries: [], hasPlayerTeamInjuries: false, hasOpponentInjuries: false })
-    ]);
-    
-    // Extract results (silently handle failures)
-    const playerTeamRecord = playerTeamRecordResult.status === 'fulfilled' ? playerTeamRecordResult.value : null;
-    const opponentRecord = opponentRecordResult.status === 'fulfilled' ? opponentRecordResult.value : null;
-    
-    // Process injury data
+    // 2b. Prepare variables for team records and injury data
+    // Opponent record and injury data will be fetched AFTER nextGame is populated from Odds API
+    let playerTeamRecord = null;
+    let opponentRecord = null;
     let injuryData = null;
-    if (matchupInjuriesResult.status === 'fulfilled') {
-      const matchupInjuries = matchupInjuriesResult.value;
-      if (matchupInjuries.hasPlayerTeamInjuries || matchupInjuries.hasOpponentInjuries) {
-        injuryData = {
-          playerTeamInjuries: matchupInjuries.playerTeamInjuries,
-          opponentInjuries: matchupInjuries.opponentInjuries,
-          playerTeamAbbrev: teamAbbrev,
-          opponentAbbrev: nextGame.opponent
-        };
-      }
-    }
     
-    // 3. Get betting odds from The Odds API ONLY
+    // 3. Get betting odds from The Odds API ONLY (in parallel with player team record)
     // Returns an object with all props: { points: {...}, assists: {...}, rebounds: {...}, etc. }
     let allProps = {}; // Initialize to empty object
     let odds = null; // Backward compatibility: points prop only
@@ -531,22 +511,37 @@ router.get('/:id/compare', async (req, res) => {
       odds = cachedOdds;
     }
     
-    // Always fetch from The Odds API - this is the ONLY source of truth
-    try {
-      const oddsResult = await getPlayerOdds(null, finalPlayerName, {
+    // Fetch odds and player team record in parallel (they don't depend on each other)
+    const [oddsResult, playerTeamRecordResult] = await Promise.allSettled([
+      // Always fetch from The Odds API - this is the ONLY source of truth
+      getPlayerOdds(null, finalPlayerName, {
         teamAbbrev: teamAbbrev,
         opponentAbbrev: nextGame?.opponent || null
-      });
+      }),
+      // Get player team record (can fetch immediately since we have teamAbbrev)
+      (teamAbbrev && teamAbbrev !== 'N/A') 
+        ? getTeamRecord(teamAbbrev).catch(error => {
+            console.error(`Error fetching player team record for ${teamAbbrev}:`, error.message);
+            return null;
+          })
+        : Promise.resolve(null)
+    ]);
+    
+    // Extract player team record
+    playerTeamRecord = playerTeamRecordResult.status === 'fulfilled' ? playerTeamRecordResult.value : null;
+    
+    // Process odds result
+    try {
+      const oddsData = oddsResult.status === 'fulfilled' ? oddsResult.value : null;
       
-      if (oddsResult && typeof oddsResult === 'object' && Object.keys(oddsResult).length > 0) {
+      if (oddsData && typeof oddsData === 'object' && Object.keys(oddsData).length > 0) {
         // Extract game info from Odds API - THIS IS NOW THE ONLY SOURCE FOR MATCHUP DATA
-        if (oddsResult._gameInfo) {
-          const gameInfo = oddsResult._gameInfo;
+        if (oddsData._gameInfo) {
+          const gameInfo = oddsData._gameInfo;
           console.log(`🎯 Using Odds API for matchup data:`, gameInfo);
           
           try {
-            // Convert Odds API full team names to abbreviations
-            const { getTeamAbbrevFromFullName } = await import('../services/teamMappingService.js');
+            // Convert Odds API full team names to abbreviations (using static import)
             const homeTeamAbbrev = getTeamAbbrevFromFullName(gameInfo.home_team);
             const awayTeamAbbrev = getTeamAbbrevFromFullName(gameInfo.away_team);
             
@@ -578,6 +573,32 @@ router.get('/:id/compare', async (req, res) => {
               };
               
               console.log(`✅ Matchup from Odds API: ${teamAbbrev} ${isHome ? 'vs' : '@'} ${opponent}`);
+              
+              // Now that we have nextGame populated, fetch opponent record and injury data in parallel
+              const [opponentRecordResult, matchupInjuriesResult] = await Promise.allSettled([
+                // Get opponent record
+                nextGame.opponent ? getTeamRecord(nextGame.opponent) : Promise.resolve(null),
+                // Get injury data
+                (teamAbbrev && teamAbbrev !== 'N/A' && nextGame.opponent) 
+                  ? getMatchupInjuries(teamAbbrev, nextGame.opponent, nextGame.eventId || null)
+                  : Promise.resolve({ playerTeamInjuries: [], opponentInjuries: [], hasPlayerTeamInjuries: false, hasOpponentInjuries: false })
+              ]);
+              
+              // Extract opponent record
+              opponentRecord = opponentRecordResult.status === 'fulfilled' ? opponentRecordResult.value : null;
+              
+              // Process injury data
+              if (matchupInjuriesResult.status === 'fulfilled') {
+                const matchupInjuries = matchupInjuriesResult.value;
+                if (matchupInjuries.hasPlayerTeamInjuries || matchupInjuries.hasOpponentInjuries) {
+                  injuryData = {
+                    playerTeamInjuries: matchupInjuries.playerTeamInjuries,
+                    opponentInjuries: matchupInjuries.opponentInjuries,
+                    playerTeamAbbrev: teamAbbrev,
+                    opponentAbbrev: nextGame.opponent
+                  };
+                }
+              }
             }
           } catch (mappingError) {
             console.error(`❌ Error mapping Odds API game info:`, mappingError.message);
@@ -585,13 +606,13 @@ router.get('/:id/compare', async (req, res) => {
         }
         
         // Use ONLY API results - no merging, no fallbacks, no validation
-        allProps = oddsResult;
+        allProps = oddsData;
         
         // Remove the _gameInfo metadata from props (it's not a prop)
         delete allProps._gameInfo;
         
         // Extract points prop for backward compatibility
-        odds = oddsResult.points || null;
+        odds = oddsData.points || null;
         
         // Cache the points prop
         if (odds && odds.line) {
@@ -649,7 +670,7 @@ router.get('/:id/compare', async (req, res) => {
       const pointsBettingLine = allProps?.points?.line || null;
       
       // Use compareService to generate prediction with correct line
-      const { generatePropPrediction } = await import('../services/compareService.js');
+      // Using static import from top of file
       const pointsPrediction = await generatePropPrediction(
         stats.games,
         finalPlayerName,
@@ -723,8 +744,7 @@ router.get('/:id/compare', async (req, res) => {
       }
     }
 
-    // Get team logos
-    const { getTeamLogo, getTeamName } = await import('../services/teamLogoService.js');
+    // Get team logos (using static import from top of file)
     
     const opponentTeam = nextGame?.opponent || null;
     
@@ -740,8 +760,24 @@ router.get('/:id/compare', async (req, res) => {
       finalPlayerTeam = prediction.player_team;
     }
     
+    // Convert full position name to abbreviation
+    const abbreviatePosition = (pos) => {
+      if (!pos || pos === 'N/A') return null;
+      const map = { 'guard': 'G', 'forward': 'F', 'center': 'C', 'point guard': 'PG', 'shooting guard': 'SG', 'small forward': 'SF', 'power forward': 'PF' };
+      const lower = pos.toLowerCase().trim();
+      if (map[lower]) return map[lower];
+      // Handle compound positions like "Forward-Guard" or "Guard-Forward"
+      if (lower.includes('-')) {
+        return lower.split('-').map(p => map[p.trim()] || p.trim().charAt(0).toUpperCase()).join('-');
+      }
+      // Already abbreviated (e.g., "G", "F", "C")
+      if (pos.length <= 3) return pos;
+      return pos;
+    };
+
     const response = {
       player: finalPlayerName,
+      position: abbreviatePosition(stats?.player?.position) || 'N/A',
       stats: stats?.games || stats?.stats || [],
       prediction: predictedPoints,
       betting_line: bettingLine, // Backward compatibility: points line only
@@ -848,7 +884,7 @@ router.get('/:id/compare', async (req, res) => {
 
     // Only log response structure in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('Sending response:', JSON.stringify(response, null, 2));
+    console.log('Sending response:', JSON.stringify(response, null, 2));
     }
     res.json(response);
   } catch (error) {
@@ -932,33 +968,17 @@ router.post('/tracking/update', async (req, res) => {
 
 /**
  * GET /api/player/tracking/export
- * Export predictions for fine-tuning
- * Query params: 
+ * Export evaluated predictions for XGBoost retraining
+ * Query params:
  *   - minAccuracy (optional, default 70)
- *   - model (optional, 'gpt-4o-mini' or 'gpt-4o', default: 'gpt-4o-mini')
  */
 router.get('/tracking/export', async (req, res) => {
   try {
     const minAccuracy = parseInt(req.query.minAccuracy) || 70;
-    const model = req.query.model === 'gpt-4o' ? 'gpt-4o' : 'gpt-4o-mini';
-    const exportData = exportForFineTuning(minAccuracy, model);
-    
-    if (exportData.message) {
-      return res.json(exportData);
-    }
-    
-    res.json({
-      count: exportData.count,
-      format: exportData.format,
-      model: exportData.model,
-      filename: exportData.filename,
-      recommended_model: exportData.recommended_model,
-      data: exportData.data, // Include full data array for fine-tuning
-      preview: exportData.data.slice(0, 3), // Show first 3 examples for preview
-      message: `Export ready with ${exportData.count} examples for ${model}. Use the data array for fine-tuning.`
-    });
+    const exportData = exportForRetraining(minAccuracy);
+    res.json(exportData);
   } catch (error) {
-    console.error('Error exporting for fine-tuning:', error);
+    console.error('Error exporting for retraining:', error);
     res.status(500).json({ error: error.message || 'Failed to export data' });
   }
 });
@@ -1011,6 +1031,90 @@ router.post('/tracking/evaluate/:id', async (req, res) => {
   } catch (error) {
     console.error('Error evaluating prediction:', error);
     res.status(500).json({ error: error.message || 'Failed to evaluate prediction' });
+  }
+});
+
+/**
+ * POST /api/player/resolve-predictions
+ * Resolve pending user predictions by checking actual game stats.
+ * Body: { predictions: [{ id, playerName, playerId, propType, line, pick, gameDate }] }
+ * Returns: { resolved: [{ id, result, actualValue }] }
+ */
+router.post('/resolve-predictions', async (req, res) => {
+  try {
+    const { predictions } = req.body;
+    if (!Array.isArray(predictions) || predictions.length === 0) {
+      return res.json({ resolved: [] });
+    }
+
+    // Group predictions by playerName to minimize API calls
+    const byPlayer = {};
+    for (const pred of predictions) {
+      if (!pred.playerName || !pred.propType || !pred.gameDate) continue;
+      if (!byPlayer[pred.playerName]) byPlayer[pred.playerName] = [];
+      byPlayer[pred.playerName].push(pred);
+    }
+
+    const statMap = {
+      'points': g => g.pts ?? g.points ?? 0,
+      'rebounds': g => g.reb ?? g.rebounds ?? 0,
+      'assists': g => g.ast ?? g.assists ?? 0,
+      'threes': g => g.tpm ?? g.threes ?? g.three_pointers_made ?? 0,
+      'threes_made': g => g.tpm ?? g.threes ?? g.three_pointers_made ?? 0,
+      'steals': g => g.stl ?? g.steals ?? 0,
+      'blocks': g => g.blk ?? g.blocks ?? 0,
+      'turnovers': g => g.turnovers ?? 0,
+      'pra': g => (g.pts ?? 0) + (g.reb ?? 0) + (g.ast ?? 0),
+      'points_rebounds_assists': g => (g.pts ?? 0) + (g.reb ?? 0) + (g.ast ?? 0),
+      'pr': g => (g.pts ?? 0) + (g.reb ?? 0),
+      'points_rebounds': g => (g.pts ?? 0) + (g.reb ?? 0),
+      'pa': g => (g.pts ?? 0) + (g.ast ?? 0),
+      'points_assists': g => (g.pts ?? 0) + (g.ast ?? 0),
+      'ra': g => (g.reb ?? 0) + (g.ast ?? 0),
+      'rebounds_assists': g => (g.reb ?? 0) + (g.ast ?? 0),
+    };
+
+    const resolved = [];
+
+    for (const [playerName, preds] of Object.entries(byPlayer)) {
+      try {
+        const stats = await getPlayerStatsFromNBA(playerName);
+        if (!stats?.games?.length) continue;
+
+        for (const pred of preds) {
+          // Parse the gameDate (format: "Feb 27, 2026") to compare with game log dates ("YYYY-MM-DD")
+          const targetDate = new Date(pred.gameDate);
+          if (isNaN(targetDate.getTime())) continue;
+
+          const matchingGame = stats.games.find(g => {
+            const gd = new Date(g.date);
+            return gd.getFullYear() === targetDate.getFullYear() &&
+                   gd.getMonth() === targetDate.getMonth() &&
+                   gd.getDate() === targetDate.getDate();
+          });
+
+          if (!matchingGame) continue;
+
+          const extractor = statMap[pred.propType] || statMap['points'];
+          const actualValue = extractor(matchingGame);
+          const line = parseFloat(pred.line);
+
+          let result;
+          if (actualValue > line) result = pred.pick === 'over' ? 'win' : 'loss';
+          else if (actualValue < line) result = pred.pick === 'under' ? 'win' : 'loss';
+          else result = 'push';
+
+          resolved.push({ id: pred.id, result, actualValue });
+        }
+      } catch (err) {
+        console.error(`[resolve-predictions] Error fetching stats for ${playerName}:`, err.message);
+      }
+    }
+
+    res.json({ resolved });
+  } catch (error) {
+    console.error('Error resolving predictions:', error);
+    res.status(500).json({ error: error.message || 'Failed to resolve predictions' });
   }
 });
 

@@ -98,7 +98,9 @@ export async function generatePropPrediction(games, playerName, propType, nextGa
       predicted_value: predictedValue,
       confidence: prediction.confidence || null,
       recommendation: recommendation,
-      error_margin: prediction.error_margin || prediction.errorMargin || null
+      error_margin: prediction.error_margin || prediction.errorMargin || null,
+      analysis: prediction.analysis || null,
+      stats: prediction.stats || null
     };
   } catch (error) {
     console.error(`❌ Error generating prediction for ${propType}:`, error.message);

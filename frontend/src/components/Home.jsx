@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import { Star, ChevronDown } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../utils/api';
+import { getTeamLogo } from '../utils/teamLogos';
 
-const API_BASE = '/api';
-
-// Helper function to get team logo URL
-const getTeamLogo = (teamAbbrev) => {
-  if (!teamAbbrev) return null;
-  return `/images/team-logos/${teamAbbrev}.png`;
+// Module-level cache to persist data across component remounts (e.g., back navigation)
+const dataCache = {
+  playersWithLines: null,
+  trendingProps: null,
+  lastFetched: 0,
+  TTL: 5 * 60 * 1000 // 5 minutes
 };
 
 // Helper function to format prop type for display
@@ -27,28 +31,50 @@ const formatPropType = (propType) => {
   return labels[propType] || propType.toUpperCase();
 };
 
-function Home({ onSelectPlayer }) {
+function Home() {
+  const navigate = useNavigate();
+  const { user, isFavorite, toggleFavorite, isTeamFavorite, toggleFavoriteTeam } = useAuth();
   const [playersWithLines, setPlayersWithLines] = useState([]);
   const [loadingLines, setLoadingLines] = useState(true);
   const [trendingProps, setTrendingProps] = useState([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState('players');
   const [searchResults, setSearchResults] = useState([]);
+  const [teamSearchResults, setTeamSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
-  const [showSearch, setShowSearch] = useState(true); // Show search by default
+  const [showSearch, setShowSearch] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(12);
 
-  // Fetch players with betting lines and trending props on mount
+  // Scroll to top when component mounts (e.g., when navigating back from player detail)
   useEffect(() => {
-    fetchPlayersWithLines();
-    fetchTrendingProps();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Fetch players with betting lines and trending props on mount, using cache for back navigation
+  useEffect(() => {
+    const now = Date.now();
+    const cacheValid = dataCache.lastFetched && (now - dataCache.lastFetched < dataCache.TTL);
+
+    if (cacheValid && dataCache.playersWithLines && dataCache.trendingProps) {
+      setPlayersWithLines(dataCache.playersWithLines);
+      setTrendingProps(dataCache.trendingProps);
+      setLoadingLines(false);
+      setLoadingTrending(false);
+    } else {
+      fetchPlayersWithLines();
+      fetchTrendingProps();
+    }
   }, []);
 
   const fetchPlayersWithLines = async () => {
     setLoadingLines(true);
     try {
-      const response = await axios.get(`${API_BASE}/player/with-lines`);
-      setPlayersWithLines(response.data || []);
+      const response = await api.get(`/player/with-lines`);
+      const data = response.data || [];
+      setPlayersWithLines(data);
+      dataCache.playersWithLines = data;
     } catch (err) {
       console.error('Error fetching players with lines:', err);
       setPlayersWithLines([]);
@@ -60,8 +86,11 @@ function Home({ onSelectPlayer }) {
   const fetchTrendingProps = async () => {
     setLoadingTrending(true);
     try {
-      const response = await axios.get(`${API_BASE}/trending/props`);
-      setTrendingProps(response.data || []);
+      const response = await api.get(`/trending/props`);
+      const data = response.data || [];
+      setTrendingProps(data);
+      dataCache.trendingProps = data;
+      dataCache.lastFetched = Date.now();
     } catch (err) {
       console.error('Error fetching trending props:', err);
       setTrendingProps([]);
@@ -70,84 +99,122 @@ function Home({ onSelectPlayer }) {
     }
   };
 
-  // Debounced search - for players without lines
+  // Debounced search - for players or teams
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setTeamSearchResults([]);
+      setIsSearching(false);
       return;
     }
+
+    // Set searching immediately when user types
+    setIsSearching(true);
 
     const timeoutId = setTimeout(() => {
       performSearch(searchQuery);
     }, 800);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, searchMode]);
 
   const performSearch = async (query) => {
     setIsSearching(true);
     setError(null);
 
     try {
-      const response = await axios.get(`${API_BASE}/search`, {
-        params: { q: query }
+      const response = await api.get(`/search`, {
+        params: { q: query, type: searchMode }
       });
-      setSearchResults(response.data || []);
+      if (searchMode === 'teams') {
+        setTeamSearchResults(response.data || []);
+        setSearchResults([]);
+      } else {
+        setSearchResults(response.data || []);
+        setTeamSearchResults([]);
+      }
     } catch (err) {
       console.error('Search error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to search players. Please try again.';
+      const errorMessage = err.response?.data?.error || err.message || `Failed to search ${searchMode}. Please try again.`;
       setError(errorMessage);
       setSearchResults([]);
+      setTeamSearchResults([]);
     } finally {
       setIsSearching(false);
     }
   };
 
   const handleSelectPlayer = async (player) => {
-    // If player has a name string, create player object immediately to show loading screen
-    if (typeof player === 'string' || player.name) {
-      const playerName = typeof player === 'string' ? player : player.name;
-      const bettingLineData = {
-        betting_line: player.betting_line,
-        bookmaker: player.bookmaker,
-        event_id: player.event_id,
-        home_team: player.home_team,
-        away_team: player.away_team
-      };
-      
-      // Create player object immediately so loading screen shows right away
-      const nameParts = playerName.split(' ');
-      const immediatePlayer = {
-        id: Math.random().toString(),
-        first_name: nameParts[0] || '',
-        last_name: nameParts.slice(1).join(' ') || '',
-        position: 'N/A',
-        team: { abbreviation: 'N/A' },
-        ...bettingLineData
-      };
-      
-      // Set player immediately to show loading screen
-      onSelectPlayer(immediatePlayer);
-      
-      // Then try to search for full player details in the background (non-blocking)
-      try {
-        const response = await axios.get(`${API_BASE}/search`, {
-          params: { q: playerName }
-        });
-        
-        if (response.data && response.data.length > 0) {
-          // Update with full player details (PlayerDetail will handle this via useEffect)
-          onSelectPlayer({
-            ...response.data[0],
-            ...bettingLineData
-          });
-        }
-      } catch (err) {
-        // Keep using the immediate player object if search fails
-        console.log('Search failed, using basic player object:', err.message);
-      }
+    // Scroll to top immediately when player is selected
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Get player name - handle different formats
+    let playerName;
+    if (typeof player === 'string') {
+      playerName = player;
+    } else if (player.name) {
+      playerName = player.name;
+    } else if (player.first_name && player.last_name) {
+      playerName = `${player.first_name} ${player.last_name}`;
     } else {
-      onSelectPlayer(player);
+      console.error('Invalid player object:', player);
+      return;
+    }
+
+    const bettingLineData = {
+      betting_line: player.betting_line,
+      bookmaker: player.bookmaker,
+      event_id: player.event_id,
+      home_team: player.home_team,
+      away_team: player.away_team
+    };
+
+    // If player already has an ID and full data (from search results), navigate directly
+    if (player.id && player.first_name && player.last_name) {
+      const playerNameSlug = encodeURIComponent(playerName.replace(/\s+/g, '-').toLowerCase());
+      navigate(`/player/${player.id}/${playerNameSlug}`, {
+        state: { player: { ...player, ...bettingLineData } }
+      });
+      return;
+    }
+
+    // Otherwise, create temporary player and search for details
+    const nameParts = playerName.split(' ');
+    const immediatePlayer = {
+      id: Math.random().toString(),
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      position: 'N/A',
+      team: { abbreviation: 'N/A' },
+      ...bettingLineData
+    };
+
+    // Navigate with player data in state
+    const playerNameSlug = encodeURIComponent(playerName.replace(/\s+/g, '-').toLowerCase());
+    navigate(`/player/${immediatePlayer.id}/${playerNameSlug}`, {
+      state: { player: immediatePlayer }
+    });
+
+    // Then try to search for full player details in the background
+    try {
+      const response = await api.get(`/search`, {
+        params: { q: playerName }
+      });
+
+      if (response.data && response.data.length > 0) {
+        const fullPlayer = {
+          ...response.data[0],
+          ...bettingLineData
+        };
+        const fullPlayerName = fullPlayer.name || `${fullPlayer.first_name} ${fullPlayer.last_name}`;
+        const updatedPlayerNameSlug = encodeURIComponent(fullPlayerName.replace(/\s+/g, '-').toLowerCase());
+        navigate(`/player/${fullPlayer.id}/${updatedPlayerNameSlug}`, {
+          state: { player: fullPlayer },
+          replace: true
+        });
+      }
+    } catch (err) {
+      console.log('Search failed, using basic player object:', err.message);
     }
   };
 
@@ -172,13 +239,11 @@ function Home({ onSelectPlayer }) {
             className="text-center mb-8"
           >
             <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3 leading-tight">
-              <span className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 bg-clip-text text-transparent">
-            Prop Bet Analyzer
-              </span>
-          </h1>
-            <p className="text-gray-300 text-base md:text-lg font-medium max-w-2xl mx-auto leading-relaxed">
-            AI-powered predictions for NBA player prop bets
-          </p>
+              NBA Player Prop <span className="text-yellow-500">Analyzer</span>
+            </h1>
+            <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+              AI-powered predictions for NBA player performance
+            </p>
           </motion.div>
 
           {/* Floating Search Container */}
@@ -189,6 +254,30 @@ function Home({ onSelectPlayer }) {
             className="max-w-3xl mx-auto"
           >
             <div className="bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl p-5 border border-white/5">
+          {/* Search Mode Tabs */}
+          <div className="flex gap-1 mb-3">
+            <button
+              onClick={() => { setSearchMode('players'); setSearchResults([]); setTeamSearchResults([]); setSearchQuery(''); }}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                searchMode === 'players'
+                  ? 'bg-yellow-500 text-gray-900'
+                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600/50'
+              }`}
+            >
+              Players
+            </button>
+            <button
+              onClick={() => { setSearchMode('teams'); setSearchResults([]); setTeamSearchResults([]); setSearchQuery(''); }}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                searchMode === 'teams'
+                  ? 'bg-yellow-500 text-gray-900'
+                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600/50'
+              }`}
+            >
+              Teams
+            </button>
+          </div>
+
           <div className="relative">
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,7 +288,7 @@ function Home({ onSelectPlayer }) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search for any NBA player..."
+              placeholder={searchMode === 'players' ? 'Search for any NBA player...' : 'Search for any NBA team...'}
                   className="w-full pl-12 pr-12 py-3.5 text-base bg-slate-700/50 text-white border border-slate-600/50 rounded-xl focus:outline-none focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 placeholder-gray-400 transition-all duration-200"
             />
             {isSearching && (
@@ -223,56 +312,60 @@ function Home({ onSelectPlayer }) {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-6"
+              className="mt-4"
             >
-              <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <h4 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
                 <span>Search Results</span>
-                    <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-bold border border-yellow-500/30">
+                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
                   {searchResults.length}
                 </span>
               </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+              <div className="max-h-96 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50">
                 {searchResults.map((player, index) => (
                   <motion.div
                     key={player.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ 
-                          delay: index * 0.02,
-                          duration: 0.2,
-                          ease: "easeOut"
-                        }}
-                        whileHover={{ 
-                          y: -2,
-                          scale: 1.01,
-                          transition: { duration: 0.15 }
-                        }}
-                        whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{
+                      delay: index * 0.01,
+                      duration: 0.1
+                    }}
                     onClick={() => handleSelectPlayer(player)}
-                        className="p-4 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 rounded-xl cursor-pointer transition-all duration-200 hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/10 backdrop-blur-sm"
+                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-yellow-500/30 group"
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-white text-lg">
+                        <h4 className="font-semibold text-white text-sm">
                           {player.first_name} {player.last_name}
                         </h4>
-                        <p className="text-sm text-gray-300 mt-1">
+                        <p className="text-xs text-gray-400 mt-0.5">
                           {player.position} • {player.team?.abbreviation || 'Free Agent'}
                         </p>
                       </div>
-                      <motion.button
-                            whileHover={{ 
-                              scale: 1.05,
-                              transition: { duration: 0.1 }
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {user && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavorite(String(player.id), `${player.first_name} ${player.last_name}`);
                             }}
-                        whileTap={{ scale: 0.95 }}
-                            className="ml-4 px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg hover:bg-yellow-400 transition-colors font-semibold shadow-lg"
-                      >
-                            <span className="flex items-center gap-1">
-                              View
-                              <span>→</span>
-                            </span>
-                      </motion.button>
+                            className="p-1 rounded-lg hover:bg-slate-600 transition-colors"
+                          >
+                            <Star
+                              size={16}
+                              className={isFavorite(String(player.id)) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                            />
+                          </button>
+                        )}
+                        <svg
+                          className="w-5 h-5 text-gray-400 group-hover:text-yellow-400 transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -280,7 +373,71 @@ function Home({ onSelectPlayer }) {
             </motion.div>
           )}
 
-          {searchQuery && !isSearching && searchResults.length === 0 && (
+          {/* Team Search Results */}
+          {teamSearchResults.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4"
+            >
+              <h4 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                <span>Teams</span>
+                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
+                  {teamSearchResults.length}
+                </span>
+              </h4>
+              <div className="max-h-96 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50">
+                {teamSearchResults.map((team, index) => (
+                  <motion.div
+                    key={team.abbreviation}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.01, duration: 0.1 }}
+                    onClick={() => navigate(`/team/${team.abbreviation}`)}
+                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-yellow-500/30 group"
+                  >
+                    <div className="flex items-center gap-3">
+                      {team.logo && (
+                        <img src={team.logo} alt={team.displayName} className="w-8 h-8 object-contain flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-white text-sm group-hover:text-yellow-400 transition-colors">{team.displayName}</h4>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {team.abbreviation}{team.record ? ` · ${team.record}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {user && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavoriteTeam(team.abbreviation, team.displayName);
+                            }}
+                            className="p-1 rounded-lg hover:bg-slate-600 transition-colors"
+                          >
+                            <Star
+                              size={16}
+                              className={isTeamFavorite(team.abbreviation) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                            />
+                          </button>
+                        )}
+                        <svg
+                          className="w-5 h-5 text-gray-400 group-hover:text-yellow-400 transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {searchQuery && !isSearching && searchResults.length === 0 && teamSearchResults.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -289,7 +446,7 @@ function Home({ onSelectPlayer }) {
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p>No players found. Try a different search term.</p>
+              <p>No {searchMode === 'teams' ? 'teams' : 'players'} found. Try a different search term.</p>
             </motion.div>
           )}
         </div>
@@ -378,14 +535,6 @@ function Home({ onSelectPlayer }) {
                       transition: { duration: 0.2, ease: "easeOut" }
                     }}
                     whileTap={{ y: -2 }}
-                    style={{ 
-                      willChange: 'transform',
-                      backfaceVisibility: 'hidden',
-                      WebkitBackfaceVisibility: 'hidden',
-                      transform: 'translate3d(0,0,0)',
-                      WebkitTransform: 'translate3d(0,0,0)',
-                      WebkitFontSmoothing: 'antialiased'
-                    }}
                     onClick={() => {
                       handleSelectPlayer({ 
                         name: prop.player,
@@ -398,11 +547,11 @@ function Home({ onSelectPlayer }) {
                     }}
                     className="trending-card relative flex-shrink-0 w-72 snap-start rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer border border-slate-700/50 hover:border-amber-500/50 group"
                   >
-                    {/* Card Background - Clipped to rounded corners */}
+                    {/* Card Background - Below embers */}
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl -z-10 overflow-hidden"></div>
                     
-                    {/* Rising Fire Embers Background */}
-                    <div className="fire-background">
+                    {/* Rising Fire Embers Background - z-0 */}
+                    <div className="absolute inset-0 z-0 pointer-events-none overflow-visible">
                       <div className="ember"></div>
                       <div className="ember"></div>
                       <div className="ember"></div>
@@ -413,38 +562,32 @@ function Home({ onSelectPlayer }) {
                       <div className="ember"></div>
                     </div>
 
-                    {/* Card Content - Above Embers */}
-                    <div className="card-content relative z-10 p-4">
+                    {/* Card Content - z-20 (front-most layer) */}
+                    <div className="relative z-20 p-4 antialiased will-change-auto">
                       {/* Player Image & Name Header */}
                       <div className="flex items-center gap-3 mb-3">
-                        {/* Player Image */}
-                        {prop.player_image ? (
-                          <div className="transform-none will-change-auto flex-shrink-0">
-                            <img 
-                              src={prop.player_image} 
+                        {/* Player Image - z-30 (highest layer) */}
+                        <div className="relative z-30 flex-shrink-0">
+                          {prop.player_image ? (
+                            <img
+                              src={prop.player_image}
                               alt={prop.player}
+                              loading="lazy"
                               className="w-14 h-14 rounded-full object-cover ring-2 ring-amber-500/30 group-hover:ring-amber-500 select-none pointer-events-none"
-                              style={{ 
-                                imageRendering: 'high-quality',
-                                WebkitBackfaceVisibility: 'hidden',
-                                backfaceVisibility: 'hidden',
-                                transform: 'translateZ(0)',
-                                WebkitTransform: 'translateZ(0)'
-                              }}
                               onError={(e) => {
                                 e.target.style.display = 'none';
+                                e.target.nextElementSibling.style.display = 'flex';
                               }}
                             />
-                          </div>
-                        ) : (
-                          <div 
-                            className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600 flex items-center justify-center ring-2 ring-amber-500/30 group-hover:ring-amber-500 flex-shrink-0 transition-all duration-200"
+                          ) : null}
+                          <div
+                            className={`${prop.player_image ? 'hidden' : 'flex'} w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600 items-center justify-center ring-2 ring-amber-500/30 group-hover:ring-amber-500 transition-all duration-200`}
                           >
                             <span className="text-white text-lg font-bold">
                               {prop.player.split(' ').map(n => n[0]).join('')}
                             </span>
                           </div>
-                        )}
+                        </div>
                         
                         {/* Player Name & Prop Type */}
                         <div className="flex-1 min-w-0">
@@ -462,7 +605,7 @@ function Home({ onSelectPlayer }) {
                               {formatPropType(prop.prop_type)}
                             </span>
                             <span className="text-[10px] text-gray-500">•</span>
-                            <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                            <p className="text-[10px] text-gray-400 flex items-center gap-2 flex-wrap">
                               {getTeamLogo(prop.home_team) ? (
                                 <img 
                                   src={getTeamLogo(prop.home_team)} 
@@ -473,7 +616,7 @@ function Home({ onSelectPlayer }) {
                               ) : (
                                 <span className="font-medium">{prop.home_team}</span>
                               )}
-                              <span className="text-gray-600">VS</span>
+                              <span className="text-gray-600 px-1.5 font-semibold">VS</span>
                               {getTeamLogo(prop.away_team) ? (
                                 <img 
                                   src={getTeamLogo(prop.away_team)} 
@@ -628,8 +771,9 @@ function Home({ onSelectPlayer }) {
             </div>
         </motion.div>
       ) : playersWithLines.length > 0 ? (
+        <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {playersWithLines.map((player, index) => (
+          {playersWithLines.slice(0, visibleCount).map((player, index) => (
             <motion.div
               key={`${player.name}-${index}`}
               initial={{ opacity: 0, y: 20 }}
@@ -655,14 +799,31 @@ function Home({ onSelectPlayer }) {
                   away_team: player.away_team
                 });
               }}
-                className="bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 cursor-pointer overflow-hidden border border-slate-700/50 hover:border-yellow-500/50 group"
+                className="relative bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 cursor-pointer overflow-hidden border border-slate-700/50 hover:border-yellow-500/50 group"
             >
+                {/* Favorite Star */}
+                {user && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(String(player.player_id || player.name), player.name);
+                    }}
+                    className="absolute top-3 right-3 p-1 transition-colors z-10"
+                  >
+                    <Star
+                      size={16}
+                      className={isFavorite(String(player.player_id || player.name)) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                    />
+                  </button>
+                )}
+
                 {/* Player Image */}
                 <div className="flex justify-center pt-5 pb-2.5">
                 {player.player_image ? (
-                  <img 
-                    src={player.player_image} 
+                  <img
+                    src={player.player_image}
                     alt={player.name}
+                    loading="lazy"
                       className="w-24 h-24 rounded-full object-cover ring-2 ring-yellow-500/30 group-hover:ring-yellow-500 shadow-xl transition-all duration-300"
                     onError={(e) => {
                       e.target.style.display = 'none';
@@ -685,43 +846,33 @@ function Home({ onSelectPlayer }) {
                   <h3 className="font-bold text-base text-white mb-1 truncate group-hover:text-yellow-400 transition-colors">
                   {player.name}
                 </h3>
-                  <p className="text-xs text-gray-400 mb-3 flex items-center justify-center gap-2">
-                    {getTeamLogo(player.home_team) ? (
-                      <img 
-                        src={getTeamLogo(player.home_team)} 
-                        alt={player.home_team}
-                        className="w-6 h-6 object-contain"
-                        onError={(e) => {
-                          // Fallback to text if logo fails to load
-                          e.target.style.display = 'none';
-                          const textSpan = document.createElement('span');
-                          textSpan.className = 'font-medium';
-                          textSpan.textContent = player.home_team;
-                          e.target.parentNode.insertBefore(textSpan, e.target);
-                        }}
-                      />
-                    ) : (
-                      <span className="font-medium">{player.home_team}</span>
-                    )}
-                    <span className="text-gray-500 text-[10px]">VS</span>
-                    {getTeamLogo(player.away_team) ? (
-                      <img 
-                        src={getTeamLogo(player.away_team)} 
-                        alt={player.away_team}
-                        className="w-6 h-6 object-contain"
-                        onError={(e) => {
-                          // Fallback to text if logo fails to load
-                          e.target.style.display = 'none';
-                          const textSpan = document.createElement('span');
-                          textSpan.className = 'font-medium';
-                          textSpan.textContent = player.away_team;
-                          e.target.parentNode.insertBefore(textSpan, e.target);
-                        }}
-                      />
-                    ) : (
-                      <span className="font-medium">{player.away_team}</span>
-                    )}
-                </p>
+                  <div className="text-xs text-gray-400 mb-3 flex items-center justify-center gap-2">
+                    <div className="flex items-center gap-2">
+                      {getTeamLogo(player.home_team) ? (
+                        <img 
+                          src={getTeamLogo(player.home_team)} 
+                          alt={player.home_team}
+                          className="w-5 h-5 object-contain flex-shrink-0"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ) : null}
+                      <span className="font-medium text-[10px] whitespace-nowrap">{player.home_team}</span>
+                    </div>
+                    
+                    <span className="text-gray-500 text-[10px] font-semibold">vs</span>
+                    
+                    <div className="flex items-center gap-2">
+                      {getTeamLogo(player.away_team) ? (
+                        <img 
+                          src={getTeamLogo(player.away_team)} 
+                          alt={player.away_team}
+                          className="w-5 h-5 object-contain flex-shrink-0"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ) : null}
+                      <span className="font-medium text-[10px] whitespace-nowrap">{player.away_team}</span>
+                    </div>
+                  </div>
                 
                 {/* Betting Line */}
                   <div className="bg-gradient-to-br from-yellow-500/10 to-transparent rounded-xl p-3 mb-3 border border-yellow-500/20">
@@ -753,13 +904,32 @@ function Home({ onSelectPlayer }) {
                   </div>
 
                   {/* View Button */}
-                  <button className="w-full px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-amber-500 text-gray-900 rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all font-bold shadow-lg">
+                  <button className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-700 hover:shadow-yellow-500/20 transition-all font-bold shadow-lg border border-gray-700 hover:border-yellow-500/50">
                     View Analysis
                   </button>
               </div>
             </motion.div>
           ))}
         </div>
+          {playersWithLines.length > visibleCount && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-center mt-8"
+            >
+              <button
+                onClick={() => setVisibleCount(prev => prev + 12)}
+                className="flex items-center gap-2 px-6 py-3 bg-slate-800/60 backdrop-blur-sm text-white rounded-xl hover:bg-slate-700/60 transition-all font-semibold border border-slate-700/50 hover:border-yellow-500/50"
+              >
+                <span>Show More</span>
+                <ChevronDown size={18} />
+                <span className="text-xs text-gray-400">
+                  ({playersWithLines.length - visibleCount} remaining)
+                </span>
+              </button>
+            </motion.div>
+          )}
+        </>
       ) : (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -778,6 +948,7 @@ function Home({ onSelectPlayer }) {
         </motion.div>
       )}
       </div>
+
     </div>
   );
 }

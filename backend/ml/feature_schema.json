@@ -1,0 +1,79 @@
+{
+  "PTS": [
+    "pts_avg_3", "pts_avg_5", "pts_avg_10", "pts_avg_season",
+    "pts_std_10", "pts_volatility", "min_avg_3", "min_avg_5",
+    "min_avg_10", "usage", "fga_avg_10", "is_home",
+    "pts_hot_streak", "pts_momentum", "pts_over_streak",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct"
+  ],
+  "REB": [
+    "reb_avg_3", "reb_avg_5", "reb_avg_10", "reb_avg_season",
+    "reb_std_10", "reb_volatility", "min_avg_3", "min_avg_5",
+    "min_avg_10", "is_home",
+    "reb_hot_streak", "reb_momentum",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct"
+  ],
+  "AST": [
+    "ast_avg_3", "ast_avg_5", "ast_avg_10", "ast_avg_season",
+    "ast_std_10", "ast_volatility", "min_avg_3", "min_avg_5",
+    "min_avg_10", "usage", "is_home",
+    "ast_hot_streak", "ast_momentum",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct"
+  ],
+  "3PM": [
+    "threes_avg_3", "threes_avg_5", "threes_avg_10", "threes_avg_season",
+    "threes_std_10", "threes_volatility", "fg3a_avg_10", "is_home",
+    "threes_hot_streak",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct", "min_avg_10", "usage"
+  ],
+  "PRA": [
+    "pra_avg_3", "pra_avg_5", "pra_avg_10",
+    "pts_avg_season", "reb_avg_season", "ast_avg_season",
+    "pts_volatility", "reb_volatility", "ast_volatility",
+    "min_avg_10", "usage", "is_home",
+    "pts_hot_streak", "reb_hot_streak", "ast_hot_streak",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct", "pts_momentum"
+  ],
+  "PR": [
+    "pr_avg_3", "pr_avg_5", "pr_avg_10",
+    "pts_avg_season", "reb_avg_season",
+    "pts_volatility", "reb_volatility",
+    "min_avg_10", "usage", "is_home",
+    "pts_hot_streak", "reb_hot_streak",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct", "fga_avg_10"
+  ],
+  "PA": [
+    "pa_avg_3", "pa_avg_5", "pa_avg_10",
+    "pts_avg_season", "ast_avg_season",
+    "pts_volatility", "ast_volatility",
+    "min_avg_10", "usage", "is_home",
+    "pts_hot_streak", "ast_hot_streak",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct", "fga_avg_10"
+  ],
+  "RA": [
+    "ra_avg_3", "ra_avg_5", "ra_avg_10",
+    "reb_avg_season", "ast_avg_season",
+    "reb_volatility", "ast_volatility",
+    "min_avg_10", "is_home",
+    "reb_hot_streak", "ast_hot_streak",
+    "days_rest", "is_back_to_back", "games_in_last_week",
+    "win_streak", "loss_streak", "recent_win_pct", "reb_momentum"
+  ],
+  "TARGET_COLUMNS": {
+    "PTS": "target_pts",
+    "REB": "target_reb",
+    "AST": "target_ast",
+    "3PM": "target_3pm",
+    "PRA": "target_pra",
+    "PR": "target_pr",
+    "PA": "target_pa",
+    "RA": "target_ra"
+  }
+}

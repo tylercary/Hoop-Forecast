@@ -50,6 +50,9 @@ backend/data/predictions.json
 *.sqlite
 *.sqlite3
 
+# Large ML training data files
+backend/ml/data/*.csv
+
 # Player images (optional - can be regenerated)
 # Uncomment if you don't want to commit player images
 # backend/public/images/players/

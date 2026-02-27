@@ -72,7 +72,7 @@ img.select-none {
 /* 🔥 Trending Card with Fire Effects */
 .trending-card {
   position: relative;
-  overflow: visible; /* Required so embers can rise */
+  overflow: visible;
   z-index: 1;
 }
 
@@ -88,35 +88,29 @@ img.select-none {
     rgba(255, 100, 20, 0.15) 25%,
     transparent 70%
   );
-  z-index: 1; /* Above embers, below content */
+  z-index: 1;
   pointer-events: none;
 }
 
-/* Fire background layer - full card coverage for ember spawning */
-.fire-background {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: visible;
-  z-index: 0; /* Behind card content */
-}
+/* Fire background layer - REMOVED - Now using inline classes */
 
 /* Individual ember particles */
 .ember {
   position: absolute;
   bottom: -10px;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: radial-gradient(
     circle,
-    rgba(255, 180, 80, 0.95) 0%,
-    rgba(255, 130, 50, 0.7) 50%,
+    rgba(255, 200, 120, 0.9) 0%,
+    rgba(255, 120, 40, 0.6) 40%,
+    rgba(255, 80, 20, 0.25) 70%,
     transparent 100%
   );
   border-radius: 50%;
   opacity: 0;
-  animation: rise 4s linear infinite;
-  filter: blur(0.5px);
+  animation: rise 6s linear infinite;
+  filter: blur(1.2px);
 }
 
 /* Staggered ember positions and delays */
@@ -144,10 +138,24 @@ img.select-none {
   }
 }
 
-/* Card content wrapper - stays above embers */
-.card-content {
-  position: relative;
-  z-index: 2; /* Keeps text above embers */
+/* Card content layer - isolated to prevent blur */
+.trending-card > div[class*="z-20"] {
+  isolation: isolate;
+}
+
+/* Ensure text stays crisp */
+.trending-card img,
+.trending-card span,
+.trending-card p,
+.trending-card h3 {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Player images - force crisp rendering */
+.trending-card img[alt] {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 /* Optimize transitions */

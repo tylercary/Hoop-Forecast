@@ -4,28 +4,20 @@ import { motion } from 'framer-motion';
 // Component for player image with fallback to initials
 function PlayerImageWithFallback({ playerName, playerId, headshot }) {
   const [imageError, setImageError] = useState(false);
-  const [currentImageUrl, setCurrentImageUrl] = useState(() => {
-    // Priority: ESPN headshot > local image > NBA CDN
-    const normalizedName = playerName.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_');
-    const localImageUrl = `/images/players/${normalizedName}.png`;
-    if (headshot) return headshot; // ESPN headshot first
-    return localImageUrl; // Then local
-  });
-  
-  const initials = playerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  const normalizedName = playerName.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_');
+  const normalizedName = playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim();
   const localImageUrl = `/images/players/${normalizedName}.png`;
   const cdnImageUrl = playerId ? `https://cdn.nba.com/headshots/nba/latest/260x190/${playerId}.png` : null;
+  const initials = playerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+  // Build ordered fallback chain, skipping nulls
+  const fallbackChain = [headshot, localImageUrl, cdnImageUrl].filter(Boolean);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const currentImageUrl = fallbackChain[currentIndex];
 
   const handleImageError = () => {
-    if (currentImageUrl === headshot) {
-      // ESPN headshot failed, try local
-      setCurrentImageUrl(localImageUrl);
-    } else if (currentImageUrl === localImageUrl && cdnImageUrl) {
-      // Local failed, try CDN
-      setCurrentImageUrl(cdnImageUrl);
+    if (currentIndex + 1 < fallbackChain.length) {
+      setCurrentIndex(currentIndex + 1);
     } else {
-      // All failed, show initials
       setImageError(true);
     }
   };

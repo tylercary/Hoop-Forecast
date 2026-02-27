@@ -8,6 +8,7 @@ import {
   getPropSportsbooks,
   sortByBookCount
 } from '../utils/trendingHelpers.js';
+import { getTeamAbbrevFromFullName } from '../services/teamMappingService.js';
 
 dotenv.config();
 
@@ -26,18 +27,20 @@ const trendingCache = new NodeCache({ stdTTL: 300 });
 router.get('/props', async (req, res) => {
   try {
     if (!THE_ODDS_API_KEY) {
-      console.log('⚠️ No Odds API key configured');
+      console.log('⚠️ No Odds API key configured - trending props unavailable');
+      console.log('   Set THE_ODDS_API_KEY or ODDS_API_KEY in your .env file');
       return res.json([]);
     }
 
     // Check cache first
     const cached = trendingCache.get('trending_props');
     if (cached) {
-      console.log('✅ Using cached trending props');
+      console.log(`✅ Using cached trending props (${cached.length} props)`);
       return res.json(cached);
     }
 
     console.log('📊 Calculating trending props from Odds API...');
+    console.log(`   API Key configured: ${THE_ODDS_API_KEY.substring(0, 8)}...`);
 
     // Step 1: Get all NBA events
     const eventsResponse = await axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events`, {
@@ -54,8 +57,11 @@ router.get('/props', async (req, res) => {
 
     const trendingPropsMap = new Map(); // Key: "playerName|propType|line"
 
-    // Step 2: For each event, get all player props
-    for (const event of events) {
+    // Step 2: For each event, get all player props (with delay to avoid 429 rate limits)
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      if (i > 0) await delay(250); // 250ms between requests to avoid rate limiting
       try {
         const oddsResponse = await axios.get(
           `${THE_ODDS_API_BASE}/sports/basketball_nba/events/${event.id}/odds`,
@@ -138,6 +144,12 @@ router.get('/props', async (req, res) => {
           }
         }
       } catch (err) {
+        const status = err.response?.status;
+        const errorCode = err.response?.data?.error_code;
+        if (status === 401 || status === 403 || errorCode === 'OUT_OF_USAGE_CREDITS') {
+          console.log(`❌ Odds API quota/auth error (${status}). Stopping trending analysis.`);
+          break;
+        }
         console.log(`⚠️ Error processing event ${event.id}:`, err.message);
         continue;
       }
@@ -150,9 +162,9 @@ router.get('/props', async (req, res) => {
 
     for (const [key, propData] of trendingPropsMap.entries()) {
       const bookCount = propData.sportsbooks.size;
-      
-      // Only include props with at least 3 sportsbooks
-      if (bookCount < 3) continue;
+
+      // Only include props with at least 2 sportsbooks (lowered from 3)
+      if (bookCount < 2) continue;
 
       // Convert sportsbooks Map to plain object for helper functions
       const sportsbooksObj = {};
@@ -163,6 +175,10 @@ router.get('/props', async (req, res) => {
       const bestOdds = findBestOdds(sportsbooksObj);
       const booksList = Array.from(propData.sportsbooks.keys());
 
+      // Convert full team names to abbreviations
+      const homeTeamAbbrev = getTeamAbbrevFromFullName(propData.home_team) || propData.home_team;
+      const awayTeamAbbrev = getTeamAbbrevFromFullName(propData.away_team) || propData.away_team;
+
       trendingPropsArray.push({
         player: propData.player,
         prop_type: propData.propType,
@@ -170,8 +186,8 @@ router.get('/props', async (req, res) => {
         bookCount: bookCount,
         books: booksList,
         bestOdds: bestOdds,
-        home_team: propData.home_team,
-        away_team: propData.away_team,
+        home_team: homeTeamAbbrev,
+        away_team: awayTeamAbbrev,
         event_id: propData.event_id
       });
     }
@@ -179,23 +195,55 @@ router.get('/props', async (req, res) => {
     // Step 5: Sort by book count and take top 15
     const sortedProps = sortByBookCount(trendingPropsArray).slice(0, 15);
 
+    if (sortedProps.length === 0) {
+      console.log('⚠️ No trending props found after filtering');
+      console.log(`   Total props analyzed: ${trendingPropsMap.size}`);
+      console.log(`   Props after book count filter: ${trendingPropsArray.length}`);
+      return res.json([]);
+    }
+
     console.log(`✅ Returning top ${sortedProps.length} trending props`);
 
-    // Step 6: Add player images
+    // Step 6: Add player images (download missing ones)
     console.log('🖼️ Fetching player images for trending props...');
-    const { getImageUrl, imageExists } = await import('../services/imageStorageService.js');
-    
+    const { getImageUrl, imageExists, downloadPlayerImage } = await import('../services/imageStorageService.js');
+    const { searchPlayer } = await import('../services/nbaApiService.js');
+
+    const missingImagePlayers = [];
     for (const prop of sortedProps) {
       try {
-        // Check if image exists locally
         if (imageExists(prop.player)) {
           prop.player_image = getImageUrl(prop.player);
         } else {
-          prop.player_image = null; // Will show initials on frontend
+          prop.player_image = null;
+          missingImagePlayers.push(prop);
         }
       } catch (error) {
         prop.player_image = null;
       }
+    }
+
+    // Download missing images in background (don't block response)
+    if (missingImagePlayers.length > 0) {
+      console.log(`🔍 Downloading images for ${missingImagePlayers.length} trending players...`);
+      await Promise.allSettled(
+        missingImagePlayers.map(async (prop) => {
+          try {
+            const nbaPlayer = await Promise.race([
+              searchPlayer(prop.player),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+            ]);
+            if (nbaPlayer?.id) {
+              const imageUrl = await downloadPlayerImage(prop.player, nbaPlayer.id);
+              if (imageUrl) {
+                prop.player_image = imageUrl;
+              }
+            }
+          } catch (e) {
+            // Skip - will show initials
+          }
+        })
+      );
     }
 
     const propsWithImages = sortedProps.filter(p => p.player_image).length;
