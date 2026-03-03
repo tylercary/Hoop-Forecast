@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, ChevronDown } from 'lucide-react';
+import { Star, ChevronDown, Filter, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
@@ -46,6 +46,26 @@ function Home() {
   const [error, setError] = useState(null);
   const [showSearch, setShowSearch] = useState(true);
   const [visibleCount, setVisibleCount] = useState(12);
+  const [filterTeam, setFilterTeam] = useState('all');
+  const [filterProp, setFilterProp] = useState('all');
+
+  // Derive unique teams and prop types from player data for filters
+  const uniqueTeams = [...new Set(
+    playersWithLines.flatMap(p => [p.home_team, p.away_team]).filter(Boolean)
+  )].sort();
+
+  const uniqueProps = [...new Set(
+    playersWithLines.map(p => p.prop_type).filter(Boolean)
+  )].sort();
+
+  // Apply filters
+  const filteredPlayers = playersWithLines.filter(p => {
+    if (filterTeam !== 'all' && p.home_team !== filterTeam && p.away_team !== filterTeam) return false;
+    if (filterProp !== 'all' && p.prop_type !== filterProp) return false;
+    return true;
+  });
+
+  const hasActiveFilters = filterTeam !== 'all' || filterProp !== 'all';
 
   // Scroll to top when component mounts (e.g., when navigating back from player detail)
   useEffect(() => {
@@ -636,7 +656,7 @@ function Home() {
                       <div className="mb-2.5 bg-slate-700/30 rounded-lg p-2.5 border border-slate-600/30">
                         <p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide">Line</p>
                         <p className="text-xl font-extrabold text-amber-400 leading-tight">
-                          O/U {prop.line}
+                          {prop.line}
                         </p>
                       </div>
 
@@ -724,11 +744,47 @@ function Home() {
               className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg backdrop-blur-sm"
             >
               <span className="text-yellow-400 font-bold text-xs">
-              {playersWithLines.length} Available
+              {filteredPlayers.length} Available
             </span>
             </motion.div>
         )}
         </motion.div>
+
+      {/* Filters */}
+      {playersWithLines.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Filter size={16} className="text-gray-400" />
+          <select
+            value={filterTeam}
+            onChange={(e) => { setFilterTeam(e.target.value); setVisibleCount(12); }}
+            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-yellow-500/50 focus:outline-none cursor-pointer"
+          >
+            <option value="all">All Teams</option>
+            {uniqueTeams.map(team => (
+              <option key={team} value={team}>{team}</option>
+            ))}
+          </select>
+          <select
+            value={filterProp}
+            onChange={(e) => { setFilterProp(e.target.value); setVisibleCount(12); }}
+            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-yellow-500/50 focus:outline-none cursor-pointer"
+          >
+            <option value="all">All Props</option>
+            {uniqueProps.map(prop => (
+              <option key={prop} value={prop}>{formatPropType(prop)}</option>
+            ))}
+          </select>
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setFilterTeam('all'); setFilterProp('all'); setVisibleCount(12); }}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-800/60"
+            >
+              <X size={14} />
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Players with Lines Grid */}
       {loadingLines ? (
@@ -770,10 +826,10 @@ function Home() {
               ))}
             </div>
         </motion.div>
-      ) : playersWithLines.length > 0 ? (
+      ) : filteredPlayers.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {playersWithLines.slice(0, visibleCount).map((player, index) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
+          {filteredPlayers.slice(0, visibleCount).map((player, index) => (
             <motion.div
               key={`${player.name}-${index}`}
               initial={{ opacity: 0, y: 20 }}
@@ -824,7 +880,7 @@ function Home() {
                     src={player.player_image}
                     alt={player.name}
                     loading="lazy"
-                      className="w-24 h-24 rounded-full object-cover ring-2 ring-yellow-500/30 group-hover:ring-yellow-500 shadow-xl transition-all duration-300"
+                      className="w-24 h-24 rounded-full object-cover ring-2 ring-gray-500/40 group-hover:ring-yellow-500 shadow-xl transition-all duration-300"
                     onError={(e) => {
                       e.target.style.display = 'none';
                       const fallback = e.target.nextElementSibling;
@@ -833,7 +889,7 @@ function Home() {
                   />
                 ) : null}
                 <div 
-                    className={`${player.player_image ? 'hidden' : 'flex'} w-24 h-24 rounded-full bg-gradient-to-br from-yellow-500 via-amber-500 to-yellow-600 items-center justify-center ring-2 ring-yellow-500/30 group-hover:ring-yellow-500 shadow-xl transition-all duration-300`}
+                    className={`${player.player_image ? 'hidden' : 'flex'} w-24 h-24 rounded-full bg-gradient-to-br from-gray-500 via-gray-400 to-gray-500 items-center justify-center ring-2 ring-gray-500/40 group-hover:ring-yellow-500 shadow-xl transition-all duration-300`}
                 >
                     <span className="text-white text-3xl font-bold">
                     {player.name.split(' ').map(n => n[0]).join('')}
@@ -842,41 +898,17 @@ function Home() {
               </div>
 
               {/* Player Info */}
-                <div className="px-4 pb-4">
-                  <h3 className="font-bold text-base text-white mb-1 truncate group-hover:text-yellow-400 transition-colors">
+                <div className="px-4 pb-4 text-center">
+                  <h3 className="font-bold text-base text-white mb-0.5 truncate group-hover:text-yellow-400 transition-colors">
                   {player.name}
                 </h3>
-                  <div className="text-xs text-gray-400 mb-3 flex items-center justify-center gap-2">
-                    <div className="flex items-center gap-2">
-                      {getTeamLogo(player.home_team) ? (
-                        <img 
-                          src={getTeamLogo(player.home_team)} 
-                          alt={player.home_team}
-                          className="w-5 h-5 object-contain flex-shrink-0"
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      ) : null}
-                      <span className="font-medium text-[10px] whitespace-nowrap">{player.home_team}</span>
-                    </div>
-                    
-                    <span className="text-gray-500 text-[10px] font-semibold">vs</span>
-                    
-                    <div className="flex items-center gap-2">
-                      {getTeamLogo(player.away_team) ? (
-                        <img 
-                          src={getTeamLogo(player.away_team)} 
-                          alt={player.away_team}
-                          className="w-5 h-5 object-contain flex-shrink-0"
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      ) : null}
-                      <span className="font-medium text-[10px] whitespace-nowrap">{player.away_team}</span>
-                    </div>
+                  <div className="text-xs text-gray-400 mb-4">
+                    {player.home_team} vs {player.away_team}
                   </div>
-                
-                {/* Betting Line */}
-                  <div className="bg-gradient-to-br from-yellow-500/10 to-transparent rounded-xl p-3 mb-3 border border-yellow-500/20">
-                    <div className="text-xs text-gray-400 mb-1 uppercase tracking-wider font-semibold">
+
+                {/* Prop Line Box */}
+                  <div className="rounded-lg border border-slate-600/40 bg-slate-700/30 p-2.5 mb-4">
+                    <div className="text-xs font-semibold text-yellow-400 mb-0.5">
                       {(() => {
                         const propLabels = {
                           points: 'PTS',
@@ -897,10 +929,10 @@ function Home() {
                         return propLabels[player.prop_type] || player.prop_type?.toUpperCase() || 'PTS';
                       })()}
                     </div>
-                    <div className="text-3xl font-extrabold text-yellow-400 mb-1">
-                    {player.betting_line}
-                  </div>
-                    <div className="text-xs text-gray-400">{player.bookmaker}</div>
+                    <div className="text-2xl font-extrabold text-yellow-400">
+                      {player.betting_line}
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{player.bookmaker}</div>
                   </div>
 
                   {/* View Button */}
@@ -911,7 +943,7 @@ function Home() {
             </motion.div>
           ))}
         </div>
-          {playersWithLines.length > visibleCount && (
+          {filteredPlayers.length > visibleCount && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -924,12 +956,28 @@ function Home() {
                 <span>Show More</span>
                 <ChevronDown size={18} />
                 <span className="text-xs text-gray-400">
-                  ({playersWithLines.length - visibleCount} remaining)
+                  ({filteredPlayers.length - visibleCount} remaining)
                 </span>
               </button>
             </motion.div>
           )}
         </>
+      ) : hasActiveFilters && playersWithLines.length > 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+            className="bg-slate-800/40 backdrop-blur-sm rounded-2xl shadow-xl p-12 text-center border border-slate-700/50"
+        >
+          <p className="text-gray-300 mb-2 text-lg font-semibold">
+            No players match your filters
+          </p>
+          <button
+            onClick={() => { setFilterTeam('all'); setFilterProp('all'); }}
+            className="mt-3 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
+          >
+            Clear all filters
+          </button>
+        </motion.div>
       ) : (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

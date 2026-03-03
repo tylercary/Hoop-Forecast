@@ -11,7 +11,6 @@ const IMAGES_DIR = path.join(__dirname, '../public/images/players');
 
 if (!fs.existsSync(IMAGES_DIR)) {
   fs.mkdirSync(IMAGES_DIR, { recursive: true });
-  console.log(`📁 Created images directory: ${IMAGES_DIR}`);
 }
 
 /**
@@ -65,8 +64,6 @@ export async function downloadPlayerImage(playerName, nbaPlayerId) {
       return getImageUrl(playerName);
     }
     
-    console.log(`📥 Downloading image for ${playerName}...`);
-    
     const response = await axios.get(imageUrl, {
       responseType: 'arraybuffer',
       timeout: 10000,
@@ -74,14 +71,12 @@ export async function downloadPlayerImage(playerName, nbaPlayerId) {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
       }
     });
-    
+
     // Save image to disk
     fs.writeFileSync(imagePath, response.data);
-    console.log(`✅ Saved image for ${playerName} to ${imagePath}`);
     
     return getImageUrl(playerName);
   } catch (error) {
-    console.log(`⚠️ Could not download image for ${playerName}: ${error.message}`);
     return null;
   }
 }

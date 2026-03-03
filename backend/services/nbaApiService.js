@@ -209,25 +209,11 @@ export async function searchPlayersESPN(playerName) {
       return aName.localeCompare(bName);
     });
     
-    console.log(`✅ Found ${uniqueResults.length} matching players from ESPN`);
-    
-    // If no results found, log for debugging
-    if (uniqueResults.length === 0) {
-      console.log(`⚠️  No players found for search: "${playerName}"`);
-      console.log(`   Search tokens: ${searchTokens.join(', ')}`);
-      console.log(`   Teams searched: ${teams.length}`);
-    }
     
     return uniqueResults.slice(0, 25);
     
   } catch (error) {
-    console.error('❌ Error searching ESPN for players:', error.message);
-    if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', JSON.stringify(error.response.data).substring(0, 200));
-    }
-    // Return empty array instead of throwing to prevent frontend crashes
-    console.error('⚠️  Returning empty results due to error');
+    console.error('ESPN player search error:', error.message);
     return [];
   }
 }
@@ -299,7 +285,6 @@ export async function getPlayerStatsFromNBA(playerName, retryCount = 0) {
     try {
       playerInfo = await getPlayerInfo(nbaPlayer.id);
     } catch (infoError) {
-      console.log(`⚠️ Could not fetch detailed player info: ${infoError.message}`);
     }
     
     // Parse player name
@@ -377,7 +362,6 @@ export async function searchPlayer(playerName) {
         // Check if we got a valid response
         if (response.status === 403 || response.status === 429) {
           if (attempt < 2) {
-            console.log(`⚠️ NBA.com search returned ${response.status}, waiting before retry ${attempt + 1}/3...`);
             await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
             continue;
           } else {
@@ -390,7 +374,6 @@ export async function searchPlayer(playerName) {
         lastError = error;
         if (error.response && (error.response.status === 403 || error.response.status === 429)) {
           if (attempt < 2) {
-            console.log(`⚠️ NBA.com search error ${error.response.status}, waiting before retry ${attempt + 1}/3...`);
             await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
             continue;
           }
@@ -686,7 +669,6 @@ export async function getPlayerGameLog(playerId, options = {}) {
     if (includePreviousSeason) {
       try {
         const previousSeason = getPreviousSeason(currentSeason);
-        console.log(`📊 Fetching previous season (${previousSeason}) game log for player ${playerId}...`);
         
         const previousResponse = await axios.get(url, {
           params: {
@@ -705,7 +687,6 @@ export async function getPlayerGameLog(playerId, options = {}) {
           processedPreviousGames = processGames(previousGamesArray, previousSeason, previousSeasonGames);
         }
       } catch (prevError) {
-        console.log(`⚠️ Could not fetch previous season data: ${prevError.message}`);
       }
     }
     
@@ -735,7 +716,6 @@ export async function getNextGame(nbaPlayerId, teamAbbrev) {
   try {
     // ESPN API only needs team abbreviation, nbaPlayerId is optional
     if (!teamAbbrev || teamAbbrev === 'N/A') {
-      console.log(`⚠️ Missing team abbreviation for getNextGame: teamAbbrev=${teamAbbrev}`);
       return null;
     }
     
@@ -854,14 +834,8 @@ export async function getNextGame(nbaPlayerId, teamAbbrev) {
         }
       }
     } catch (espnError) {
-      console.log(`⚠️ ESPN schedule endpoint failed: ${espnError.message}`);
-      if (espnError.response) {
-        console.log(`   Status: ${espnError.response.status}`);
-        console.log(`   Data:`, JSON.stringify(espnError.response.data).substring(0, 200));
-      }
+      // ESPN schedule endpoint failed - will return null
     }
-    
-    console.log(`❌ Could not find next game for ${teamAbbrev}`);
     return null;
   } catch (error) {
     console.error('Error fetching next game:', error.message);
@@ -1125,7 +1099,6 @@ export async function getPlayerInfo(playerId) {
         lastError = error;
         if (error.response && (error.response.status === 403 || error.response.status === 429)) {
           if (attempt < 2) {
-            console.log(`⚠️ NBA.com error ${error.response.status}, waiting before retry ${attempt + 1}/3...`);
             await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
             continue;
           }
@@ -1216,7 +1189,6 @@ export async function searchTeamsESPN(query) {
         record: team.record?.items?.[0]?.summary || null,
       }));
 
-    console.log(`✅ Found ${results.length} matching teams for "${query}"`);
     return results;
   } catch (error) {
     console.error('❌ Error searching teams:', error.message);

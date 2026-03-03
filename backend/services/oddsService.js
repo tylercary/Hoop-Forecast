@@ -198,7 +198,6 @@ function autoDetectCombinedProps(collectedProps) {
     if (result.points && result.points.line && result.rebounds && result.rebounds.line && result.assists && result.assists.line) {
       const praLine = result.points.line + result.rebounds.line + result.assists.line;
       if (isValidLineForProp('pra', praLine)) {
-        console.log(`🔄 Auto-detected PRA: ${praLine} (${result.points.line} + ${result.rebounds.line} + ${result.assists.line})`);
         result.pra = {
           line: praLine,
           over_odds: -110,
@@ -218,7 +217,6 @@ function autoDetectCombinedProps(collectedProps) {
     if (result.points && result.points.line && result.rebounds && result.rebounds.line) {
       const prLine = result.points.line + result.rebounds.line;
       if (isValidLineForProp('pr', prLine)) {
-        console.log(`🔄 Auto-detected PR: ${prLine} (${result.points.line} + ${result.rebounds.line})`);
         result.pr = {
           line: prLine,
           over_odds: -110,
@@ -238,7 +236,6 @@ function autoDetectCombinedProps(collectedProps) {
     if (result.points && result.points.line && result.assists && result.assists.line) {
       const paLine = result.points.line + result.assists.line;
       if (isValidLineForProp('pa', paLine)) {
-        console.log(`🔄 Auto-detected PA: ${paLine} (${result.points.line} + ${result.assists.line})`);
         result.pa = {
           line: paLine,
           over_odds: -110,
@@ -258,7 +255,6 @@ function autoDetectCombinedProps(collectedProps) {
     if (result.rebounds && result.rebounds.line && result.assists && result.assists.line) {
       const raLine = result.rebounds.line + result.assists.line;
       if (isValidLineForProp('ra', raLine)) {
-        console.log(`🔄 Auto-detected RA: ${raLine} (${result.rebounds.line} + ${result.assists.line})`);
         result.ra = {
           line: raLine,
           over_odds: -110,
@@ -405,7 +401,6 @@ function parseAllMarkets(data, playerName) {
               });
         } else if (propType) {
           // Log rejected lines for debugging
-          console.log(`   ❌ Rejecting line ${line} for ${propType} (outside range ${MARKET_RANGES[propType]?.min}-${MARKET_RANGES[propType]?.max})`);
         }
       }
     }
@@ -496,16 +491,12 @@ function ensureAllPropsPresent(props, playerName) {
  */
 export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
   if (!playerName) {
-    console.log('⚠️ Player name is required to fetch odds');
     return createEmptyPropsObject(playerName || 'Unknown');
   }
 
   if (!THE_ODDS_API_KEY) {
-    console.log('⚠️ THE_ODDS_API_KEY not configured');
     return createEmptyPropsObject(playerName);
   }
-
-  console.log(`🎲 Fetching odds from The Odds API for player: ${playerName}`);
 
   try {
     // Step 1: Get all NBA events
@@ -516,7 +507,6 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
     });
 
     if (!eventsResponse.data || eventsResponse.data.length === 0) {
-      console.log(`⚠️ No NBA events found`);
       return createEmptyPropsObject(playerName);
     }
 
@@ -571,8 +561,6 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
         const props = parseAllMarkets(oddsResponse.data, playerName);
         
         if (Object.keys(props).length > 0) {
-          console.log(`✅ Found props for ${playerName}:`, Object.keys(props).join(', '));
-          
           // Add game/event metadata to the result
           const result = ensureAllPropsPresent(props, playerName);
           result._gameInfo = {
@@ -589,18 +577,16 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
         const errorCode = err.response?.data?.error_code;
         // Bail immediately on quota/auth errors — no point retrying other events
         if (status === 401 || status === 403 || errorCode === 'OUT_OF_USAGE_CREDITS') {
-          console.log(`❌ Odds API quota/auth error (${status}). Stopping further requests.`);
+          console.error(`Odds API quota/auth error (${status}).`);
           return createEmptyPropsObject(playerName);
         }
-        console.log(`⚠️ Error fetching odds for event ${event.id}: ${err.message}`);
         continue;
       }
     }
 
-    console.log(`⚠️ No props found for ${playerName} in any event`);
     return createEmptyPropsObject(playerName);
   } catch (error) {
-    console.error(`❌ Error fetching odds: ${error.message}`);
+    console.error(`Error fetching odds: ${error.message}`);
     return createEmptyPropsObject(playerName);
   }
 }

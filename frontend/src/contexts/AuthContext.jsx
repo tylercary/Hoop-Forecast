@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -14,7 +14,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth, googleProvider, db, storage } from '../firebase';
-import { deleteUserData } from '../services/firestoreService';
+import { deleteUserData, getUserPredictions, resolvePendingPredictions } from '../services/firestoreService';
 
 const AuthContext = createContext(null);
 
@@ -31,6 +31,9 @@ export function AuthProvider({ children }) {
   const [favoriteTeams, setFavoriteTeams] = useState([]);
   const [needsUsername, setNeedsUsername] = useState(false);
   const [tokens, setTokens] = useState(0);
+  const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
+  const [predictionsResolved, setPredictionsResolved] = useState(false);
+  const resolvedRef = useRef(false);
 
   // Listen for auth state changes
   useEffect(() => {
@@ -42,12 +45,16 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         try {
           await loadFavorites(firebaseUser.uid);
+          // Fire-and-forget: resolve pending predictions in background
+          resolveOnLogin(firebaseUser.uid);
         } catch (err) {
           console.error('Error loading favorites on auth change:', err);
         }
       } else {
         setFavorites([]);
         setFavoriteTeams([]);
+        setPredictionsResolved(false);
+        resolvedRef.current = false;
       }
       setLoading(false);
       clearTimeout(timeout);
@@ -96,6 +103,36 @@ export function AuthProvider({ children }) {
       lastDailyClaimDate: today,
     }, { merge: true });
     setTokens(newTokens);
+    setDailyBonusClaimed(true);
+  }
+
+  function dismissDailyBonus() {
+    setDailyBonusClaimed(false);
+  }
+
+  async function resolveOnLogin(uid) {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    try {
+      const predictions = await getUserPredictions(uid);
+      const hasPending = predictions.some((p) => !p.result);
+      if (!hasPending) {
+        setPredictionsResolved(true);
+        return;
+      }
+      const { totalTokenChange } = await resolvePendingPredictions(uid, predictions);
+      // Re-read tokens from Firestore to stay in sync after resolution
+      if (totalTokenChange > 0) {
+        const userDoc = await getDoc(doc(db, 'users', uid));
+        if (userDoc.exists()) {
+          setTokens(userDoc.data().tokens || 0);
+        }
+      }
+      setPredictionsResolved(true);
+    } catch (err) {
+      console.error('Error resolving predictions on login:', err);
+      setPredictionsResolved(true); // Mark done even on error so MyPredictions can try its own
+    }
   }
 
   async function deductTokens(amount) {
@@ -161,6 +198,9 @@ export function AuthProvider({ children }) {
     setFavoriteTeams([]);
     setTokens(0);
     setNeedsUsername(false);
+    setDailyBonusClaimed(false);
+    setPredictionsResolved(false);
+    resolvedRef.current = false;
     await signOut(auth);
   }
 
@@ -261,6 +301,9 @@ export function AuthProvider({ children }) {
     setFavoriteTeams([]);
     setTokens(0);
     setNeedsUsername(false);
+    setDailyBonusClaimed(false);
+    setPredictionsResolved(false);
+    resolvedRef.current = false;
   }
 
   const value = {
@@ -284,6 +327,9 @@ export function AuthProvider({ children }) {
     deleteAccount,
     deductTokens,
     addTokens,
+    dailyBonusClaimed,
+    dismissDailyBonus,
+    predictionsResolved,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

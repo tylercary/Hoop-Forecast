@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Home from './components/Home';
 import AuthModal from './components/AuthModal';
 import UsernameModal from './components/UsernameModal';
+import DailyBonusPopup from './components/DailyBonusPopup';
 
 // Lazy load route components
 const PlayerDetail = lazy(() => import('./components/PlayerDetail'));
@@ -416,6 +417,7 @@ function AppHeader() {
 
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <UsernameModal />
+      <DailyBonusPopup />
     </>
   );
 }

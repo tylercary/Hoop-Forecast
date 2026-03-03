@@ -568,24 +568,12 @@ export async function predictPropFromGames(games, playerName, propType = 'points
   }
 
   const propTypeFormatted = PROP_TYPE_MAP[propType] || propType.toUpperCase();
-  console.log(`\n🤖 [PIPELINE-${propTypeFormatted}] Starting prediction for ${playerName} (${games.length} games)`);
-
   try {
     // Step 1: Build prop-specific features
-    console.log(`📊 [PIPELINE-${propTypeFormatted}] Step 1: Building prop-specific features...`);
     const features = buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData, bettingLine);
-    console.log(`✅ [PIPELINE-${propTypeFormatted}] Features built:`, {
-      seasonAvg: features.seasonAvg,
-      recent3Avg: features.recentAvg3,
-      recent5Avg: features.recentAvg5,
-      vegasLine: features.vegasLine,
-      injuryStatus: features.injuryStatus,
-      oppInjuries: features.oppInjuries.substring(0, 50) + '...'
-    });
 
     // Step 2: Handle OUT players immediately
     if (features.injuryStatus === 'out') {
-      console.log(`🏥 [PIPELINE-${propTypeFormatted}] Player is OUT - returning 0`);
       
       // Build stats object for analysis
       const statsForAnalysis = {
@@ -615,28 +603,22 @@ export async function predictPropFromGames(games, playerName, propType = 'points
     }
 
     // Step 3: Generate numeric prediction using XGBoost ML models
-    console.log(`🔮 [PIPELINE-${propTypeFormatted}] Step 3: Generating prediction...`);
     let predictedValue;
     let predictionMethod = 'xgboost_model';
-    let mlFeatureVector = null; // Full feature vector for tracking/retraining
+    let mlFeatureVector = null;
 
     const mlModelsAvailable = areModelsAvailable();
     if (mlModelsAvailable) {
       try {
-        console.log(`🧠 [PIPELINE-${propTypeFormatted}] Using XGBoost model...`);
         const mlResult = await mlPredictProp(games, propTypeFormatted);
         predictedValue = mlResult.prediction;
         mlFeatureVector = mlResult.features;
-        console.log(`✅ [PIPELINE-${propTypeFormatted}] XGBoost prediction: ${predictedValue.toFixed(2)}`);
       } catch (mlError) {
-        console.error(`❌ [PIPELINE-${propTypeFormatted}] ML model failed: ${mlError.message}`);
-        // Statistical fallback: use weighted recent average
-        console.log(`🔄 [PIPELINE-${propTypeFormatted}] Falling back to statistical average...`);
+        console.error(`ML model failed for ${propTypeFormatted}: ${mlError.message}`);
         predictedValue = features.recentAvg3 * 0.5 + features.recentAvg5 * 0.3 + features.seasonAvg * 0.2;
         predictionMethod = 'statistical_fallback';
       }
     } else {
-      console.log(`⚠️  [PIPELINE-${propTypeFormatted}] ML models not available, using statistical average...`);
       predictedValue = features.recentAvg3 * 0.5 + features.recentAvg5 * 0.3 + features.seasonAvg * 0.2;
       predictionMethod = 'statistical_fallback';
     }
@@ -653,7 +635,6 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       const rawAdjustment = recentDeviation * 0.30;
       const adjustment = Math.sign(rawAdjustment) * Math.min(Math.abs(rawAdjustment), 5);
       finalPredictedValue = predictedValue + adjustment;
-      console.log(`📈 [PIPELINE-${propTypeFormatted}] Recent form adjustment: ${predictedValue.toFixed(1)} → ${finalPredictedValue.toFixed(1)} (3-game avg: ${recentAvg3.toFixed(1)})`);
     }
 
     // Step 4b: Apply per-player bias correction from historical prediction errors.
@@ -661,12 +642,8 @@ export async function predictPropFromGames(games, playerName, propType = 'points
     const playerBias = getPlayerBias(playerName, propType);
     if (playerBias !== null) {
       const cappedBias = Math.sign(playerBias) * Math.min(Math.abs(playerBias), 5);
-      const beforeBias = finalPredictedValue;
       finalPredictedValue += cappedBias;
-      console.log(`🎯 [PIPELINE-${propTypeFormatted}] Bias correction: ${beforeBias.toFixed(1)} → ${finalPredictedValue.toFixed(1)} (historical bias: ${playerBias > 0 ? '+' : ''}${playerBias.toFixed(1)})`);
     }
-
-    console.log(`✅ [PIPELINE-${propTypeFormatted}] Model prediction: ${finalPredictedValue.toFixed(1)}`);
 
     // Step 5: Calculate confidence from |prediction - vegas_line|
     const confidenceLevel = calculateConfidenceLevel(finalPredictedValue, features.vegasLine);
@@ -677,7 +654,6 @@ export async function predictPropFromGames(games, playerName, propType = 'points
     // Step 7: Calculate recommendation using cover probability (accounts for volatility)
     const coverProbability = calculateCoverProbability(finalPredictedValue, features.vegasLine, features.stdDev);
     const recommendation = calculateRecommendation(finalPredictedValue, features.vegasLine, features.stdDev);
-    console.log(`📊 [PIPELINE-${propTypeFormatted}] Cover probability: ${coverProbability?.toFixed(1)}% | Recommendation: ${recommendation || 'NONE'}`);
 
     // Step 8: Build result object
     // Ensure we always have the correct field name for the prop type
@@ -711,19 +687,6 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       stats: statsForAnalysis
     };
     
-    // Log the response structure for debugging
-    console.log(`📋 [PIPELINE-${propTypeFormatted}] Response structure:`, {
-      [predictedFieldName]: predictionResult[predictedFieldName],
-      confidence: predictionResult.confidence,
-      recommendation: predictionResult.recommendation
-    });
-
-    console.log(`✅ [PIPELINE-${propTypeFormatted}] Prediction complete:`, {
-      [`predicted_${propType}`]: predictionResult[`predicted_${propType}`],
-      confidence: predictionResult.confidence,
-      recommendation: predictionResult.recommendation
-    });
-
     // Store prediction for tracking (if next game info is available)
     if (nextGameInfo && nextGameInfo.date) {
       try {

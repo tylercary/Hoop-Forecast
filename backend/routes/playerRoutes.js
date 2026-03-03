@@ -49,11 +49,8 @@ router.get('/with-lines', async (req, res) => {
     // Check cache first
     const cached = playersWithLinesCache.get();
     if (cached) {
-      console.log('✅ Using cached players with lines');
       return res.json(cached);
     }
-
-    console.log('📊 Fetching players with betting lines from API...');
 
     // Step 1: Get all NBA events
     const eventsResponse = await axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events`, {
@@ -66,7 +63,6 @@ router.get('/with-lines', async (req, res) => {
     }
 
     const events = eventsResponse.data.slice(0, 10); // Limit to first 10 events to avoid too many API calls
-    console.log(`📋 Found ${events.length} events, checking for player props...`);
 
     const playersWithLines = [];
     const seenPlayers = new Set();
@@ -88,16 +84,12 @@ router.get('/with-lines', async (req, res) => {
         );
 
         if (!oddsResponse.data) {
-          console.log(`⚠️ No data for event ${event.id}`);
           continue;
         }
 
         if (!oddsResponse.data.bookmakers || oddsResponse.data.bookmakers.length === 0) {
-          console.log(`⚠️ No bookmakers for event ${event.id} (${event.home_team} vs ${event.away_team})`);
           continue;
         }
-
-        console.log(`📊 Event ${event.id}: Found ${oddsResponse.data.bookmakers.length} bookmakers`);
 
         // Extract players from bookmakers
         let playersFoundInEvent = 0;
@@ -132,31 +124,19 @@ router.get('/with-lines', async (req, res) => {
           }
         }
         
-        if (playersFoundInEvent > 0) {
-          console.log(`✅ Found ${playersFoundInEvent} players in event ${event.id}`);
-        }
       } catch (err) {
         const status = err.response?.status;
         const errorCode = err.response?.data?.error_code;
         // Bail immediately on quota/auth errors
         if (status === 401 || status === 403 || errorCode === 'OUT_OF_USAGE_CREDITS') {
-          console.log(`❌ Odds API quota/auth error (${status}). Stopping event scan.`);
+          console.error(`Odds API quota/auth error (${status}). Stopping event scan.`);
           break;
-        }
-        if (err.response) {
-          console.log(`❌ Error fetching odds for event ${event.id}: ${err.response.status} - ${err.response.statusText}`);
-          if (err.response.data) {
-            console.log(`   Error data:`, JSON.stringify(err.response.data).substring(0, 200));
-          }
-        } else {
-          console.log(`❌ Error fetching odds for event ${event.id}: ${err.message}`);
         }
         continue;
       }
     }
 
     // Step 3: Download and store player images locally (using ESPN to avoid NBA.com rate limits)
-    console.log(`🖼️ Downloading images for ${playersWithLines.length} players...`);
     // Using static imports from top of file
     
     // Process images in smaller batches to avoid overwhelming APIs
@@ -211,11 +191,6 @@ router.get('/with-lines', async (req, res) => {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
-    
-    const playersWithImages = playersWithLines.filter(p => p.player_image).length;
-    console.log(`✅ Stored images for ${playersWithImages}/${playersWithLines.length} players locally`);
-
-    console.log(`✅ Found ${playersWithLines.length} players with betting lines`);
     
     // Cache the results
     playersWithLinesCache.set(playersWithLines);
@@ -326,7 +301,6 @@ router.get('/:id/prediction/:propType', async (req, res) => {
         // Using static import from top of file
         const oddsResult = await getPlayerOdds(null, playerName);
         bettingLine = oddsResult?.[propType]?.line || null;
-        console.log(`📊 Betting line for ${propType} from The Odds API: ${bettingLine || 'not available'}`);
         
         // Extract game info from Odds API if available
         if (oddsResult?._gameInfo) {
@@ -355,11 +329,9 @@ router.get('/:id/prediction/:propType', async (req, res) => {
               team: teamAbbrev
             };
             
-            console.log(`🎯 Matchup from Odds API: ${teamAbbrev} ${isHome ? 'vs' : '@'} ${opponent}`);
           }
         }
       } catch (oddsError) {
-        console.warn(`⚠️ Could not fetch odds for ${propType}:`, oddsError.message);
         // Continue without betting line - compareService will handle unavailable status
       }
       
@@ -401,7 +373,6 @@ router.get('/:id/prediction/:propType', async (req, res) => {
         throw predError;
       }
     } else {
-      console.log(`✅ Using cached ${propType} prediction for ${playerName}`);
     }
     
     res.json(prediction);
@@ -538,21 +509,14 @@ router.get('/:id/compare', async (req, res) => {
         // Extract game info from Odds API - THIS IS NOW THE ONLY SOURCE FOR MATCHUP DATA
         if (oddsData._gameInfo) {
           const gameInfo = oddsData._gameInfo;
-          console.log(`🎯 Using Odds API for matchup data:`, gameInfo);
-          
           try {
             // Convert Odds API full team names to abbreviations (using static import)
             const homeTeamAbbrev = getTeamAbbrevFromFullName(gameInfo.home_team);
             const awayTeamAbbrev = getTeamAbbrevFromFullName(gameInfo.away_team);
-            
-            console.log(`📊 Odds API game: ${gameInfo.home_team} (${homeTeamAbbrev}) vs ${gameInfo.away_team} (${awayTeamAbbrev})`);
-          
+
             // If we don't have teamAbbrev from ESPN, determine it from the Odds API game
             if (!teamAbbrev) {
-              // Player must be on one of these two teams - check which one
-              // For now, default to home team (will be corrected if ESPN data comes through)
               teamAbbrev = homeTeamAbbrev || awayTeamAbbrev;
-              console.log(`⚠️ Team abbreviation not from ESPN, using Odds API: ${teamAbbrev}`);
             }
             
             // ALWAYS override nextGame with Odds API data (this is our source of truth)
@@ -571,8 +535,6 @@ router.get('/:id/compare', async (req, res) => {
                 away_team: awayTeamAbbrev,
                 commence_time: gameInfo.commence_time
               };
-              
-              console.log(`✅ Matchup from Odds API: ${teamAbbrev} ${isHome ? 'vs' : '@'} ${opponent}`);
               
               // Now that we have nextGame populated, fetch opponent record and injury data in parallel
               const [opponentRecordResult, matchupInjuriesResult] = await Promise.allSettled([
@@ -990,7 +952,6 @@ router.get('/tracking/export', async (req, res) => {
  */
 router.post('/tracking/evaluate', async (req, res) => {
   try {
-    console.log('🚀 Manual evaluation triggered via API');
     const results = await evaluatePendingPredictions();
     res.json({
       success: true,

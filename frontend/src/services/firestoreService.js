@@ -18,7 +18,6 @@ import api from '../utils/api';
 // ─── Predictions ────────────────────────────────────────────
 
 export async function savePrediction(userId, data) {
-  console.log('[savePrediction] Attempting save:', { userId, propType: data.propType, pick: data.pick, line: data.line });
   const docRef = await addDoc(collection(db, 'predictions'), {
     userId,
     userName: data.userName,
@@ -36,7 +35,6 @@ export async function savePrediction(userId, data) {
     result: null,
     actualValue: null,
   });
-  console.log('[savePrediction] Saved successfully, doc ID:', docRef.id);
   return docRef;
 }
 
@@ -81,14 +79,11 @@ export async function getCommunityPicks(playerId, propType, gameDate) {
 }
 
 export async function getUserPredictions(userId) {
-  console.log('[getUserPredictions] Querying for userId:', userId);
-  // Single where clause — no composite index needed
   const q = query(
     collection(db, 'predictions'),
     where('userId', '==', userId)
   );
   const snap = await getDocs(q);
-  console.log('[getUserPredictions] Found', snap.docs.length, 'predictions');
   const results = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   // Sort client-side by createdAt desc (avoids needing composite index)
   results.sort((a, b) => {

@@ -20,7 +20,6 @@ async function fetchInjuriesFromRapidAPI(date = null) {
   try {
     const rapidApiKey = process.env.RAPIDAPI_KEY;
     if (!rapidApiKey) {
-      console.log('⚠️ No RapidAPI key configured - injuries unavailable');
       return [];
     }
     
@@ -92,13 +91,11 @@ async function fetchInjuriesFromRapidAPI(date = null) {
     const results = await Promise.allSettled(datePromises);
     for (const result of results) {
       if (result.status === 'fulfilled' && result.value && result.value.data) {
-        console.log(`✅ [INJURY API] Fetched ${result.value.data.length} injuries from RapidAPI (date: ${result.value.date})`);
         return result.value.data;
       }
     }
 
     // If all failed, return empty array
-    console.log('⚠️ [INJURY API] No injury data returned from RapidAPI for recent dates');
     return [];
   } catch (error) {
     console.error(`❌ [INJURY API] Error fetching from RapidAPI:`, error.message);
@@ -172,7 +169,6 @@ function getTeamAbbrevFromFullName(teamName) {
   }
   
   // If no match found, log for debugging
-  console.log(`⚠️  [TEAM MAP] No abbreviation found for team name: "${teamName}"`);
   return null;
 }
 
@@ -324,14 +320,12 @@ export async function getTeamInjuries(teamAbbrev) {
         // Convert to our format with structured status (synchronous - no API calls)
         const formattedInjuries = teamInjuries.map(formatInjury);
 
-        console.log(`✅ [INJURIES] Found ${formattedInjuries.length} injuries for ${teamAbbrev}`);
         injuryCache.set(cacheKey, formattedInjuries);
         return formattedInjuries;
       }
     }
 
     // No injuries found from RapidAPI
-    console.log(`⚠️ [INJURIES] No injuries found for ${teamAbbrev}`);
     injuryCache.set(cacheKey, []);
     return [];
   } catch (error) {
@@ -409,7 +403,6 @@ export async function getMatchupInjuries(playerTeamAbbrev, opponentAbbrev, event
       const playerTeamInjuries = playerTeamInjuriesRaw.map(formatInjury);
       const opponentInjuries = opponentInjuriesRaw.map(formatInjury);
 
-      console.log(`✅ [MATCHUP INJURIES] ${playerTeamAbbrev}: ${playerTeamInjuries.length} injuries, ${opponentAbbrev}: ${opponentInjuries.length} injuries`);
 
       return {
         playerTeamInjuries,
@@ -420,7 +413,6 @@ export async function getMatchupInjuries(playerTeamAbbrev, opponentAbbrev, event
     }
 
     // No injuries found from RapidAPI - return empty arrays
-    console.log(`⚠️ [MATCHUP INJURIES] No injury data available from RapidAPI`);
     return {
       playerTeamInjuries: [],
       opponentInjuries: [],

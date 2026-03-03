@@ -27,20 +27,14 @@ const trendingCache = new NodeCache({ stdTTL: 300 });
 router.get('/props', async (req, res) => {
   try {
     if (!THE_ODDS_API_KEY) {
-      console.log('⚠️ No Odds API key configured - trending props unavailable');
-      console.log('   Set THE_ODDS_API_KEY or ODDS_API_KEY in your .env file');
       return res.json([]);
     }
 
     // Check cache first
     const cached = trendingCache.get('trending_props');
     if (cached) {
-      console.log(`✅ Using cached trending props (${cached.length} props)`);
       return res.json(cached);
     }
-
-    console.log('📊 Calculating trending props from Odds API...');
-    console.log(`   API Key configured: ${THE_ODDS_API_KEY.substring(0, 8)}...`);
 
     // Step 1: Get all NBA events
     const eventsResponse = await axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events`, {
@@ -53,7 +47,6 @@ router.get('/props', async (req, res) => {
     }
 
     const events = eventsResponse.data.slice(0, 10); // Limit to first 10 events
-    console.log(`📋 Found ${events.length} events for trending analysis`);
 
     const trendingPropsMap = new Map(); // Key: "playerName|propType|line"
 
@@ -80,7 +73,6 @@ router.get('/props', async (req, res) => {
           continue;
         }
 
-        console.log(`📊 Event ${event.id}: Analyzing ${oddsResponse.data.bookmakers.length} bookmakers`);
 
         // Step 3: Extract all player props and count sportsbooks per line
         for (const bookmaker of oddsResponse.data.bookmakers) {
@@ -155,7 +147,6 @@ router.get('/props', async (req, res) => {
       }
     }
 
-    console.log(`📊 Analyzed ${trendingPropsMap.size} unique player/prop/line combinations`);
 
     // Step 4: Convert to array and calculate metrics
     const trendingPropsArray = [];
@@ -196,16 +187,10 @@ router.get('/props', async (req, res) => {
     const sortedProps = sortByBookCount(trendingPropsArray).slice(0, 15);
 
     if (sortedProps.length === 0) {
-      console.log('⚠️ No trending props found after filtering');
-      console.log(`   Total props analyzed: ${trendingPropsMap.size}`);
-      console.log(`   Props after book count filter: ${trendingPropsArray.length}`);
       return res.json([]);
     }
 
-    console.log(`✅ Returning top ${sortedProps.length} trending props`);
-
     // Step 6: Add player images (download missing ones)
-    console.log('🖼️ Fetching player images for trending props...');
     const { getImageUrl, imageExists, downloadPlayerImage } = await import('../services/imageStorageService.js');
     const { searchPlayer } = await import('../services/nbaApiService.js');
 
@@ -225,7 +210,6 @@ router.get('/props', async (req, res) => {
 
     // Download missing images in background (don't block response)
     if (missingImagePlayers.length > 0) {
-      console.log(`🔍 Downloading images for ${missingImagePlayers.length} trending players...`);
       await Promise.allSettled(
         missingImagePlayers.map(async (prop) => {
           try {
@@ -245,9 +229,6 @@ router.get('/props', async (req, res) => {
         })
       );
     }
-
-    const propsWithImages = sortedProps.filter(p => p.player_image).length;
-    console.log(`✅ Found images for ${propsWithImages}/${sortedProps.length} trending props`);
 
     // Cache the result
     trendingCache.set('trending_props', sortedProps);

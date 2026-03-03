@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { getSportsbookLogo, getSportsbookDisplayName, normalizeSportsbookName } from '../utils/sportsbookLogos';
+import { getSportsbookLogo, getSportsbookBanner, getSportsbookBannerBg, getSportsbookDisplayName, normalizeSportsbookName } from '../utils/sportsbookLogos';
 
 // Sportsbook priority order (matches BettingPros)
 const SPORTSBOOK_ORDER = [
@@ -25,13 +25,17 @@ const SPORTSBOOK_ORDER = [
 
 function getSportsbookInfo(bookmakerKeyOrName) {
   if (!bookmakerKeyOrName) return null;
-  
-  const logo = getSportsbookLogo(bookmakerKeyOrName);
+
+  const icon = getSportsbookLogo(bookmakerKeyOrName);
+  const banner = getSportsbookBanner(bookmakerKeyOrName);
+  const bannerBg = getSportsbookBannerBg(bookmakerKeyOrName);
   const displayName = getSportsbookDisplayName(bookmakerKeyOrName);
-  
-    return {
+
+  return {
     name: displayName,
-    logo: logo,
+    icon: icon,
+    banner: banner,
+    bannerBg: bannerBg,
     displayName: displayName.toUpperCase()
   };
 }
@@ -76,22 +80,23 @@ function getPropDisplayLabel(prop) {
 }
 
 // OddsRow Component - Single Over or Under row
-function OddsRow({ type, line, odds, isBest }) {
+function OddsRow({ type, line, odds, isBest, hasIcon }) {
   const label = type === 'over' ? 'O' : 'U';
-  const bgColor = isBest 
+  const bgColor = isBest
     ? (type === 'over' ? 'bg-[#697843]' : 'bg-[#7c6a42]')
     : 'bg-[#3d4f66]';
-  
+  const padding = hasIcon ? 'pl-3 pr-9' : 'px-3';
+
   if (line == null || odds == null) {
     return (
-      <div className={`${bgColor} rounded-lg px-3 py-2.5 text-center`}>
+      <div className={`${bgColor} rounded-lg ${padding} py-2.5 text-center`}>
         <span className="text-white text-sm font-medium opacity-50">N/A</span>
       </div>
     );
   }
 
   return (
-    <div className={`${bgColor} rounded-lg px-3 py-2.5 text-center`}>
+    <div className={`${bgColor} rounded-lg ${padding} py-2.5 text-center`}>
       <span className="text-white font-bold text-base">
         {label} {parseFloat(line).toFixed(1)} <span className="text-sm font-normal">({formatOdds(odds)})</span>
       </span>
@@ -242,7 +247,7 @@ function PropOddsTable({ props, selectedProp }) {
 
           {/* OPEN LINE Column */}
           <div className="flex-shrink-0 w-36 flex flex-col">
-            <div className="h-10 mb-2 flex items-center justify-center rounded-lg bg-[#2a3544] border border-gray-600/30">
+            <div className="h-12 mb-2 flex items-center justify-center rounded-lg bg-[#2a3544] border border-gray-600/30">
               <span className="text-xs font-bold text-gray-300">CONSENSUS</span>
             </div>
             <div className="mb-1.5">
@@ -253,20 +258,20 @@ function PropOddsTable({ props, selectedProp }) {
 
           {/* BEST ODDS Column */}
           <div className="flex-shrink-0 w-36 flex flex-col">
-            <div className="h-10 mb-2 flex items-center justify-center rounded-lg bg-[#f9c744]">
+            <div className="h-12 mb-2 flex items-center justify-center rounded-lg bg-[#f9c744]">
               <span className="text-xs font-bold text-gray-900">BEST ODDS</span>
             </div>
             <div className="mb-1.5 relative">
               {bestOverBookmaker ? (
                 <>
-                  <div className="absolute top-1.5 right-1.5 z-10">
+                  <div className="absolute top-1/2 -translate-y-1/2 right-1.5 z-10">
                     <img
-                      src={getSportsbookInfo(bestOverBookmaker.bookmaker_key || bestOverBookmaker.bookmaker)?.logo}
-                      alt="" className="w-5 h-5 object-contain rounded"
+                      src={getSportsbookInfo(bestOverBookmaker.bookmaker_key || bestOverBookmaker.bookmaker)?.icon}
+                      alt="" className="w-6 h-6 object-contain rounded"
                       onError={(e) => e.target.style.display = 'none'}
                     />
                   </div>
-                  <OddsRow type="over" line={bestOverBookmaker.line} odds={bestOverBookmaker.over_odds} isBest={true} />
+                  <OddsRow type="over" line={bestOverBookmaker.line} odds={bestOverBookmaker.over_odds} isBest={true} hasIcon={true} />
                 </>
               ) : (
                 <OddsRow type="over" line={null} odds={null} isBest={false} />
@@ -275,14 +280,14 @@ function PropOddsTable({ props, selectedProp }) {
             <div className="relative">
               {bestUnderBookmaker ? (
                 <>
-                  <div className="absolute top-1.5 right-1.5 z-10">
+                  <div className="absolute top-1/2 -translate-y-1/2 right-1.5 z-10">
                     <img
-                      src={getSportsbookInfo(bestUnderBookmaker.bookmaker_key || bestUnderBookmaker.bookmaker)?.logo}
-                      alt="" className="w-5 h-5 object-contain rounded"
+                      src={getSportsbookInfo(bestUnderBookmaker.bookmaker_key || bestUnderBookmaker.bookmaker)?.icon}
+                      alt="" className="w-6 h-6 object-contain rounded"
                       onError={(e) => e.target.style.display = 'none'}
                     />
                   </div>
-                  <OddsRow type="under" line={bestUnderBookmaker.line} odds={bestUnderBookmaker.under_odds} isBest={true} />
+                  <OddsRow type="under" line={bestUnderBookmaker.line} odds={bestUnderBookmaker.under_odds} isBest={true} hasIcon={true} />
                 </>
               ) : (
                 <OddsRow type="under" line={null} odds={null} isBest={false} />
@@ -297,13 +302,25 @@ function PropOddsTable({ props, selectedProp }) {
             const isUnderBest = bookmaker.under_odds === bestUnderOdds;
             return (
               <div key={`${bookmaker.bookmaker_key || bookmaker.bookmaker}-${idx}`} className="flex-shrink-0 w-36 flex flex-col">
-                <div className="h-10 mb-2 flex items-center justify-center gap-1.5 rounded-lg bg-[#2a3544] border border-gray-600/30 px-2">
-                  <img
-                    src={info?.logo} alt=""
-                    className="w-5 h-5 object-contain flex-shrink-0"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <span className="text-[10px] font-semibold text-white truncate">
+                {/* Header: full-bleed banner image or text fallback */}
+                <div className="h-12 mb-2 rounded-lg overflow-hidden relative" style={{ backgroundColor: info?.bannerBg || '#000000' }}>
+                  {info?.banner && (
+                    <img
+                      src={info.banner}
+                      alt={info.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.style.backgroundColor = '#2a3544';
+                        e.target.parentElement.style.border = '1px solid rgba(75,85,99,0.3)';
+                        e.target.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                  )}
+                  <span
+                    className="text-[10px] font-semibold text-white truncate items-center justify-center absolute inset-0"
+                    style={{ display: info?.banner ? 'none' : 'flex' }}
+                  >
                     {info?.displayName || bookmaker.bookmaker.toUpperCase()}
                   </span>
                 </div>

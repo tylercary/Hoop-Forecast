@@ -5,56 +5,117 @@
  * It handles name normalization and provides fallback support.
  */
 
-// Comprehensive sportsbook logo mapping
+// Icon logos (small square) - used for Best Odds overlays, etc.
 // Keys are normalized (lowercase, no spaces/underscores/special chars)
-const SPORTSBOOK_LOGO_MAP = {
+const SPORTSBOOK_ICON_MAP = {
   // Major US Sportsbooks
-  'draftkings': '/images/sportsbooks/draftkings.png',
-  'fanduel': '/images/sportsbooks/fanduel.png',
-  'betmgm': '/images/sportsbooks/betmgm.png',
-  'caesars': '/images/sportsbooks/caesars.png',
-  'bet365': '/images/sportsbooks/bet365.png',
-  
+  'draftkings': '/images/sportsbooks/icons/draftkings.png',
+  'fanduel': '/images/sportsbooks/icons/fanduel.png',
+  'betmgm': '/images/sportsbooks/icons/betmgm.png',
+  'caesars': '/images/sportsbooks/icons/caesars.png',
+  'bet365': '/images/sportsbooks/icons/bet365.png',
+
   // Additional US Books
-  'bovada': '/images/sportsbooks/bovada.png',
-  'betrivers': '/images/sportsbooks/betrivers.png',
-  'betonlineag': '/images/sportsbooks/betonline.png',
-  'betonline': '/images/sportsbooks/betonline.png',
-  'williamhillus': '/images/sportsbooks/williamhill.png',
-  'williamhill': '/images/sportsbooks/williamhill.png',
-  'pointsbet': '/images/sportsbooks/pointsbet.png',
-  'superbook': '/images/sportsbooks/superbook.png',
-  'barstool': '/images/sportsbooks/barstool.png',
-  'unibet': '/images/sportsbooks/unibet.png',
-  'wynnbet': '/images/sportsbooks/wynnbet.png',
-  'twinspires': '/images/sportsbooks/twinspires.png',
-  
+  'bovada': '/images/sportsbooks/icons/bovada.png',
+  'betrivers': '/images/sportsbooks/icons/betrivers.png',
+  'betonlineag': '/images/sportsbooks/icons/betonline.png',
+  'betonline': '/images/sportsbooks/icons/betonline.png',
+  'williamhillus': '/images/sportsbooks/icons/williamhill.png',
+  'williamhill': '/images/sportsbooks/icons/williamhill.png',
+  'pointsbet': '/images/sportsbooks/icons/pointsbet.png',
+  'superbook': '/images/sportsbooks/icons/superbook.png',
+  'barstool': '/images/sportsbooks/icons/barstool.png',
+  'unibet': '/images/sportsbooks/icons/unibet.png',
+  'wynnbet': '/images/sportsbooks/icons/wynnbet.png',
+  'twinspires': '/images/sportsbooks/icons/twinspires.png',
+
   // New Entrants
-  'hardrock': '/images/sportsbooks/hardrock.png',
-  'hardrockbet': '/images/sportsbooks/hardrock.png',
-  'espnbet': '/images/sportsbooks/espnbet.png',
-  'fanatics': '/images/sportsbooks/fanatics.png',
-  
+  'hardrock': '/images/sportsbooks/icons/hardrock.png',
+  'hardrockbet': '/images/sportsbooks/icons/hardrock.png',
+  'espnbet': '/images/sportsbooks/icons/espnbet.png',
+  'fanatics': '/images/sportsbooks/icons/fanatics.png',
+
   // DFS/Props-Focused
-  'prizepicks': '/images/sportsbooks/prizepicks.png',
-  'underdog': '/images/sportsbooks/underdog.png',
-  'underdogfantasy': '/images/sportsbooks/underdog.png',
-  'parlayplay': '/images/sportsbooks/parlayplay.png',
-  'sleeper': '/images/sportsbooks/sleeper.png',
-  
+  'prizepicks': '/images/sportsbooks/icons/prizepicks.png',
+  'underdog': '/images/sportsbooks/icons/underdog.png',
+  'underdogfantasy': '/images/sportsbooks/icons/underdog.png',
+  'parlayplay': '/images/sportsbooks/icons/parlayplay.png',
+  'sleeper': '/images/sportsbooks/icons/sleeper.png',
+
   // International
-  'pinnacle': '/images/sportsbooks/pinnacle.png',
-  'betway': '/images/sportsbooks/betway.png',
-  'mybookieag': '/images/sportsbooks/mybookie.png',
-  'mybookie': '/images/sportsbooks/mybookie.png',
-  'lowvig': '/images/sportsbooks/lowvig.png',
-  'betano': '/images/sportsbooks/betano.png',
-  'bwin': '/images/sportsbooks/bwin.png',
-  
+  'pinnacle': '/images/sportsbooks/icons/pinnacle.png',
+  'betway': '/images/sportsbooks/icons/betway.png',
+  'mybookieag': '/images/sportsbooks/icons/mybookie.png',
+  'mybookie': '/images/sportsbooks/icons/mybookie.png',
+  'lowvig': '/images/sportsbooks/icons/lowvig.png',
+  'betano': '/images/sportsbooks/icons/betano.png',
+  'bwin': '/images/sportsbooks/icons/bwin.png',
+
   // Calculated/Consensus
-  'calculated': '/images/sportsbooks/consensus.png',
-  'consensus': '/images/sportsbooks/consensus.png',
-  'average': '/images/sportsbooks/consensus.png'
+  'calculated': '/images/sportsbooks/icons/consensus.png',
+  'consensus': '/images/sportsbooks/icons/consensus.png',
+  'average': '/images/sportsbooks/icons/consensus.png'
+};
+
+// Banner logos (wide horizontal) - used for column headers
+const SPORTSBOOK_BANNER_MAP = {
+  // Major US Sportsbooks
+  'draftkings': '/images/sportsbooks/banners/draftkings.png',
+  'fanduel': '/images/sportsbooks/banners/fanduel.png',
+  'betmgm': '/images/sportsbooks/banners/betmgm.png',
+  'caesars': '/images/sportsbooks/banners/caesars.png',
+  'bet365': '/images/sportsbooks/banners/bet365.png',
+
+  // Additional US Books
+  'bovada': '/images/sportsbooks/banners/bovada.png',
+  'betrivers': '/images/sportsbooks/banners/betrivers.png',
+  'betonlineag': '/images/sportsbooks/banners/betonline.png',
+  'betonline': '/images/sportsbooks/banners/betonline.png',
+  'williamhillus': '/images/sportsbooks/banners/williamhill.png',
+  'williamhill': '/images/sportsbooks/banners/williamhill.png',
+  'pointsbet': '/images/sportsbooks/banners/pointsbet.png',
+  'superbook': '/images/sportsbooks/banners/superbook.png',
+  'barstool': '/images/sportsbooks/banners/barstool.png',
+  'unibet': '/images/sportsbooks/banners/unibet.png',
+  'wynnbet': '/images/sportsbooks/banners/wynnbet.png',
+  'twinspires': '/images/sportsbooks/banners/twinspires.png',
+
+  // New Entrants
+  'hardrock': '/images/sportsbooks/banners/hardrock.png',
+  'hardrockbet': '/images/sportsbooks/banners/hardrock.png',
+  'espnbet': '/images/sportsbooks/banners/espnbet.png',
+  'fanatics': '/images/sportsbooks/banners/fanatics.png',
+
+  // DFS/Props-Focused
+  'prizepicks': '/images/sportsbooks/banners/prizepicks.png',
+  'underdog': '/images/sportsbooks/banners/underdog.png',
+  'underdogfantasy': '/images/sportsbooks/banners/underdog.png',
+  'parlayplay': '/images/sportsbooks/banners/parlayplay.png',
+  'sleeper': '/images/sportsbooks/banners/sleeper.png',
+
+  // International
+  'pinnacle': '/images/sportsbooks/banners/pinnacle.png',
+  'betway': '/images/sportsbooks/banners/betway.png',
+  'mybookieag': '/images/sportsbooks/banners/mybookie.png',
+  'mybookie': '/images/sportsbooks/banners/mybookie.png',
+  'lowvig': '/images/sportsbooks/banners/lowvig.png',
+  'betano': '/images/sportsbooks/banners/betano.png',
+  'bwin': '/images/sportsbooks/banners/bwin.png',
+
+  // Calculated/Consensus
+  'calculated': '/images/sportsbooks/banners/consensus.png',
+  'consensus': '/images/sportsbooks/banners/consensus.png',
+  'average': '/images/sportsbooks/banners/consensus.png'
+};
+
+// Banner background colors for sportsbooks with transparent banners
+// Only needed when the banner PNG doesn't have its own solid background
+const SPORTSBOOK_BANNER_BG = {
+  'betonlineag': '#ffffff',
+  'betonline': '#ffffff',
+  'betmgm': '#1a1a2e',
+  'williamhillus': '#00205b',
+  'williamhill': '#00205b',
 };
 
 // Display names mapping (for consistency)
@@ -97,8 +158,9 @@ const SPORTSBOOK_DISPLAY_NAMES = {
   'average': 'Average'
 };
 
-// Default fallback logo
-const DEFAULT_LOGO = '/images/sportsbooks/default.png';
+// Default fallback logos
+const DEFAULT_ICON = '/images/sportsbooks/icons/default.png';
+const DEFAULT_BANNER = '/images/sportsbooks/banners/default.png';
 
 /**
  * Normalize sportsbook name for lookup
@@ -121,31 +183,75 @@ export function normalizeSportsbookName(name) {
 }
 
 /**
- * Get sportsbook logo path
- * 
+ * Get sportsbook icon logo path (small square)
+ *
  * @param {string} sportsbookName - Sportsbook name (any format)
- * @returns {string} Logo image path
+ * @returns {string} Icon logo image path
  */
 export function getSportsbookLogo(sportsbookName) {
-  if (!sportsbookName) return DEFAULT_LOGO;
-  
+  if (!sportsbookName) return DEFAULT_ICON;
+
   const normalized = normalizeSportsbookName(sportsbookName);
-  
+
   // Direct match
-  if (SPORTSBOOK_LOGO_MAP[normalized]) {
-    return SPORTSBOOK_LOGO_MAP[normalized];
+  if (SPORTSBOOK_ICON_MAP[normalized]) {
+    return SPORTSBOOK_ICON_MAP[normalized];
   }
-  
+
   // Partial match (for variants)
-  for (const [key, logo] of Object.entries(SPORTSBOOK_LOGO_MAP)) {
+  for (const [key, logo] of Object.entries(SPORTSBOOK_ICON_MAP)) {
     if (normalized.includes(key) || key.includes(normalized)) {
       return logo;
     }
   }
-  
+
   // Fallback to default
-  console.warn(`⚠️ No logo found for sportsbook: "${sportsbookName}" (normalized: "${normalized}")`);
-  return DEFAULT_LOGO;
+  console.warn(`No icon found for sportsbook: "${sportsbookName}" (normalized: "${normalized}")`);
+  return DEFAULT_ICON;
+}
+
+/**
+ * Get sportsbook banner logo path (wide horizontal)
+ *
+ * @param {string} sportsbookName - Sportsbook name (any format)
+ * @returns {string} Banner logo image path
+ */
+export function getSportsbookBanner(sportsbookName) {
+  if (!sportsbookName) return DEFAULT_BANNER;
+
+  const normalized = normalizeSportsbookName(sportsbookName);
+
+  // Direct match
+  if (SPORTSBOOK_BANNER_MAP[normalized]) {
+    return SPORTSBOOK_BANNER_MAP[normalized];
+  }
+
+  // Partial match (for variants)
+  for (const [key, banner] of Object.entries(SPORTSBOOK_BANNER_MAP)) {
+    if (normalized.includes(key) || key.includes(normalized)) {
+      return banner;
+    }
+  }
+
+  // Fallback to default
+  console.warn(`No banner found for sportsbook: "${sportsbookName}" (normalized: "${normalized}")`);
+  return DEFAULT_BANNER;
+}
+
+/**
+ * Get banner background color (for transparent banners)
+ *
+ * @param {string} sportsbookName - Sportsbook name (any format)
+ * @returns {string|null} Background color hex or null
+ */
+export function getSportsbookBannerBg(sportsbookName) {
+  if (!sportsbookName) return null;
+  const normalized = normalizeSportsbookName(sportsbookName);
+  if (SPORTSBOOK_BANNER_BG[normalized]) return SPORTSBOOK_BANNER_BG[normalized];
+  for (const [key, bg] of Object.entries(SPORTSBOOK_BANNER_BG)) {
+    if (normalized.includes(key) || key.includes(normalized)) return bg;
+  }
+  return null;
 }
 
 /**
@@ -179,13 +285,15 @@ export function getSportsbookDisplayName(sportsbookName) {
 }
 
 /**
- * Get complete sportsbook info (logo + display name)
- * 
+ * Get complete sportsbook info (icon + banner + display name)
+ *
  * @param {string} sportsbookName - Sportsbook name (any format)
- * @returns {object} { logo: string, displayName: string, normalized: string }
+ * @returns {object} { icon: string, banner: string, displayName: string, normalized: string }
  */
 export function getSportsbookInfo(sportsbookName) {
   return {
+    icon: getSportsbookLogo(sportsbookName),
+    banner: getSportsbookBanner(sportsbookName),
     logo: getSportsbookLogo(sportsbookName),
     displayName: getSportsbookDisplayName(sportsbookName),
     normalized: normalizeSportsbookName(sportsbookName)
@@ -198,7 +306,7 @@ export function getSportsbookInfo(sportsbookName) {
  * @returns {Array<string>} List of all sportsbook keys
  */
 export function getAllSupportedSportsbooks() {
-  return Object.keys(SPORTSBOOK_LOGO_MAP).sort();
+  return Object.keys(SPORTSBOOK_ICON_MAP).sort();
 }
 
 /**
@@ -209,6 +317,6 @@ export function getAllSupportedSportsbooks() {
  */
 export function hasLogoMapping(sportsbookName) {
   const normalized = normalizeSportsbookName(sportsbookName);
-  return SPORTSBOOK_LOGO_MAP.hasOwnProperty(normalized);
+  return SPORTSBOOK_ICON_MAP.hasOwnProperty(normalized);
 }
 

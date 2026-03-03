@@ -148,4 +148,3 @@ export const getCacheStats = () => {
   return cache.getStats();
 };
 
-console.log('✅ Cache service initialized');

@@ -17,19 +17,14 @@ router.get('/', async (req, res) => {
     }
 
     if (type === 'teams') {
-      console.log(`🔍 Team search for: "${query}"`);
       const teams = await searchTeamsESPN(query);
-      console.log(`✅ Returning ${teams.length} teams`);
       return res.json(teams);
     }
 
-    console.log(`🔍 Search request for: "${query}"`);
     const players = await searchPlayersESPN(query);
-    console.log(`✅ Returning ${players.length} players from ESPN`);
     res.json(players);
   } catch (error) {
-    console.error('❌ Error in search route:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Search error:', error.message);
     res.status(500).json({
       error: error.message || 'Failed to search',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined

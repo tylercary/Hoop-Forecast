@@ -69,12 +69,10 @@ async function runEvaluation() {
   try {
     const stats = getAccuracyStats();
     if (stats.pending > 0) {
-      console.log(`\n🔄 [SCHEDULER] Evaluating ${stats.pending} pending predictions...`);
-      const result = await evaluatePendingPredictions();
-      console.log(`✅ [SCHEDULER] Evaluation done: ${result.evaluated} evaluated, ${result.failed} failed, ${result.skipped} skipped`);
+      await evaluatePendingPredictions();
     }
   } catch (err) {
-    console.error('❌ [SCHEDULER] Evaluation error:', err.message);
+    console.error('Evaluation error:', err.message);
   }
 }
 
@@ -101,11 +99,8 @@ async function runRetrain() {
 
     const newEvaluations = (stats.evaluated || 0) - lastRetrainEvaluated;
     if (newEvaluations < 20) {
-      console.log(`[RETRAIN] Only ${newEvaluations} new evaluations since last retrain (need 20+). Skipping.`);
       return;
     }
-
-    console.log(`\n[RETRAIN] ${newEvaluations} new evaluations. Starting incremental retrain...`);
 
     const { execSync } = await import('child_process');
     execSync('node backend/scripts/retrainFromTracking.js --incremental', {
@@ -123,9 +118,8 @@ async function runRetrain() {
       fs.writeFileSync(retrainLogPath, JSON.stringify(log, null, 2), 'utf8');
     } catch (e) { /* ignore */ }
 
-    console.log('[RETRAIN] Retrain complete.');
   } catch (err) {
-    console.error('[RETRAIN] Retrain error:', err.message);
+    console.error('Retrain error:', err.message);
   }
 }
 
@@ -135,18 +129,12 @@ setInterval(runRetrain, RETRAIN_INTERVAL);
 
 // Start server with error handling
 app.listen(PORT, () => {
-  console.log(`🏀 HoopForecast API server running on http://localhost:${PORT}`);
-  const stats = getAccuracyStats();
-  console.log(`📊 Prediction tracker: ${stats.total_predictions || 0} total, ${stats.evaluated || 0} evaluated, ${stats.pending || 0} pending`);
+  console.log(`HoopForecast API running on http://localhost:${PORT}`);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use.`);
-    console.error(`💡 Try one of these solutions:`);
-    console.error(`   1. Kill the process: lsof -ti:${PORT} | xargs kill -9`);
-    console.error(`   2. Use a different port: PORT=5001 npm run dev`);
-    console.error(`   3. Check what's using the port: lsof -i:${PORT}`);
+    console.error(`Port ${PORT} is already in use. Run: lsof -ti:${PORT} | xargs kill -9`);
   } else {
-    console.error('❌ Server error:', err);
+    console.error('Server error:', err);
   }
   process.exit(1);
 });

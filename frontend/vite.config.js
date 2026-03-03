@@ -24,7 +24,7 @@ export default defineConfig({
         timeout: 30000,
         retry: 3
       },
-      '/images': {
+      '/images/players': {
         target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,

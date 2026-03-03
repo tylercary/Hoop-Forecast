@@ -118,7 +118,6 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
   savePredictions(data);
 
   const propLabel = propType === 'points' ? 'pts' : propType;
-  console.log(`📝 Stored prediction for ${playerName}: ${predictedValue} ${propLabel}`);
   return predictionRecord.id;
 }
 
@@ -163,7 +162,6 @@ export function updatePredictionOutcome(predictionId, actualPoints) {
   }
   
   savePredictions(data);
-  console.log(`✅ Updated prediction ${predictionId}: actual ${actualPoints} pts, error: ${error.toFixed(1)}`);
   
   return prediction;
 }
@@ -186,7 +184,6 @@ export function markPredictionDNP(predictionId) {
   prediction.dnp_reason = 'Player did not play (injury/rest/DNP)';
 
   savePredictions(data);
-  console.log(`🚫 Marked prediction ${predictionId} as DNP for ${prediction.player_name}`);
   return prediction;
 }
 
@@ -260,7 +257,6 @@ export function getPendingEvaluations() {
 
   if (expired > 0) {
     savePredictions(data);
-    console.log(`🗑️ Auto-expired ${expired} predictions older than 30 days`);
   }
 
   return pending;
@@ -349,5 +345,4 @@ export function getPlayerBias(playerName, propType = 'points') {
   return weightedSum / totalWeight;
 }
 
-console.log('✅ Prediction tracking service initialized');
 

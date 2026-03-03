@@ -25,7 +25,7 @@ const PROP_LABELS = {
 };
 
 function MyPredictions() {
-  const { user, tokens, addTokens } = useAuth();
+  const { user, tokens, addTokens, predictionsResolved } = useAuth();
   const navigate = useNavigate();
   const [predictions, setPredictions] = useState([]);
   const [record, setRecord] = useState({ wins: 0, losses: 0, pushes: 0 });
@@ -48,12 +48,10 @@ function MyPredictions() {
       setLoading(true);
       setError('');
       try {
-        console.log('[MyPredictions] Loading predictions for user:', user.uid);
         const [preds, rec] = await Promise.all([
           getUserPredictions(user.uid),
           getUserRecord(user.uid),
         ]);
-        console.log('[MyPredictions] Loaded', preds.length, 'predictions, record:', rec);
         setPredictions(preds);
         setRecord(rec);
 
@@ -66,18 +64,16 @@ function MyPredictions() {
         const correctTotal = correctRecord.wins + correctRecord.losses + correctRecord.pushes;
         const storedTotal = rec.wins + rec.losses + rec.pushes;
         if (correctTotal !== storedTotal || correctRecord.wins !== rec.wins || correctRecord.losses !== rec.losses) {
-          console.log('[MyPredictions] Record mismatch, syncing:', correctRecord);
-          syncUserRecord(user.uid, preds).catch((err) => console.error('Record sync error:', err));
+          syncUserRecord(user.uid, preds).catch(() => {});
         }
 
-        // Auto-resolve pending predictions in the background
+        // Auto-resolve pending predictions (skip if AuthContext already resolved on login)
         const hasPending = preds.some((p) => !p.result);
-        if (hasPending) {
+        if (hasPending && !predictionsResolved) {
           setResolving(true);
           try {
             const { resolved, updates, totalTokenChange } = await resolvePendingPredictions(user.uid, preds);
             if (resolved > 0) {
-              console.log(`[MyPredictions] Resolved ${resolved} predictions, token change: +${totalTokenChange}`);
               if (totalTokenChange > 0) addTokens(totalTokenChange);
               // Reload fresh data after resolving
               const [freshPreds, freshRec] = await Promise.all([

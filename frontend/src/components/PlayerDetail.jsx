@@ -1158,6 +1158,13 @@ function PlayerDetail() {
                 const propLine = parseFloat(comparisonData.props[selectedProp].line).toFixed(1);
                 const userPick = userPredictions[selectedProp];
                 const community = communityPicks[selectedProp] || { overCount: 0, underCount: 0, total: 0, overPercent: 50, underPercent: 50 };
+                const propDisplayLabels = {
+                  points: 'Points', assists: 'Assists', rebounds: 'Rebounds',
+                  threes: '3Pts Made', threes_made: '3Pts Made', steals: 'Steals', blocks: 'Blocks', turnovers: 'Turnovers',
+                  pra: 'Pts + Reb + Ast', pr: 'Pts + Reb', pa: 'Pts + Ast', ra: 'Reb + Ast',
+                  points_rebounds: 'Pts + Reb', points_assists: 'Pts + Ast', rebounds_assists: 'Reb + Ast',
+                  points_rebounds_assists: 'Pts + Reb + Ast',
+                };
                 const hasCommunityData = community.total > 0;
                 const userAgreesWithMajority = userPick && (
                   (userPick.pick === 'over' && community.overPercent >= 50) ||
@@ -1200,7 +1207,7 @@ function PlayerDetail() {
                       {/* Line Display */}
                       <div className="text-center mb-4">
                         <span className="text-2xl font-bold text-white">{propLine}</span>
-                        <span className="text-sm text-gray-400 ml-2">{selectedProp.replace(/_/g, ' ')}</span>
+                        <span className="text-sm text-gray-400 ml-2">{propDisplayLabels[selectedProp] || selectedProp.replace(/_/g, ' ')}</span>
                       </div>
 
                       {/* OVER / UNDER Buttons */}

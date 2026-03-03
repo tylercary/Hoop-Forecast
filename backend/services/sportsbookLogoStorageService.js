@@ -11,7 +11,6 @@ const LOGOS_DIR = path.join(__dirname, '../public/images/sportsbooks');
 
 if (!fs.existsSync(LOGOS_DIR)) {
   fs.mkdirSync(LOGOS_DIR, { recursive: true });
-  console.log(`📁 Created sportsbook logos directory: ${LOGOS_DIR}`);
 }
 
 /**
@@ -97,11 +96,9 @@ export async function downloadSportsbookLogo(sportsbookName, logoUrl = null) {
     }
     
     if (!imageUrl) {
-      console.log(`⚠️ No logo URL found for ${sportsbookName}`);
       return null;
     }
     
-    console.log(`📥 Downloading logo for ${sportsbookName} from ${imageUrl}...`);
     
     try {
       const response = await axios.get(imageUrl, {
@@ -120,12 +117,10 @@ export async function downloadSportsbookLogo(sportsbookName, logoUrl = null) {
       
       // Save logo to disk
       fs.writeFileSync(logoPath, response.data);
-      console.log(`✅ Saved logo for ${sportsbookName} to ${logoPath}`);
       
       return getLogoUrl(sportsbookName);
     } catch (downloadError) {
       // If download fails, try alternative sources
-      console.log(`⚠️ Primary download failed for ${sportsbookName}, trying alternatives...`);
       
       // Try favicon as fallback
       const domain = sportsbookName.toLowerCase().replace(/\s+/g, '').replace('sportsbook', '');
@@ -149,7 +144,6 @@ export async function downloadSportsbookLogo(sportsbookName, logoUrl = null) {
           
           if (response.status < 400) {
             fs.writeFileSync(logoPath, response.data);
-            console.log(`✅ Saved logo for ${sportsbookName} using fallback: ${fallbackUrl}`);
             return getLogoUrl(sportsbookName);
           }
         } catch (e) {
@@ -160,7 +154,6 @@ export async function downloadSportsbookLogo(sportsbookName, logoUrl = null) {
       throw downloadError;
     }
   } catch (error) {
-    console.log(`⚠️ Could not download logo for ${sportsbookName}: ${error.message}`);
     return null;
   }
 }
