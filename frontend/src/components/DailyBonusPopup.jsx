@@ -21,7 +21,7 @@ function DailyBonusPopup() {
           exit={{ opacity: 0, y: -20, scale: 0.95 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           onClick={dismissDailyBonus}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] cursor-pointer"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] cursor-pointer"
         >
           <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-gradient-to-r from-yellow-500/90 to-amber-500/90 shadow-lg shadow-yellow-500/25 border border-yellow-400/50 backdrop-blur-sm">
             <Coins size={22} className="text-gray-900" />

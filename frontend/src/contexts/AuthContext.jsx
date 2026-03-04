@@ -65,6 +65,28 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Auto-resolve predictions every 5 minutes while logged in
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(async () => {
+      try {
+        const predictions = await getUserPredictions(user.uid);
+        const hasPending = predictions.some((p) => !p.result);
+        if (!hasPending) return;
+        const { totalTokenChange } = await resolvePendingPredictions(user.uid, predictions);
+        if (totalTokenChange > 0) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            setTokens(userDoc.data().tokens || 0);
+          }
+        }
+      } catch (err) {
+        // Silent fail — will retry next interval
+      }
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Load favorites from Firestore
   async function loadFavorites(uid) {
     try {
