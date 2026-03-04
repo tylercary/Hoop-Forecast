@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { savePrediction, updatePrediction, deletePrediction, getCommunityPicks } from '../services/firestoreService';
-import api from '../utils/api';
+import api, { resolveImageUrl } from '../utils/api';
 import PlayerCard from './PlayerCard';
 import PredictionChart from './PredictionChart';
 import LoadingAnimation from './LoadingAnimation';
@@ -721,7 +721,7 @@ function PlayerDetail() {
                   />
                 )}
                 <img
-                  src={comparisonData.player_image}
+                  src={resolveImageUrl(comparisonData.player_image)}
                   alt={comparisonData.player || 'Player'}
                   className="relative z-10 h-full w-full object-cover object-top"
                   onError={(e) => { e.target.parentElement.style.display = 'none'; }}

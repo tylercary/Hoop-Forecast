@@ -1,3 +1,5 @@
+import { resolveImageUrl } from '../utils/api';
+
 function PlayerCard({ player, comparisonData }) {
   const playerName = `${player.first_name} ${player.last_name}`;
   const displayName = comparisonData?.player || playerName;
@@ -8,7 +10,7 @@ function PlayerCard({ player, comparisonData }) {
         {comparisonData?.player_image && (
           <div className="mb-4 flex justify-center">
             <img 
-              src={comparisonData.player_image} 
+              src={resolveImageUrl(comparisonData.player_image)} 
               alt={displayName}
               className="w-32 h-32 rounded-full object-cover border-4 border-purple-200 shadow-lg"
               onError={(e) => {

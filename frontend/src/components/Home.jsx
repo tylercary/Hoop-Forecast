@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, ChevronDown, Filter, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../utils/api';
+import api, { resolveImageUrl } from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
 
 // Module-level cache to persist data across component remounts (e.g., back navigation)
@@ -590,7 +590,7 @@ function Home() {
                         <div className="relative z-30 flex-shrink-0">
                           {prop.player_image ? (
                             <img
-                              src={prop.player_image}
+                              src={resolveImageUrl(prop.player_image)}
                               alt={prop.player}
                               loading="lazy"
                               className="w-14 h-14 rounded-full object-cover ring-2 ring-amber-500/30 group-hover:ring-amber-500 select-none pointer-events-none"
@@ -877,7 +877,7 @@ function Home() {
                 <div className="flex justify-center pt-5 pb-2.5">
                 {player.player_image ? (
                   <img
-                    src={player.player_image}
+                    src={resolveImageUrl(player.player_image)}
                     alt={player.name}
                     loading="lazy"
                       className="w-24 h-24 rounded-full object-cover ring-2 ring-gray-500/40 group-hover:ring-yellow-500 shadow-xl transition-all duration-300"

@@ -304,7 +304,7 @@ function AppHeader() {
             ) : user ? (
                 /* Logged in: avatar + dropdown */
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                  <div className="flex items-center gap-1.5">
                     <Coins size={14} className="text-yellow-500" />
                     <span className="text-sm font-bold text-yellow-400">{tokens}</span>
                   </div>

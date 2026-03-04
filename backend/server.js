@@ -127,9 +127,30 @@ async function runRetrain() {
 setTimeout(runRetrain, 120000);
 setInterval(runRetrain, RETRAIN_INTERVAL);
 
+// Pre-warm caches on startup so the first user request is fast
+async function warmCaches() {
+  try {
+    const baseUrl = `http://localhost:${PORT}`;
+    console.log('Warming caches...');
+    await Promise.allSettled([
+      fetch(`${baseUrl}/api/player/with-lines`).catch(() => {}),
+      fetch(`${baseUrl}/api/trending/props`).catch(() => {})
+    ]);
+    console.log('Cache warm complete');
+  } catch (err) {
+    console.error('Cache warm error:', err.message);
+  }
+}
+
+// Refresh caches every 10 minutes
+const WARM_INTERVAL = 10 * 60 * 1000;
+
 // Start server with error handling
 app.listen(PORT, () => {
   console.log(`HoopForecast API running on http://localhost:${PORT}`);
+  // Warm caches 5s after startup, then every 10 minutes
+  setTimeout(warmCaches, 5000);
+  setInterval(warmCaches, WARM_INTERVAL);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`Port ${PORT} is already in use. Run: lsof -ti:${PORT} | xargs kill -9`);

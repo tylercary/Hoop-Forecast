@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Target, Trophy, TrendingUp, Clock, RefreshCw, Coins } from 'lucide-react';
+import { resolveImageUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserPredictions, getUserRecord, resolvePendingPredictions, syncUserRecord, deletePrediction } from '../services/firestoreService';
 
@@ -271,7 +272,7 @@ function MyPredictions() {
                   {/* Player Photo */}
                   <div className="flex-shrink-0">
                     <img
-                      src={`/images/players/${pred.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`}
+                      src={resolveImageUrl(`/images/players/${pred.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`)}
                       alt={pred.playerName}
                       loading="lazy"
                       className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-600 group-hover:ring-yellow-500 transition-all"

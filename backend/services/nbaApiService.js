@@ -11,6 +11,8 @@ const NBA_API_BASE = 'https://stats.nba.com/stats';
 
 // Cache for ESPN player searches (24 hours - player names don't change)
 const espnSearchCache = new NodeCache({ stdTTL: 86400, useClones: false });
+// Cache for ESPN gamelog data (30 minutes - stats update after games)
+const espnGamelogCache = new NodeCache({ stdTTL: 1800, useClones: false });
 const NBA_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept': 'application/json, text/plain, */*',
@@ -219,8 +221,226 @@ export async function searchPlayersESPN(playerName) {
 }
 
 /**
+ * Get player stats from ESPN gamelog API
+ * Replaces NBA.com which blocks cloud server IPs
+ * Returns stats in the same format as getPlayerStatsFromNBA for drop-in replacement
+ */
+export async function getPlayerStatsFromESPN(playerName) {
+  try {
+    // Check gamelog cache first
+    const cacheKey = `espn_gamelog:${playerName.toLowerCase().trim()}`;
+    const cached = espnGamelogCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Step 1: Find the player via ESPN search to get their ESPN ID
+    const espnResults = await searchPlayersESPN(playerName);
+    if (!espnResults || espnResults.length === 0) {
+      throw new Error(`Player "${playerName}" not found on ESPN`);
+    }
+    const espnPlayer = espnResults[0];
+    const espnId = espnPlayer.espn_id || espnPlayer.id;
+    if (!espnId) {
+      throw new Error(`No ESPN ID found for "${playerName}"`);
+    }
+
+    // Step 2: Fetch gamelog for current season
+    const gamelogUrl = `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${espnId}/gamelog`;
+    const espnHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      'Accept': 'application/json'
+    };
+
+    const [currentResponse, previousResponse] = await Promise.allSettled([
+      axios.get(gamelogUrl, { headers: espnHeaders, timeout: 15000 }),
+      axios.get(gamelogUrl, {
+        params: { season: getEspnPreviousSeason() },
+        headers: espnHeaders,
+        timeout: 15000
+      })
+    ]);
+
+    const currentData = currentResponse.status === 'fulfilled' ? currentResponse.value.data : null;
+    const previousData = previousResponse.status === 'fulfilled' ? previousResponse.value.data : null;
+
+    if (!currentData) {
+      throw new Error(`Failed to fetch ESPN gamelog for ${playerName}`);
+    }
+
+    // Step 3: Parse games from ESPN response
+    const currentGames = parseEspnGamelog(currentData, getCurrentSeason());
+    const previousGames = previousData ? parseEspnGamelog(previousData, getPreviousSeason(getCurrentSeason())) : [];
+
+    // Combine: current season first (most recent first), then previous season
+    const allGames = [...currentGames, ...previousGames].map((game, index) => ({
+      ...game,
+      game_number: index + 1
+    }));
+
+    if (allGames.length === 0) {
+      throw new Error(`No game data found for ${playerName}`);
+    }
+
+    // Step 4: Get team info from ESPN player data
+    const teamAbbrev = mapEspnToNbaAbbrev(espnPlayer.team?.abbreviation) || espnPlayer.team?.abbreviation || 'N/A';
+    const teamName = espnPlayer.team?.name || espnPlayer.team_name || 'N/A';
+
+    const result = {
+      player: {
+        id: espnId,
+        nba_id: espnId,
+        first_name: espnPlayer.first_name || '',
+        last_name: espnPlayer.last_name || '',
+        position: espnPlayer.position || 'N/A',
+        team: teamAbbrev,
+        team_name: teamName,
+        team_details: {
+          abbreviation: teamAbbrev,
+          name: teamName
+        }
+      },
+      games: allGames
+    };
+
+    // Cache the result
+    espnGamelogCache.set(cacheKey, result);
+
+    return result;
+  } catch (error) {
+    console.error(`❌ Error fetching stats from ESPN for ${playerName}:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Parse ESPN gamelog response into standardized game objects
+ * ESPN stats array order: MIN, FG, FG%, 3PT, 3P%, FT, FT%, REB, AST, BLK, STL, PF, TO, PTS
+ */
+function parseEspnGamelog(data, seasonLabel) {
+  const games = [];
+  const eventsMap = data.events || {};
+  const seasonTypes = data.seasonTypes || [];
+
+  // Only process Regular Season games (skip preseason, playoffs)
+  for (const seasonType of seasonTypes) {
+    const typeName = (seasonType.displayName || '').toLowerCase();
+    if (typeName.includes('preseason')) continue;
+
+    const categories = seasonType.categories || [];
+    for (const category of categories) {
+      const events = category.events || [];
+      for (const event of events) {
+        const eventId = event.eventId;
+        const stats = event.stats || [];
+        const eventMeta = eventsMap[eventId];
+        if (!eventMeta || stats.length < 14) continue;
+
+        // Parse made-attempted fields (e.g., "3-5")
+        const parseMadeAttempted = (val) => {
+          if (!val || typeof val !== 'string' || !val.includes('-')) return { made: 0, attempted: 0 };
+          const [made, attempted] = val.split('-').map(Number);
+          return { made: made || 0, attempted: attempted || 0 };
+        };
+
+        const minutes = stats[0] || '0';
+        const fg = parseMadeAttempted(stats[1]);
+        const threes = parseMadeAttempted(stats[3]);
+        const ft = parseMadeAttempted(stats[5]);
+        const rebounds = parseInt(stats[7]) || 0;
+        const assists = parseInt(stats[8]) || 0;
+        const blocks = parseInt(stats[9]) || 0;
+        const steals = parseInt(stats[10]) || 0;
+        const personalFouls = parseInt(stats[11]) || 0;
+        const turnovers = parseInt(stats[12]) || 0;
+        const points = parseInt(stats[13]) || 0;
+
+        // Parse game metadata
+        const gameDate = eventMeta.gameDate
+          ? eventMeta.gameDate.split('T')[0]  // "2026-03-02T02:30:00.000+00:00" -> "2026-03-02"
+          : '';
+        const isHome = eventMeta.atVs === 'vs';
+        const opponentAbbrev = mapEspnToNbaAbbrev(eventMeta.opponent?.abbreviation) || eventMeta.opponent?.abbreviation || 'N/A';
+        const result = eventMeta.gameResult || ''; // "W" or "L"
+
+        games.push({
+          game_number: 0, // Will be renumbered after combining seasons
+          date: gameDate,
+          // Standard normalized keys
+          pts: points,
+          reb: rebounds,
+          ast: assists,
+          stl: steals,
+          blk: blocks,
+          tpm: threes.made,
+          minutes: minutes,
+          opponent: opponentAbbrev,
+          // Legacy keys for backward compatibility
+          points: points,
+          rebounds: rebounds,
+          assists: assists,
+          steals: steals,
+          blocks: blocks,
+          threes_made: threes.made,
+          threes: threes.made,
+          field_goals_made: fg.made,
+          fgm: fg.made,
+          field_goals_attempted: fg.attempted,
+          fga: fg.attempted,
+          free_throws_made: ft.made,
+          ftm: ft.made,
+          free_throws_attempted: ft.attempted,
+          fta: ft.attempted,
+          three_pointers_made: threes.made,
+          three_pointers_attempted: threes.attempted,
+          tpa: threes.attempted,
+          turnovers: turnovers,
+          personal_fouls: personalFouls,
+          home: isHome,
+          result: result,
+          season: seasonLabel
+        });
+      }
+    }
+  }
+
+  return games;
+}
+
+/**
+ * Get ESPN season parameter for previous season
+ * ESPN uses the end year (e.g., 2025 for the 2024-25 season)
+ */
+function getEspnPreviousSeason() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  // Current season: if before October, current ESPN season = year, previous = year - 1
+  // If October or later, current ESPN season = year + 1, previous = year
+  if (month < 10) {
+    return String(year - 1);
+  } else {
+    return String(year);
+  }
+}
+
+/**
+ * Get player stats - uses ESPN (primary) with NBA.com as fallback
+ * This is the main entry point used by routes
+ */
+export async function getPlayerStats(playerName) {
+  try {
+    return await getPlayerStatsFromESPN(playerName);
+  } catch (espnError) {
+    console.warn(`⚠️ ESPN failed for ${playerName}, trying NBA.com fallback:`, espnError.message);
+    return await getPlayerStatsFromNBA(playerName);
+  }
+}
+
+/**
  * Get player stats directly from NBA.com API using player name
  * Returns stats in the same format as balldontlie service
+ * NOTE: NBA.com blocks cloud server IPs - use getPlayerStats() instead which uses ESPN first
  */
 export async function getPlayerStatsFromNBA(playerName, retryCount = 0) {
   const maxRetries = 2;

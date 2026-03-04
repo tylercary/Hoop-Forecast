@@ -1,5 +1,5 @@
 import { getPendingEvaluations, updatePredictionOutcome, findPredictionByGame, markPredictionDNP } from './predictionTrackingService.js';
-import { getPlayerStatsFromNBA } from './nbaApiService.js';
+import { getPlayerStats } from './nbaApiService.js';
 
 /**
  * Automatically evaluate pending predictions by fetching actual game results
@@ -59,7 +59,7 @@ export async function evaluatePendingPredictions() {
 
         while (retries <= maxRetries && !stats) {
           try {
-            stats = await getPlayerStatsFromNBA(prediction.player_name);
+            stats = await getPlayerStats(prediction.player_name);
           } catch (error) {
             if (error.message.includes('timeout') && retries < maxRetries) {
               retries++;

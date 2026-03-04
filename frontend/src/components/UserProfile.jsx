@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Trophy, TrendingUp, Target, UserPlus, Check, Clock, Star, ChevronRight } from 'lucide-react';
+import { resolveImageUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getTeamLogo } from '../utils/teamLogos';
 import {
@@ -221,7 +222,7 @@ function UserProfile() {
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
                     <img
-                      src={`/images/players/${fav.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`}
+                      src={resolveImageUrl(`/images/players/${fav.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`)}
                       alt={fav.playerName}
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-gray-600"
                       onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }}
@@ -299,7 +300,7 @@ function UserProfile() {
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
                     <img
-                      src={`/images/players/${pred.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`}
+                      src={resolveImageUrl(`/images/players/${pred.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`)}
                       alt={pred.playerName}
                       className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-600"
                       onError={(e) => {

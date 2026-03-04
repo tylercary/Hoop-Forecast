@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, ChevronRight } from 'lucide-react';
+import { resolveImageUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getTeamLogo } from '../utils/teamLogos';
 
@@ -74,7 +75,7 @@ function Favorites() {
                   {/* Player Photo */}
                   <div className="flex-shrink-0">
                     <img
-                      src={`/images/players/${fav.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`}
+                      src={resolveImageUrl(`/images/players/${fav.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`)}
                       alt={fav.playerName}
                       className="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-500/30 group-hover:ring-yellow-500 transition-all"
                       onError={(e) => {

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPlayerStatsFromNBA, getTeamRecord, searchPlayer, searchPlayersESPN } from '../services/nbaApiService.js';
+import { getPlayerStats, getTeamRecord, searchPlayer, searchPlayersESPN } from '../services/nbaApiService.js';
 import { getPlayerOdds } from '../services/oddsService.js';
 import { predictPointsFromGames } from '../services/predictionService.js';
 import { 
@@ -67,72 +67,51 @@ router.get('/with-lines', async (req, res) => {
     const playersWithLines = [];
     const seenPlayers = new Set();
 
-    // Step 2: For each event, get player props (collect players first, images later)
-    for (const event of events) {
-      try {
-        const oddsResponse = await axios.get(
-          `${THE_ODDS_API_BASE}/sports/basketball_nba/events/${event.id}/odds`,
-          {
-            params: {
-              apiKey: THE_ODDS_API_KEY,
-              regions: 'us',
-              markets: 'player_points',
-              oddsFormat: 'american'
-            },
-            timeout: 10000
-          }
-        );
+    // Step 2: Fetch all event odds in parallel (much faster than sequential)
+    const oddsResults = await Promise.allSettled(
+      events.map(event =>
+        axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events/${event.id}/odds`, {
+          params: {
+            apiKey: THE_ODDS_API_KEY,
+            regions: 'us',
+            markets: 'player_points',
+            oddsFormat: 'american'
+          },
+          timeout: 10000
+        }).then(res => ({ event, data: res.data }))
+      )
+    );
 
-        if (!oddsResponse.data) {
-          continue;
-        }
+    for (const result of oddsResults) {
+      if (result.status !== 'fulfilled') continue;
+      const { event, data } = result.value;
+      if (!data?.bookmakers?.length) continue;
 
-        if (!oddsResponse.data.bookmakers || oddsResponse.data.bookmakers.length === 0) {
-          continue;
-        }
+      for (const bookmaker of data.bookmakers) {
+        for (const market of bookmaker.markets || []) {
+          if (market.key !== 'player_points') continue;
 
-        // Extract players from bookmakers
-        let playersFoundInEvent = 0;
-        for (const bookmaker of oddsResponse.data.bookmakers) {
-          for (const market of bookmaker.markets || []) {
-            if (market.key !== 'player_points') continue;
+          for (const outcome of market.outcomes || []) {
+            const playerName = outcome.description;
+            if (!playerName || seenPlayers.has(playerName.toLowerCase())) continue;
 
-            for (const outcome of market.outcomes || []) {
-              const playerName = outcome.description;
-              if (!playerName || seenPlayers.has(playerName.toLowerCase())) continue;
+            const line = parseFloat(outcome.point);
+            if (isNaN(line) || line <= 0) continue;
 
-              // Get the line from the first outcome (over or under, same point value)
-              const line = parseFloat(outcome.point);
-              if (isNaN(line) || line <= 0) continue;
-
-              seenPlayers.add(playerName.toLowerCase());
-              playersFoundInEvent++;
-              
-              // Store player data (images will be fetched in parallel after)
-              playersWithLines.push({
-                name: playerName,
-                betting_line: line,
-                prop_type: 'points', // Currently only fetching points props
-                bookmaker: bookmaker.title || bookmaker.key,
-                event_id: event.id,
-                home_team: event.home_team,
-                away_team: event.away_team,
-                commence_time: event.commence_time,
-                player_image: null // Will be fetched on frontend
-              });
-            }
+            seenPlayers.add(playerName.toLowerCase());
+            playersWithLines.push({
+              name: playerName,
+              betting_line: line,
+              prop_type: 'points',
+              bookmaker: bookmaker.title || bookmaker.key,
+              event_id: event.id,
+              home_team: event.home_team,
+              away_team: event.away_team,
+              commence_time: event.commence_time,
+              player_image: null
+            });
           }
         }
-        
-      } catch (err) {
-        const status = err.response?.status;
-        const errorCode = err.response?.data?.error_code;
-        // Bail immediately on quota/auth errors
-        if (status === 401 || status === 403 || errorCode === 'OUT_OF_USAGE_CREDITS') {
-          console.error(`Odds API quota/auth error (${status}). Stopping event scan.`);
-          break;
-        }
-        continue;
       }
     }
 
@@ -213,7 +192,7 @@ router.get('/:id/stats', async (req, res) => {
     if (!playerName) {
       return res.status(400).json({ error: 'Player name (name query parameter) is required' });
     }
-    const stats = await getPlayerStatsFromNBA(playerName);
+    const stats = await getPlayerStats(playerName);
     res.json(stats);
   } catch (error) {
     console.error('Error fetching player stats:', error);
@@ -232,7 +211,7 @@ router.get('/:id/prediction', async (req, res) => {
     if (!playerName) {
       return res.status(400).json({ error: 'Player name (name query parameter) is required' });
     }
-    const stats = await getPlayerStatsFromNBA(playerName);
+    const stats = await getPlayerStats(playerName);
     if (!stats.games || stats.games.length < 3) {
       return res.status(400).json({ error: `Insufficient game data. Need at least 3 games, got ${stats.games?.length || 0}` });
     }
@@ -264,7 +243,7 @@ router.get('/:id/prediction/:propType', async (req, res) => {
     
     // Get player stats
     // Using static import from top of file
-    const stats = await getPlayerStatsFromNBA(playerName);
+    const stats = await getPlayerStats(playerName);
     
     if (!stats.games || stats.games.length < 3) {
       return res.status(400).json({ error: `Insufficient game data. Need at least 3 games, got ${stats.games?.length || 0}` });
@@ -417,7 +396,7 @@ router.get('/:id/compare', async (req, res) => {
     // 1. Get player stats (check cache first)
     let stats = playerStatsCache.get(playerName);
     if (!stats) {
-      stats = await getPlayerStatsFromNBA(playerName);
+      stats = await getPlayerStats(playerName);
       if (stats) {
         const nbaPlayerId = stats.player?.nba_id || stats.player?.id;
         const teamAbbrev = typeof stats.player?.team === 'string' 
@@ -1039,7 +1018,7 @@ router.post('/resolve-predictions', async (req, res) => {
 
     for (const [playerName, preds] of Object.entries(byPlayer)) {
       try {
-        const stats = await getPlayerStatsFromNBA(playerName);
+        const stats = await getPlayerStats(playerName);
         if (!stats?.games?.length) continue;
 
         for (const pred of preds) {
