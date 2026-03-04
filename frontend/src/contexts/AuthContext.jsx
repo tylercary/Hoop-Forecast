@@ -36,11 +36,18 @@ export function AuthProvider({ children }) {
   const resolvedRef = useRef(false);
 
   // Listen for auth state changes
+  const prevUidRef = useRef(null);
   useEffect(() => {
     // Safety timeout — always show UI after 3 seconds even if Firestore is slow
     const timeout = setTimeout(() => setLoading(false), 3000);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      const newUid = firebaseUser?.uid || null;
+      // Skip re-render if same user (avoids flicker on token refresh)
+      if (newUid === prevUidRef.current && !loading) {
+        return;
+      }
+      prevUidRef.current = newUid;
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
@@ -65,27 +72,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Auto-resolve predictions every 5 minutes while logged in
-  useEffect(() => {
-    if (!user) return;
-    const interval = setInterval(async () => {
-      try {
-        const predictions = await getUserPredictions(user.uid);
-        const hasPending = predictions.some((p) => !p.result);
-        if (!hasPending) return;
-        const { totalTokenChange } = await resolvePendingPredictions(user.uid, predictions);
-        if (totalTokenChange > 0) {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            setTokens(userDoc.data().tokens || 0);
-          }
-        }
-      } catch (err) {
-        // Silent fail — will retry next interval
-      }
-    }, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [user]);
+  // No client-side polling — backend cron resolves all predictions every 15 minutes
 
   // Load favorites from Firestore
   async function loadFavorites(uid) {
@@ -193,7 +180,8 @@ export function AuthProvider({ children }) {
     setNeedsUsername(false);
     // Reload the actual Firebase user so UI picks up the new displayName
     await auth.currentUser.reload();
-    setUser(auth.currentUser);
+    prevUidRef.current = null; // Allow next onAuthStateChanged to update
+    setUser({ ...auth.currentUser });
   }
 
   async function signInWithGoogle() {

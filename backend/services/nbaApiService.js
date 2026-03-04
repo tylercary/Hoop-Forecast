@@ -1085,8 +1085,11 @@ function mapEspnToNbaAbbrev(espnAbbrev) {
   const upper = espnAbbrev.toUpperCase();
   const mapping = {
     'GS': 'GSW',
+    'NY': 'NYK',
+    'NO': 'NOP',
+    'SA': 'SAS',
     'UTAH': 'UTA',
-    'SA': 'SAS'  // ESPN uses SA for San Antonio Spurs, normalize to SAS
+    'WSH': 'WAS',
   };
   return mapping[upper] || upper;
 }

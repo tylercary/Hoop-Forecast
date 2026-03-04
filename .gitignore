@@ -58,3 +58,4 @@ backend/ml/data/*.csv
 # Uncomment if you don't want to commit player images
 # backend/public/images/players/
 
+.vercel

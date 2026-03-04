@@ -13,6 +13,7 @@ import { testInjuryRouter } from './routes/testInjuryRoute.js';
 import { evaluatePendingPredictions } from './services/predictionEvaluationService.js';
 import { getAccuracyStats } from './services/predictionTrackingService.js';
 import optionalAuth from './middleware/optionalAuth.js';
+import { resolveAllPendingPredictions } from './services/predictionCron.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +80,11 @@ async function runEvaluation() {
 // Run initial evaluation 30s after startup, then every 6 hours
 setTimeout(runEvaluation, 30000);
 setInterval(runEvaluation, EVAL_INTERVAL);
+
+// Resolve ALL users' Firestore predictions every 15 minutes
+const RESOLVE_INTERVAL = 15 * 60 * 1000;
+setTimeout(() => resolveAllPendingPredictions().catch(() => {}), 60000);
+setInterval(() => resolveAllPendingPredictions().catch(() => {}), RESOLVE_INTERVAL);
 
 // Weekly auto-retrain scheduler
 // Retrains XGBoost models using prediction feedback data

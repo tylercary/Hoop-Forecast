@@ -31,7 +31,6 @@ function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <Suspense fallback={<RouteLoader />}>
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route
@@ -58,7 +57,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <ModelPerformance />
+              <Suspense fallback={<RouteLoader />}><ModelPerformance /></Suspense>
             </motion.div>
           }
         />
@@ -72,7 +71,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <Favorites />
+              <Suspense fallback={<RouteLoader />}><Favorites /></Suspense>
             </motion.div>
           }
         />
@@ -86,7 +85,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <MyPredictions />
+              <Suspense fallback={<RouteLoader />}><MyPredictions /></Suspense>
             </motion.div>
           }
         />
@@ -100,7 +99,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <UserProfile />
+              <Suspense fallback={<RouteLoader />}><UserProfile /></Suspense>
             </motion.div>
           }
         />
@@ -114,7 +113,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <Friends />
+              <Suspense fallback={<RouteLoader />}><Friends /></Suspense>
             </motion.div>
           }
         />
@@ -128,7 +127,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <Leaderboard />
+              <Suspense fallback={<RouteLoader />}><Leaderboard /></Suspense>
             </motion.div>
           }
         />
@@ -142,7 +141,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <ProfileSettings />
+              <Suspense fallback={<RouteLoader />}><ProfileSettings /></Suspense>
             </motion.div>
           }
         />
@@ -156,7 +155,7 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <PlayerDetail />
+              <Suspense fallback={<RouteLoader />}><PlayerDetail /></Suspense>
             </motion.div>
           }
         />
@@ -170,13 +169,12 @@ function AnimatedRoutes() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <TeamDetail />
+              <Suspense fallback={<RouteLoader />}><TeamDetail /></Suspense>
             </motion.div>
           }
         />
       </Routes>
     </AnimatePresence>
-    </Suspense>
   );
 }
 
