@@ -1327,9 +1327,9 @@ function PlayerDetail() {
                         )}
                       </AnimatePresence>
 
-                      {/* Community Split Bar */}
+                      {/* Community Split Bar — only show after user has picked */}
                       <AnimatePresence>
-                        {hasCommunityData && (
+                        {hasCommunityData && userPick && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
