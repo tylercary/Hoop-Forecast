@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
+import { Lock } from 'lucide-react';
 import InfoTooltip from './InfoTooltip';
 
 /**
  * Reusable metric card component for prop analysis
- * NO LOCKS - All values are always displayed
+ * Supports a `locked` prop to blur values and show a sign-in prompt
  */
 
-function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, infoTooltip, infoTooltipLabel, progressBar, customValue, valueSize = 'text-3xl', index = 0, unified = true }) {
+function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, infoTooltip, infoTooltipLabel, progressBar, customValue, valueSize = 'text-3xl', index = 0, unified = true, locked = false, onSignIn }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -17,10 +18,11 @@ function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, in
         ease: "easeOut"
       }}
       whileHover={unified ? undefined : { y: -2, transition: { duration: 0.1 } }}
-      className={unified
+      className={`${unified
         ? "p-4 sm:p-6 flex-1 min-w-0 relative"
         : "bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 border border-gray-700 flex-1 min-w-0 hover:border-gray-600 transition-colors"
-      }
+      }${locked ? ' cursor-pointer' : ''}`}
+      onClick={locked && onSignIn ? onSignIn : undefined}
     >
       {/* Minimal divider - only show if not the first item and in unified mode */}
       {unified && index > 0 && (
@@ -28,62 +30,87 @@ function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, in
       )}
       <div className="flex items-center gap-1.5 mb-2 min-h-[24px]">
         <span className="text-sm text-gray-400 font-medium leading-tight">{title}</span>
-        {infoTooltip && (
+        {infoTooltip && !locked && (
           <InfoTooltip text={infoTooltip} label={infoTooltipLabel} id={`tooltip-${title}`} />
         )}
+        {locked && <Lock size={12} className="text-gray-500" />}
       </div>
-      
-      {/* Progress Bar (for Cover Probability) */}
-      {progressBar != null && (
-        <div className="mb-3">
-          <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, Math.max(0, progressBar))}%` }}
-              transition={{ delay: index * 0.03 + 0.05, duration: 0.3, ease: "easeOut" }}
-              className={`h-3 rounded-full ${
-                progressBar > 60 ? 'bg-green-500' :
-                progressBar >= 50 ? 'bg-yellow-500' :
-                'bg-red-500'
-              }`}
-            />
+
+      {locked ? (
+        <div className="relative">
+          <div className="select-none blur-md opacity-40 pointer-events-none">
+            {progressBar != null && (
+              <div className="mb-3">
+                <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <div className="h-3 rounded-full bg-green-500 w-[65%]" />
+                </div>
+              </div>
+            )}
+            <div className={`${valueSize} font-bold text-gray-400 mb-1`}>
+              {customValue ? '—' : '88.8%'}
+            </div>
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xs text-gray-400 font-medium bg-gray-800/80 px-2 py-1 rounded">
+              Sign in to view
+            </span>
           </div>
         </div>
-      )}
-      
-      {customValue ? (
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: index * 0.03 + 0.05, duration: 0.2 }}
-          className="mb-1"
-        >
-          {customValue}
-        </motion.div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.03 + 0.05, duration: 0.2 }}
-          className={`${valueSize} font-bold ${color} mb-1 break-words leading-tight`}
-        >
-          {value || 'N/A'}
-        </motion.div>
-      )}
-      {subtitle && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: index * 0.03 + 0.1, duration: 0.2 }}
-          className="text-xs text-gray-400 mt-1"
-        >
-          {subtitle}
-        </motion.div>
-      )}
-      {icon && (
-        <div className="mt-2">
-          {icon}
-        </div>
+        <>
+          {/* Progress Bar (for Cover Probability) */}
+          {progressBar != null && (
+            <div className="mb-3">
+              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, Math.max(0, progressBar))}%` }}
+                  transition={{ delay: index * 0.03 + 0.05, duration: 0.3, ease: "easeOut" }}
+                  className={`h-3 rounded-full ${
+                    progressBar > 60 ? 'bg-green-500' :
+                    progressBar >= 50 ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}
+                />
+              </div>
+            </div>
+          )}
+
+          {customValue ? (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: index * 0.03 + 0.05, duration: 0.2 }}
+              className="mb-1"
+            >
+              {customValue}
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.03 + 0.05, duration: 0.2 }}
+              className={`${valueSize} font-bold ${color} mb-1 break-words leading-tight`}
+            >
+              {value || 'N/A'}
+            </motion.div>
+          )}
+          {subtitle && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: index * 0.03 + 0.1, duration: 0.2 }}
+              className="text-xs text-gray-400 mt-1"
+            >
+              {subtitle}
+            </motion.div>
+          )}
+          {icon && (
+            <div className="mt-2">
+              {icon}
+            </div>
+          )}
+        </>
       )}
     </motion.div>
   );

@@ -30,7 +30,7 @@ function PlayerDetail() {
   const { playerId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isFavorite, toggleFavorite, tokens, deductTokens, addTokens } = useAuth();
+  const { user, isFavorite, toggleFavorite, tokens, deductTokens, addTokens, openAuthModal } = useAuth();
 
   // Get player from navigation state, or use a fallback
   const player = location.state?.player || { id: playerId, name: 'Loading...' };
@@ -1095,6 +1095,8 @@ function PlayerDetail() {
                         color={recommendation === 'OVER' ? 'text-green-400' : recommendation === 'UNDER' ? 'text-red-400' : 'text-yellow-400'}
                         valueSize="text-base sm:text-lg lg:text-xl"
                         index={1}
+                        locked={!user}
+                        onSignIn={openAuthModal}
                       />
                       
                       {/* Cover Probability */}
@@ -1109,6 +1111,8 @@ function PlayerDetail() {
                         infoTooltipLabel="Cover Probability"
                         valueSize="text-2xl sm:text-3xl"
                         index={2}
+                        locked={!user}
+                        onSignIn={openAuthModal}
                       />
 
                       {/* Expected Value */}
@@ -1122,6 +1126,8 @@ function PlayerDetail() {
                         infoTooltipLabel="Expected Value"
                         valueSize="text-2xl sm:text-3xl"
                         index={3}
+                        locked={!user}
+                        onSignIn={openAuthModal}
                       />
                       
                       {/* Bet Rating */}
@@ -1137,6 +1143,8 @@ function PlayerDetail() {
                         infoTooltip="Overall bet rating (A+ to F) based on expected value, model confidence, and prediction edge over the betting line."
                         infoTooltipLabel="Bet Rating"
                         index={4}
+                        locked={!user}
+                        onSignIn={openAuthModal}
                       />
 
                       {/* Season Prop Record */}

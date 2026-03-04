@@ -34,6 +34,15 @@ export function AuthProvider({ children }) {
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
   const [predictionsResolved, setPredictionsResolved] = useState(false);
   const resolvedRef = useRef(false);
+  const authModalCallbackRef = useRef(null);
+
+  function registerAuthModal(openFn) {
+    authModalCallbackRef.current = openFn;
+  }
+
+  function openAuthModal() {
+    if (authModalCallbackRef.current) authModalCallbackRef.current();
+  }
 
   // Listen for auth state changes
   const prevUidRef = useRef(null);
@@ -340,6 +349,8 @@ export function AuthProvider({ children }) {
     dailyBonusClaimed,
     dismissDailyBonus,
     predictionsResolved,
+    openAuthModal,
+    registerAuthModal,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

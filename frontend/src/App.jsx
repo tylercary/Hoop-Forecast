@@ -181,10 +181,15 @@ function AnimatedRoutes() {
 function AppHeader() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, loading, tokens } = useAuth();
+  const { user, logout, loading, tokens, registerAuthModal } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Register auth modal opener so any component can trigger sign-in via context
+  useEffect(() => {
+    registerAuthModal(() => setAuthModalOpen(true));
+  }, [registerAuthModal]);
   const menuRef = useRef(null);
   const userMenuRef = useRef(null);
 
