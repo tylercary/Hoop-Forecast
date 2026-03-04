@@ -37,24 +37,15 @@ function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, in
       </div>
 
       {locked ? (
-        <div className="relative">
-          <div className="select-none blur-md opacity-40 pointer-events-none">
-            {progressBar != null && (
-              <div className="mb-3">
-                <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                  <div className="h-3 rounded-full bg-green-500 w-[65%]" />
-                </div>
-              </div>
-            )}
-            <div className={`${valueSize} font-bold text-gray-400 mb-1`}>
+        <div className="relative h-10 flex items-center justify-center">
+          <div className="absolute inset-0 select-none blur-md opacity-40 pointer-events-none flex items-center justify-center">
+            <div className={`${valueSize} font-bold text-gray-400`}>
               {customValue ? '—' : '88.8%'}
             </div>
           </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs text-gray-400 font-medium bg-gray-800/80 px-2 py-1 rounded">
-              Sign in to view
-            </span>
-          </div>
+          <span className="relative text-xs text-gray-400 font-medium bg-gray-800/80 px-2 py-1 rounded z-10">
+            Sign in to view
+          </span>
         </div>
       ) : (
         <>
