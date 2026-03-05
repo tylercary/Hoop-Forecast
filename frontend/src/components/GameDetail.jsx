@@ -334,12 +334,12 @@ export default function GameDetail() {
               { team: awayTeam, list: awayInjuries },
               { team: homeTeam, list: homeInjuries }
             ].map(({ team, list }) => (
-              list.length > 0 && (
-                <div key={team?.abbreviation}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <img src={getTeamLogo(team?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
-                    <span className="text-white font-semibold text-sm">{team?.abbreviation}</span>
-                  </div>
+              <div key={team?.abbreviation}>
+                <div className="flex items-center gap-2 mb-3">
+                  <img src={getTeamLogo(team?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
+                  <span className="text-white font-semibold text-sm">{team?.abbreviation}</span>
+                </div>
+                {list.length > 0 ? (
                   <div className="space-y-2">
                     {list.map((inj, i) => (
                       <div
@@ -367,8 +367,10 @@ export default function GameDetail() {
                       </div>
                     ))}
                   </div>
-                </div>
-              )
+                ) : (
+                  <p className="text-gray-600 text-sm">No injuries reported</p>
+                )}
+              </div>
             ))}
           </div>
         </motion.div>
