@@ -1519,6 +1519,7 @@ export async function getTeamRoster(espnTeamId) {
     const roster = athletes.map((athlete) => {
       const base = athlete.athlete || athlete;
       const positionInfo = athlete.position || base.position || {};
+      const salary = base.contract?.salary;
       return {
         id: base.id || athlete.id,
         firstName: base.firstName || '',
@@ -1527,6 +1528,11 @@ export async function getTeamRoster(espnTeamId) {
         position: positionInfo.abbreviation || positionInfo.name || 'N/A',
         jersey: base.jersey || athlete.jersey || null,
         headshot: base.headshot?.href || base.headshot || null,
+        age: base.age || null,
+        height: base.displayHeight || null,
+        weight: base.displayWeight || null,
+        college: base.college?.shortName || base.college?.name || null,
+        salary: salary ? `$${salary.toLocaleString()}` : null,
       };
     });
 

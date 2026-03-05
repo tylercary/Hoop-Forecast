@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Users, ChevronRight, Calendar, TrendingUp, Shield, Target } from 'lucide-react';
+import { Star, Users, Calendar, Shield, Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { getTeamLogo, getTeamName } from '../utils/teamLogos';
@@ -201,83 +201,94 @@ function TeamDetail() {
         </div>
       )}
 
-      {/* Roster */}
+      {/* Roster Table */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
+        className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden"
       >
-        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-          <Users size={18} className="text-yellow-500" />
-          Roster
-          {teamData?.roster && (
-            <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
-              {teamData.roster.length}
-            </span>
-          )}
-        </h3>
+        <div className="px-5 py-4 border-b border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <Users size={16} className="text-yellow-400" />
+            Roster
+            {teamData?.roster && (
+              <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
+                {teamData.roster.length}
+              </span>
+            )}
+          </h3>
+        </div>
 
         {teamData?.roster?.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {teamData.roster.map((player, index) => (
-              <motion.div
-                key={player.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.02 }}
-                onClick={() => {
-                  const nameSlug = encodeURIComponent(player.displayName.toLowerCase().replace(/\s+/g, '-'));
-                  navigate(`/player/${player.id}/${nameSlug}`, {
-                    state: {
-                      player: {
-                        id: player.id,
-                        first_name: player.firstName,
-                        last_name: player.lastName,
-                        position: player.position,
-                        team: { abbreviation },
-                      },
-                    },
-                  });
-                }}
-                className="bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-500/50 p-4 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    {player.headshot ? (
-                      <img
-                        src={player.headshot}
-                        alt={player.displayName}
-                        className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-600"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextElementSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 items-center justify-center ring-2 ring-gray-600"
-                      style={{ display: player.headshot ? 'none' : 'flex' }}
-                    >
-                      <span className="text-white text-sm font-bold">
-                        {player.displayName?.split(' ').map((n) => n[0]).join('')}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm truncate group-hover:text-yellow-400 transition-colors">
-                      {player.displayName}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {player.jersey ? `#${player.jersey} · ` : ''}{player.position}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-500 group-hover:text-yellow-400 transition-colors flex-shrink-0" />
-                </div>
-              </motion.div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-500 uppercase border-b border-gray-700/50">
+                  <th className="text-left px-4 py-3 sticky left-0 bg-gray-800 min-w-[180px]">Name</th>
+                  <th className="text-center px-3 py-3">POS</th>
+                  <th className="text-center px-3 py-3">AGE</th>
+                  <th className="text-center px-3 py-3">HT</th>
+                  <th className="text-center px-3 py-3">WT</th>
+                  <th className="text-left px-3 py-3">College</th>
+                  <th className="text-right px-4 py-3">Salary</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamData.roster.map((player) => (
+                  <tr
+                    key={player.id}
+                    onClick={() => {
+                      const nameSlug = encodeURIComponent(player.displayName.toLowerCase().replace(/\s+/g, '-'));
+                      navigate(`/player/${player.id}/${nameSlug}`, {
+                        state: {
+                          player: {
+                            id: player.id,
+                            first_name: player.firstName,
+                            last_name: player.lastName,
+                            position: player.position,
+                            team: { abbreviation },
+                          },
+                        },
+                      });
+                    }}
+                    className="border-b border-gray-700/30 hover:bg-gray-700/30 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 sticky left-0 bg-gray-800">
+                      <div className="flex items-center gap-3">
+                        {player.headshot ? (
+                          <img
+                            src={player.headshot}
+                            alt=""
+                            className="w-9 h-9 rounded-full object-cover bg-gray-700"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                            {player.displayName?.split(' ').map((n) => n[0]).join('')}
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-white font-medium hover:text-yellow-400 transition-colors">
+                            {player.displayName}
+                          </span>
+                          {player.jersey && <span className="text-gray-500 text-xs ml-1.5">#{player.jersey}</span>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-center px-3 py-3 text-gray-300">{player.position}</td>
+                    <td className="text-center px-3 py-3 text-gray-300 tabular-nums">{player.age || '--'}</td>
+                    <td className="text-center px-3 py-3 text-gray-300">{player.height || '--'}</td>
+                    <td className="text-center px-3 py-3 text-gray-300">{player.weight || '--'}</td>
+                    <td className="text-left px-3 py-3 text-gray-400">{player.college || '--'}</td>
+                    <td className="text-right px-4 py-3 text-gray-300 tabular-nums">{player.salary || '--'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 text-center">
+          <div className="p-6 text-center">
             <p className="text-gray-400">No roster data available.</p>
           </div>
         )}
