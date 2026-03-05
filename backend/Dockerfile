@@ -1,9 +1,8 @@
 FROM python:3.11-slim
 
-# Install Node.js 20
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
+# Install Node.js 20 from official binary
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+    curl -fsSL https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-x64.tar.xz | tar -xJ -C /usr/local --strip-components=1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python ML dependencies (XGBoost only — no PyTorch to keep image small)
