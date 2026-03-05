@@ -265,7 +265,7 @@ function AppHeader() {
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              <img src="/logo.png" alt="HF" className="h-8 w-8" />
+              <img src="/logo.png" alt="HF" className="h-12 w-12" />
               <h1 className="text-2xl font-bold text-white">HoopForecast</h1>
             </motion.div>
 
