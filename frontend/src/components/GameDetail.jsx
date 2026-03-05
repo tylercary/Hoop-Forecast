@@ -1,19 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Tv } from 'lucide-react';
+import { ArrowLeft, Tv, AlertCircle } from 'lucide-react';
 import api from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
 import Comments from './Comments';
 
 const STAT_COLS = ['min', 'pts', 'reb', 'ast', 'stl', 'blk', 'fg', '3pt', 'ft', 'to'];
 
+const COMPARE_STATS = [
+  { key: 'avgPoints', label: 'PPG' },
+  { key: 'avgPointsAgainst', label: 'Opp PPG' },
+  { key: 'fieldGoalPct', label: 'FG%' },
+  { key: 'threePointFieldGoalPct', label: '3PT%' },
+  { key: 'avgRebounds', label: 'RPG' },
+  { key: 'avgAssists', label: 'APG' },
+  { key: 'avgSteals', label: 'SPG' },
+  { key: 'avgBlocks', label: 'BPG' },
+  { key: 'avgTotalTurnovers', label: 'TOPG' },
+];
+
 export default function GameDetail() {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('away');
+  const [boxTab, setBoxTab] = useState('away');
 
   const fetchGame = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -42,9 +54,7 @@ export default function GameDetail() {
           <div className="h-6 bg-gray-800 rounded w-20" />
           <div className="h-48 bg-gray-800 rounded-xl" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="h-48 bg-gray-800 rounded-xl" />
-            <div className="h-48 bg-gray-800 rounded-xl" />
-            <div className="h-48 bg-gray-800 rounded-xl" />
+            {[...Array(3)].map((_, i) => <div key={i} className="h-48 bg-gray-800 rounded-xl" />)}
           </div>
         </div>
       </div>
@@ -59,10 +69,14 @@ export default function GameDetail() {
     );
   }
 
-  const { homeTeam, awayTeam, boxScore, rosters, predictor, odds, leaders, article } = game;
+  const { homeTeam, awayTeam, boxScore, teamStats, injuries, predictor, odds, leaders, article } = game;
   const hasBoxScore = boxScore?.homeTeam?.players?.length > 0 || boxScore?.awayTeam?.players?.length > 0;
-  const activeBox = activeTab === 'home' ? boxScore?.homeTeam : boxScore?.awayTeam;
-  const activeRoster = activeTab === 'home' ? rosters?.homeTeam : rosters?.awayTeam;
+  const activeBox = boxTab === 'home' ? boxScore?.homeTeam : boxScore?.awayTeam;
+  const awayStats = teamStats?.[awayTeam?.abbreviation] || {};
+  const homeStats = teamStats?.[homeTeam?.abbreviation] || {};
+  const awayInjuries = injuries?.[awayTeam?.abbreviation] || [];
+  const homeInjuries = injuries?.[homeTeam?.abbreviation] || [];
+  const hasInjuries = awayInjuries.length > 0 || homeInjuries.length > 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -83,16 +97,15 @@ export default function GameDetail() {
         }`}
       >
         <div className="flex items-center justify-between">
-          {/* Away Team */}
-          <div className="flex items-center gap-4 flex-1">
+          <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => navigate(`/team/${awayTeam?.abbreviation}`)}>
             <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-white">{awayTeam?.displayName}</h2>
               <p className="text-sm text-gray-400">{awayTeam?.record}</p>
+              {awayStats['Last Ten Games'] && <p className="text-xs text-gray-500">L10: {awayStats['Last Ten Games'].value}</p>}
             </div>
           </div>
 
-          {/* Score / Time */}
           <div className="text-center px-4 sm:px-8">
             {game.status !== 'scheduled' ? (
               <div className="flex items-center gap-4 sm:gap-6">
@@ -129,31 +142,23 @@ export default function GameDetail() {
             )}
           </div>
 
-          {/* Home Team */}
-          <div className="flex items-center gap-4 flex-1 justify-end">
+          <div className="flex items-center gap-4 flex-1 justify-end cursor-pointer" onClick={() => navigate(`/team/${homeTeam?.abbreviation}`)}>
             <div className="text-right">
               <h2 className="text-lg sm:text-xl font-bold text-white">{homeTeam?.displayName}</h2>
               <p className="text-sm text-gray-400">{homeTeam?.record}</p>
+              {homeStats['Last Ten Games'] && <p className="text-xs text-gray-500">L10: {homeStats['Last Ten Games'].value}</p>}
             </div>
             <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
         </div>
 
-        {game.venue && (
-          <p className="text-center text-xs text-gray-500 mt-4">{game.venue}</p>
-        )}
+        {game.venue && <p className="text-center text-xs text-gray-500 mt-4">{game.venue}</p>}
       </motion.div>
 
       {/* Info Cards Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        {/* Matchup Predictor */}
         {predictor && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="bg-gray-800 rounded-xl border border-gray-700 p-5"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Matchup Predictor</h3>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -166,27 +171,15 @@ export default function GameDetail() {
               </div>
             </div>
             <div className="w-full h-3 rounded-full bg-gray-700 overflow-hidden flex">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-l-full transition-all"
-                style={{ width: `${predictor.awayWinPct}%` }}
-              />
-              <div
-                className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-r-full transition-all"
-                style={{ width: `${predictor.homeWinPct}%` }}
-              />
+              <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-l-full" style={{ width: `${predictor.awayWinPct}%` }} />
+              <div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-r-full" style={{ width: `${predictor.homeWinPct}%` }} />
             </div>
             <p className="text-xs text-gray-500 text-center mt-2">Win Probability</p>
           </motion.div>
         )}
 
-        {/* Game Odds */}
         {odds && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-gray-800 rounded-xl border border-gray-700 p-5"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
               Game Odds
               {odds.provider && <span className="text-gray-600 normal-case font-normal ml-1">({odds.provider})</span>}
@@ -218,14 +211,8 @@ export default function GameDetail() {
           </motion.div>
         )}
 
-        {/* Article Preview */}
         {article && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="bg-gray-800 rounded-xl border border-gray-700 p-5"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Preview</h3>
             <p className="text-white font-semibold text-sm mb-2">{article.headline}</p>
             <p className="text-gray-400 text-xs leading-relaxed line-clamp-4">{article.description}</p>
@@ -233,14 +220,64 @@ export default function GameDetail() {
         )}
       </div>
 
+      {/* Team Stats Comparison */}
+      {Object.keys(awayStats).length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Team Stats</h3>
+          <div className="space-y-3">
+            {COMPARE_STATS.map(({ key, label }) => {
+              const awayVal = parseFloat(awayStats[key]?.value) || 0;
+              const homeVal = parseFloat(homeStats[key]?.value) || 0;
+              const isLowerBetter = key === 'avgPointsAgainst' || key === 'avgTotalTurnovers';
+              const awayBetter = isLowerBetter ? awayVal < homeVal : awayVal > homeVal;
+              const homeBetter = isLowerBetter ? homeVal < awayVal : homeVal > awayVal;
+              const total = awayVal + homeVal || 1;
+
+              return (
+                <div key={key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm font-semibold tabular-nums ${awayBetter ? 'text-white' : 'text-gray-500'}`}>
+                      {awayStats[key]?.value || '-'}
+                    </span>
+                    <span className="text-xs text-gray-500">{label}</span>
+                    <span className={`text-sm font-semibold tabular-nums ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
+                      {homeStats[key]?.value || '-'}
+                    </span>
+                  </div>
+                  <div className="flex gap-1 h-1.5">
+                    <div className="flex-1 flex justify-end">
+                      <div
+                        className={`h-full rounded-l-full ${awayBetter ? 'bg-blue-500' : 'bg-gray-600'}`}
+                        style={{ width: `${(awayVal / total) * 100}%` }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div
+                        className={`h-full rounded-r-full ${homeBetter ? 'bg-red-500' : 'bg-gray-600'}`}
+                        style={{ width: `${(homeVal / total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700/50">
+            <div className="flex items-center gap-2">
+              <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-4 h-4 object-contain" />
+              <span className="text-xs text-gray-400">{awayStats.streak?.value}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">{homeStats.streak?.value}</span>
+              <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-4 h-4 object-contain" />
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Team Leaders */}
       {leaders && Object.keys(leaders).length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
           <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Team Leaders</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
@@ -285,119 +322,130 @@ export default function GameDetail() {
         </motion.div>
       )}
 
-      {/* Box Score / Roster */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        className="bg-gray-800 rounded-xl border border-gray-700 mb-6 overflow-hidden"
-      >
-        <div className="flex border-b border-gray-700">
-          <button
-            onClick={() => setActiveTab('away')}
-            className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'away' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
-            {awayTeam?.abbreviation} {hasBoxScore ? 'Box Score' : 'Roster'}
-          </button>
-          <button
-            onClick={() => setActiveTab('home')}
-            className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'home' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
-            {homeTeam?.abbreviation} {hasBoxScore ? 'Box Score' : 'Roster'}
-          </button>
-        </div>
-
-        {hasBoxScore && activeBox?.players?.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-gray-500 uppercase border-b border-gray-700/50">
-                  <th className="text-left px-3 py-2 sticky left-0 bg-gray-800 min-w-[120px]">Player</th>
-                  {STAT_COLS.map(col => (
-                    <th key={col} className="px-2 py-2 text-center min-w-[40px]">{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {activeBox.players.map((player, i) => (
-                  <tr
-                    key={player.id || i}
-                    className="border-b border-gray-700/30 hover:bg-gray-700/30 cursor-pointer transition-colors"
-                    onClick={() => {
-                      if (player.id) {
-                        const slug = encodeURIComponent(player.name.replace(/\s+/g, '_'));
-                        navigate(`/player/${player.id}/${slug}`);
-                      }
-                    }}
-                  >
-                    <td className="px-3 py-2 sticky left-0 bg-gray-800">
-                      <span className="text-white font-medium">{player.shortName || player.name}</span>
-                      {player.position && <span className="text-gray-500 text-xs ml-1">{player.position}</span>}
-                    </td>
-                    {STAT_COLS.map(col => (
-                      <td key={col} className="px-2 py-2 text-center text-gray-300 tabular-nums">{player[col] ?? '-'}</td>
-                    ))}
-                  </tr>
-                ))}
-                {activeBox.totals && (
-                  <tr className="bg-gray-700/30 font-semibold">
-                    <td className="px-3 py-2 sticky left-0 bg-gray-700/30 text-white">Totals</td>
-                    {STAT_COLS.map(col => (
-                      <td key={col} className="px-2 py-2 text-center text-white tabular-nums">{activeBox.totals[col] ?? '-'}</td>
-                    ))}
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : activeRoster?.length > 0 ? (
-          <div className="divide-y divide-gray-700/30">
-            {activeRoster.map((player) => (
-              <div
-                key={player.id}
-                onClick={() => {
-                  if (player.id) {
-                    const slug = encodeURIComponent(player.displayName.replace(/\s+/g, '_'));
-                    navigate(`/player/${player.id}/${slug}`);
-                  }
-                }}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-700/30 cursor-pointer transition-colors"
-              >
-                {player.headshot ? (
-                  <img src={player.headshot} alt="" className="w-10 h-10 rounded-full object-cover bg-gray-700" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-400">
-                    {(player.displayName || '?')[0]}
+      {/* Injuries */}
+      {hasInjuries && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            Injuries
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {[
+              { team: awayTeam, list: awayInjuries },
+              { team: homeTeam, list: homeInjuries }
+            ].map(({ team, list }) => (
+              list.length > 0 && (
+                <div key={team?.abbreviation}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <img src={getTeamLogo(team?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
+                    <span className="text-white font-semibold text-sm">{team?.abbreviation}</span>
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-medium text-sm">{player.displayName}</span>
-                    {player.jersey && <span className="text-gray-500 text-xs">#{player.jersey}</span>}
+                  <div className="space-y-2">
+                    {list.map((inj, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-700/30 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                        onClick={() => {
+                          if (inj.id) {
+                            const slug = encodeURIComponent(inj.name.replace(/\s+/g, '_'));
+                            navigate(`/player/${inj.id}/${slug}`);
+                          }
+                        }}
+                      >
+                        <div>
+                          <span className="text-white text-sm">{inj.name}</span>
+                          {inj.position && <span className="text-gray-500 text-xs ml-1">{inj.position}</span>}
+                          {inj.detail && <p className="text-gray-500 text-xs">{inj.detail}</p>}
+                        </div>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                          inj.status === 'Out' ? 'bg-red-500/20 text-red-400' :
+                          inj.status === 'Day-To-Day' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-gray-700 text-gray-400'
+                        }`}>
+                          {inj.status}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-gray-400 text-xs">{player.position}</span>
                 </div>
-              </div>
+              )
             ))}
           </div>
-        ) : (
-          <div className="py-8 text-center text-gray-500 text-sm">No data available yet</div>
-        )}
-      </motion.div>
+        </motion.div>
+      )}
+
+      {/* Box Score (live/final games) */}
+      {hasBoxScore && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="bg-gray-800 rounded-xl border border-gray-700 mb-6 overflow-hidden">
+          <div className="flex border-b border-gray-700">
+            <button
+              onClick={() => setBoxTab('away')}
+              className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                boxTab === 'away' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
+              {awayTeam?.abbreviation} Box Score
+            </button>
+            <button
+              onClick={() => setBoxTab('home')}
+              className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                boxTab === 'home' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
+              {homeTeam?.abbreviation} Box Score
+            </button>
+          </div>
+          {activeBox?.players?.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase border-b border-gray-700/50">
+                    <th className="text-left px-3 py-2 sticky left-0 bg-gray-800 min-w-[120px]">Player</th>
+                    {STAT_COLS.map(col => (
+                      <th key={col} className="px-2 py-2 text-center min-w-[40px]">{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeBox.players.map((player, i) => (
+                    <tr
+                      key={player.id || i}
+                      className="border-b border-gray-700/30 hover:bg-gray-700/30 cursor-pointer transition-colors"
+                      onClick={() => {
+                        if (player.id) {
+                          const slug = encodeURIComponent(player.name.replace(/\s+/g, '_'));
+                          navigate(`/player/${player.id}/${slug}`);
+                        }
+                      }}
+                    >
+                      <td className="px-3 py-2 sticky left-0 bg-gray-800">
+                        <span className="text-white font-medium">{player.shortName || player.name}</span>
+                        {player.position && <span className="text-gray-500 text-xs ml-1">{player.position}</span>}
+                      </td>
+                      {STAT_COLS.map(col => (
+                        <td key={col} className="px-2 py-2 text-center text-gray-300 tabular-nums">{player[col] ?? '-'}</td>
+                      ))}
+                    </tr>
+                  ))}
+                  {activeBox.totals && (
+                    <tr className="bg-gray-700/30 font-semibold">
+                      <td className="px-3 py-2 sticky left-0 bg-gray-700/30 text-white">Totals</td>
+                      {STAT_COLS.map(col => (
+                        <td key={col} className="px-2 py-2 text-center text-white tabular-nums">{activeBox.totals[col] ?? '-'}</td>
+                      ))}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Comments */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-gray-800 rounded-xl border border-gray-700 p-5"
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
         <Comments type="game" targetId={gameId} title="Game Discussion" />
       </motion.div>
     </div>

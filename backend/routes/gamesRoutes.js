@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
-import { mapEspnToNbaAbbrev, getTeamRoster } from '../services/nbaApiService.js';
+import { mapEspnToNbaAbbrev } from '../services/nbaApiService.js';
 
 const router = express.Router();
 
@@ -168,13 +168,30 @@ router.get('/:gameId', async (req, res) => {
       };
     }
 
-    // Fetch rosters for both teams
-    const homeId = home?.team?.id;
-    const awayId = away?.team?.id;
-    const [homeRoster, awayRoster] = await Promise.all([
-      homeId ? getTeamRoster(homeId).catch(() => []) : [],
-      awayId ? getTeamRoster(awayId).catch(() => [])  : []
-    ]);
+    // Team stats from boxscore
+    const teamStats = {};
+    for (const teamBox of data.boxscore?.teams || []) {
+      const abbrev = mapEspnToNbaAbbrev(teamBox.team?.abbreviation);
+      const stats = {};
+      for (const s of teamBox.statistics || []) {
+        stats[s.name || s.label] = { value: s.displayValue || '', label: s.label || '' };
+      }
+      teamStats[abbrev] = stats;
+    }
+
+    // Injuries
+    const injuries = {};
+    for (const teamInj of data.injuries || []) {
+      const abbrev = mapEspnToNbaAbbrev(teamInj.team?.abbreviation);
+      injuries[abbrev] = (teamInj.injuries || []).map(inj => ({
+        name: inj.athlete?.displayName || '',
+        id: inj.athlete?.id || '',
+        position: inj.athlete?.position?.abbreviation || '',
+        status: inj.status || '',
+        description: inj.type?.description || '',
+        detail: inj.details?.detail || ''
+      }));
+    }
 
     // Predictor (win probability)
     const predictor = data.predictor ? {
@@ -230,7 +247,8 @@ router.get('/:gameId', async (req, res) => {
       awayTeam: formatTeamHeader(away),
       broadcasts: event?.broadcasts?.[0]?.names || [],
       boxScore,
-      rosters: { homeTeam: homeRoster, awayTeam: awayRoster },
+      teamStats,
+      injuries,
       predictor,
       odds,
       leaders,
