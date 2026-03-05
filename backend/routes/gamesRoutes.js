@@ -176,6 +176,47 @@ router.get('/:gameId', async (req, res) => {
       awayId ? getTeamRoster(awayId).catch(() => [])  : []
     ]);
 
+    // Predictor (win probability)
+    const predictor = data.predictor ? {
+      homeWinPct: parseFloat(data.predictor.homeTeam?.gameProjection) || 50,
+      awayWinPct: parseFloat(data.predictor.awayTeam?.gameProjection) || 50
+    } : null;
+
+    // Game odds from pickcenter
+    const pick = data.pickcenter?.[0];
+    const odds = pick ? {
+      provider: pick.provider?.name || '',
+      details: pick.details || '',
+      spread: pick.spread || 0,
+      overUnder: pick.overUnder || 0,
+      homeSpreadOdds: pick.homeTeamOdds?.spreadOdds || 0,
+      awaySpreadOdds: pick.awayTeamOdds?.spreadOdds || 0,
+      homeMoneyLine: pick.homeTeamOdds?.moneyLine || 0,
+      awayMoneyLine: pick.awayTeamOdds?.moneyLine || 0
+    } : null;
+
+    // Team leaders
+    const leaders = {};
+    for (const teamLeaders of data.leaders || []) {
+      const abbrev = mapEspnToNbaAbbrev(teamLeaders.team?.abbreviation);
+      leaders[abbrev] = (teamLeaders.leaders || []).map(cat => ({
+        category: cat.displayName || '',
+        leader: {
+          name: cat.leaders?.[0]?.athlete?.displayName || '',
+          shortName: cat.leaders?.[0]?.athlete?.shortDisplayName || '',
+          headshot: cat.leaders?.[0]?.athlete?.headshot?.href || '',
+          value: cat.leaders?.[0]?.displayValue || '',
+          id: cat.leaders?.[0]?.athlete?.id || ''
+        }
+      }));
+    }
+
+    // Article preview
+    const article = data.article ? {
+      headline: data.article.headline || '',
+      description: data.article.description || ''
+    } : null;
+
     const game = {
       id: gameId,
       name: data.header?.gameNote || `${away?.team?.displayName || ''} @ ${home?.team?.displayName || ''}`,
@@ -189,10 +230,11 @@ router.get('/:gameId', async (req, res) => {
       awayTeam: formatTeamHeader(away),
       broadcasts: event?.broadcasts?.[0]?.names || [],
       boxScore,
-      rosters: {
-        homeTeam: homeRoster,
-        awayTeam: awayRoster
-      }
+      rosters: { homeTeam: homeRoster, awayTeam: awayRoster },
+      predictor,
+      odds,
+      leaders,
+      article
     };
 
     gameDetailCache.set(gameId, game);
