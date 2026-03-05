@@ -11,6 +11,7 @@ import {
   limit,
   serverTimestamp,
   increment,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import api from '../utils/api';
@@ -370,4 +371,43 @@ export async function getLeaderboard() {
       };
     })
     .filter((u) => u.totalPicks > 0);
+}
+
+// ─── Comments ────────────────────────────────────────────
+
+export async function addComment(data) {
+  return addDoc(collection(db, 'comments'), {
+    gameId: data.gameId || null,
+    playerId: data.playerId || null,
+    type: data.type,
+    userId: data.userId,
+    userName: data.userName,
+    userPhoto: data.userPhoto || null,
+    text: data.text,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function deleteComment(commentId) {
+  return deleteDoc(doc(db, 'comments', commentId));
+}
+
+export function subscribeToComments(type, targetId, callback) {
+  const field = type === 'game' ? 'gameId' : 'playerId';
+  const q = query(
+    collection(db, 'comments'),
+    where(field, '==', targetId),
+    where('type', '==', type)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const comments = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0;
+        const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0;
+        return bTime - aTime;
+      });
+    callback(comments);
+  });
 }

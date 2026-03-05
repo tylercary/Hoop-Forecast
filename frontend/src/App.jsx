@@ -18,6 +18,8 @@ const Friends = lazy(() => import('./components/Friends'));
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const ProfileSettings = lazy(() => import('./components/ProfileSettings'));
 const TeamDetail = lazy(() => import('./components/TeamDetail'));
+const Games = lazy(() => import('./components/Games'));
+const GameDetail = lazy(() => import('./components/GameDetail'));
 
 function RouteLoader() {
   return (
@@ -173,6 +175,34 @@ function AnimatedRoutes() {
             </motion.div>
           }
         />
+        <Route
+          path="/games"
+          element={
+            <motion.div
+              key="games"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <Suspense fallback={<RouteLoader />}><Games /></Suspense>
+            </motion.div>
+          }
+        />
+        <Route
+          path="/games/:gameId"
+          element={
+            <motion.div
+              key="game-detail"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <Suspense fallback={<RouteLoader />}><GameDetail /></Suspense>
+            </motion.div>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );
@@ -217,6 +247,7 @@ function AppHeader() {
 
   const navItems = [
     { path: '/', label: 'Home', icon: '🏠' },
+    { path: '/games', label: 'Games', icon: '🏀' },
     { path: '/performance', label: 'Model Performance', icon: '📊' },
     { path: '/leaderboard', label: 'Leaderboard', icon: '🏆' },
     ...(user ? [

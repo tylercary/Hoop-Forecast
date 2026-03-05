@@ -1067,7 +1067,7 @@ export async function getNextGame(nbaPlayerId, teamAbbrev) {
 /**
  * Normalize ESPN team abbreviation to standard NBA abbreviation
  */
-function normalizeEspnAbbrev(abbrev) {
+export function normalizeEspnAbbrev(abbrev) {
   if (!abbrev) return '';
   const upper = abbrev.toUpperCase();
   // ESPN uses GS, UTAH, SA, etc. - normalize to standard
@@ -1080,7 +1080,7 @@ function normalizeEspnAbbrev(abbrev) {
 /**
  * Map ESPN abbreviation back to standard NBA abbreviation
  */
-function mapEspnToNbaAbbrev(espnAbbrev) {
+export function mapEspnToNbaAbbrev(espnAbbrev) {
   if (!espnAbbrev) return null;
   const upper = espnAbbrev.toUpperCase();
   const mapping = {

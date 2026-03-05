@@ -9,6 +9,7 @@ import { playerRoutes } from './routes/playerRoutes.js';
 import { searchRoutes } from './routes/searchRoutes.js';
 import { trendingRoutes } from './routes/trendingRoutes.js';
 import { performanceRoutes } from './routes/performanceRoutes.js';
+import { gamesRoutes } from './routes/gamesRoutes.js';
 import { testInjuryRouter } from './routes/testInjuryRoute.js';
 import { evaluatePendingPredictions } from './services/predictionEvaluationService.js';
 import { getAccuracyStats } from './services/predictionTrackingService.js';
@@ -62,6 +63,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/trending', trendingRoutes);
 app.use('/api/test', testInjuryRouter);
 app.use('/api/performance', performanceRoutes);
+app.use('/api/games', gamesRoutes);
 
 // Automatic prediction evaluation scheduler
 // Runs every 6 hours to evaluate predictions whose games have been played

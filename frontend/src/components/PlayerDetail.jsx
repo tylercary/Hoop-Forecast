@@ -13,6 +13,7 @@ import LoadingAnimation from './LoadingAnimation';
 import PropCards from './PropCards';
 import PropOddsTable from './PropOddsTable';
 import GameLogTable from './GameLogTable';
+import Comments from './Comments';
 import InjuriesTable from './InjuriesTable';
 import PropMetricCard from './PropMetricCard';
 import PredictionReasoning from './PredictionReasoning';
@@ -1530,11 +1531,16 @@ function PlayerDetail() {
           />
 
           {/* Injuries Table - Under Game Log */}
-          <InjuriesTable 
+          <InjuriesTable
             injuries={comparisonData?.injuries || null}
             playerTeam={comparisonData?.player_team}
             opponentTeam={comparisonData?.next_game?.opponent}
           />
+
+          {/* Player Discussion */}
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-5 mt-6">
+            <Comments type="player" targetId={playerId} title="Player Discussion" />
+          </div>
         </div>
       </div>
       </div>
