@@ -303,6 +303,50 @@ function calculateFeatures(playerGames) {
       const recent_wins = previousGames.slice(-10).filter(g => g.wl === 'W').length;
       const recent_win_pct = recent_wins / Math.min(10, previousGames.length);
 
+      // === EFFICIENCY & SHOOTING TRENDS ===
+      const prevFgPct = previousGames.slice(-10).map(g => parseFloat(g.fg_pct) || 0);
+      const prevFtPct = previousGames.slice(-10).map(g => parseFloat(g.ft_pct) || 0);
+      const prevFta = previousGames.slice(-10).map(g => parseFloat(g.fta) || 0);
+      const fg_pct_avg_10 = prevFgPct.reduce((s, v) => s + v, 0) / prevFgPct.length;
+      const ft_rate_avg_10 = prevFta.reduce((s, v) => s + v, 0) / prevFta.length;
+
+      // FG% trend: recent 3 vs recent 10 (positive = shooting better recently)
+      const fg_pct_recent3 = previousGames.slice(-3).map(g => parseFloat(g.fg_pct) || 0);
+      const fg_pct_trend = (fg_pct_recent3.reduce((s, v) => s + v, 0) / fg_pct_recent3.length) - fg_pct_avg_10;
+
+      // === MINUTES DEVIATION (key predictor of blowout/rest games) ===
+      const min_std_10 = standardDeviation(prevMin.slice(-10));
+      const min_trend = rollingAverage(prevMin, 3) - rollingAverage(prevMin, 10);
+
+      // === PLUS/MINUS CONTEXT (team competitiveness) ===
+      const prevPlusMinus = previousGames.slice(-10).map(g => parseFloat(g.plus_minus) || 0);
+      const plus_minus_avg_10 = prevPlusMinus.reduce((s, v) => s + v, 0) / prevPlusMinus.length;
+
+      // === CROSS-STAT INTERACTIONS ===
+      // Points per minute (efficiency beyond just volume)
+      const pts_per_min_10 = rollingAverage(prevMin, 10) > 0 ?
+        rollingAverage(prevPts, 10) / rollingAverage(prevMin, 10) : 0;
+      // FGA share trend (is this player taking more/fewer shots recently?)
+      const fga_trend = rollingAverage(prevFga.slice(-3), 3) - rollingAverage(prevFga.slice(-10), 10);
+      // Rebound rate per minute
+      const reb_per_min_10 = rollingAverage(prevMin, 10) > 0 ?
+        rollingAverage(prevReb, 10) / rollingAverage(prevMin, 10) : 0;
+
+      // === CONSISTENCY FEATURES ===
+      // How often does this player hit their average? (hit rate within 20%)
+      const pts_hit_rate = (() => {
+        const last10 = prevPts.slice(-10);
+        if (last10.length === 0 || pts_avg_season === 0) return 0.5;
+        const threshold = pts_avg_season * 0.2;
+        return last10.filter(v => Math.abs(v - pts_avg_season) <= threshold).length / last10.length;
+      })();
+      const reb_hit_rate = (() => {
+        const last10 = prevReb.slice(-10);
+        if (last10.length === 0 || reb_avg_season === 0) return 0.5;
+        const threshold = Math.max(reb_avg_season * 0.25, 1.5);
+        return last10.filter(v => Math.abs(v - reb_avg_season) <= threshold).length / last10.length;
+      })();
+
       // === TARGET VARIABLES (what we're predicting) ===
       const target_pts = parseFloat(currentGame.pts) || 0;
       const target_reb = parseFloat(currentGame.reb) || 0;
@@ -399,6 +443,27 @@ function calculateFeatures(playerGames) {
         win_streak,
         loss_streak,
         recent_win_pct,
+
+        // Efficiency & shooting
+        fg_pct_avg_10,
+        fg_pct_trend,
+        ft_rate_avg_10,
+
+        // Minutes deviation
+        min_std_10,
+        min_trend,
+
+        // Team context
+        plus_minus_avg_10,
+
+        // Cross-stat interactions
+        pts_per_min_10,
+        fga_trend,
+        reb_per_min_10,
+
+        // Consistency
+        pts_hit_rate,
+        reb_hit_rate,
 
         // Targets
         target_pts,

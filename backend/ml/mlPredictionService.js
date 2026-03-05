@@ -44,6 +44,9 @@ function buildMLFeatures(gameLogs, propType) {
   const minutes = recentGames.map(g => parseFloat(g.minutes) || 0);
   const fga = recentGames.map(g => parseFloat(g.fga ?? g.field_goals_attempted) || 0);
   const fg3a = recentGames.map(g => parseFloat(g.fg3a ?? g.three_pointers_attempted ?? g.threes_attempted) || 0);
+  const fgPct = recentGames.map(g => parseFloat(g.fg_pct ?? g.field_goal_pct) || 0);
+  const fta = recentGames.map(g => parseFloat(g.fta ?? g.free_throws_attempted) || 0);
+  const plusMinus = recentGames.map(g => parseFloat(g.plus_minus ?? g.plusMinus) || 0);
 
   // Helper functions
   const avg = (arr, n) => {
@@ -198,6 +201,39 @@ function buildMLFeatures(gameLogs, propType) {
       if (last10.length === 0) return 0.5;
       const wins = last10.filter(g => g.wl === 'W').length;
       return wins / last10.length;
+    })(),
+
+    // === EFFICIENCY & SHOOTING TRENDS ===
+    fg_pct_avg_10: avg(fgPct, 10),
+    fg_pct_trend: avg(fgPct, 3) - avg(fgPct, 10),
+    ft_rate_avg_10: avg(fta, 10),
+
+    // === MINUTES DEVIATION ===
+    min_std_10: std(minutes, 10),
+    min_trend: avg(minutes, 3) - avg(minutes, 10),
+
+    // === PLUS/MINUS CONTEXT ===
+    plus_minus_avg_10: avg(plusMinus, 10),
+
+    // === CROSS-STAT INTERACTIONS ===
+    pts_per_min_10: avg(minutes, 10) > 0 ? avg(pts, 10) / avg(minutes, 10) : 0,
+    fga_trend: avg(fga.slice(-3), 3) - avg(fga.slice(-10), 10),
+    reb_per_min_10: avg(minutes, 10) > 0 ? avg(reb, 10) / avg(minutes, 10) : 0,
+
+    // === CONSISTENCY FEATURES ===
+    pts_hit_rate: (() => {
+      const last10 = pts.slice(-10);
+      const seasonAvg = avg(pts, pts.length);
+      if (last10.length === 0 || seasonAvg === 0) return 0.5;
+      const threshold = seasonAvg * 0.2;
+      return last10.filter(v => Math.abs(v - seasonAvg) <= threshold).length / last10.length;
+    })(),
+    reb_hit_rate: (() => {
+      const last10 = reb.slice(-10);
+      const seasonAvg = avg(reb, reb.length);
+      if (last10.length === 0 || seasonAvg === 0) return 0.5;
+      const threshold = Math.max(seasonAvg * 0.25, 1.5);
+      return last10.filter(v => Math.abs(v - seasonAvg) <= threshold).length / last10.length;
     })(),
 
     // Context
