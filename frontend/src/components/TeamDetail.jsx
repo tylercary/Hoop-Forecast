@@ -195,33 +195,6 @@ function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
         </div>
       )}
 
-      {/* Injury Summary */}
-      {injuries?.length > 0 && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            Injury Report
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {injuries.map((inj, i) => (
-              <span
-                key={i}
-                onClick={() => {
-                  if (inj.id) navigate(`/player/${inj.id}/${encodeURIComponent(inj.name.replace(/\s+/g, '_'))}`);
-                }}
-                className={`text-xs font-medium px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${
-                  inj.status === 'Out' ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25' :
-                  inj.status === 'Day-To-Day' ? 'bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/25' :
-                  'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                }`}
-              >
-                {inj.name} · {inj.status}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* News */}
       {news?.length > 0 ? (
         <div className="space-y-3">
