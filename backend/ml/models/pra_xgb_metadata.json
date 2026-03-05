@@ -1,6 +1,6 @@
 {
   "prop_type": "PRA",
-  "n_features": 22,
+  "n_features": 27,
   "feature_names": [
     "pra_avg_3",
     "pra_avg_5",
@@ -23,23 +23,28 @@
     "win_streak",
     "loss_streak",
     "recent_win_pct",
-    "pts_momentum"
+    "pts_momentum",
+    "min_std_10",
+    "min_trend",
+    "plus_minus_avg_10",
+    "pts_per_min_10",
+    "reb_per_min_10"
   ],
-  "features_schema_hash": "eb9ee4f0d609",
+  "features_schema_hash": "30aae076c02f",
   "train_samples": 24087,
   "val_samples": 5162,
   "test_samples": 5162,
   "retrain_rows": 0,
-  "train_mae": 5.498190879821777,
-  "train_rmse": 7.005389727166661,
-  "val_mae": 6.357639789581299,
-  "val_rmse": 8.14126273968492,
-  "test_mae": 6.087757587432861,
-  "test_rmse": 7.675885863234314,
-  "best_iteration": 85,
+  "train_mae": 5.675506591796875,
+  "train_rmse": 7.236002069661702,
+  "val_mae": 6.316770076751709,
+  "val_rmse": 8.133782437958793,
+  "test_mae": 6.085779190063477,
+  "test_rmse": 7.682828646928578,
+  "best_iteration": 40,
   "model_type": "xgboost",
   "training_mode": "full",
-  "promoted": false,
-  "promotion_reason": "new_mae_6.0878_worse_than_current_5.7494",
-  "current_test_mae": 5.749444961547852
+  "promoted": true,
+  "promotion_reason": "no_existing_model",
+  "current_test_mae": null
 }

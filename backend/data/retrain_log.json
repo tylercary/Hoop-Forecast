@@ -1,105 +1,105 @@
 {
-  "lastRetrain": "2026-02-23T19:25:40.884Z",
-  "totalRetrains": 2,
+  "lastRetrain": "2026-03-05T17:33:30.563Z",
+  "totalRetrains": 3,
   "results": [],
-  "lastMode": "incremental",
+  "lastMode": "full",
   "lastResult": {
     "results": [
       {
         "prop_type": "PTS",
-        "train_mae": 4.47808527896981,
-        "val_mae": 4.563362930782633,
-        "test_mae": 4.394140474166301,
-        "test_rmse": 5.650148382796144,
+        "train_mae": 4.352648735046387,
+        "val_mae": 4.8269524574279785,
+        "test_mae": 4.619010925292969,
+        "test_rmse": 5.958870425614873,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0033",
-        "current_test_mae": 4.390808868135698,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       },
       {
         "prop_type": "REB",
-        "train_mae": 1.858741133013198,
-        "val_mae": 1.8584137460327297,
-        "test_mae": 1.8635338465749918,
-        "test_rmse": 2.412648622672702,
+        "train_mae": 1.8391342163085938,
+        "val_mae": 1.9458633661270142,
+        "test_mae": 1.9358711242675781,
+        "test_rmse": 2.512877296472891,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0013",
-        "current_test_mae": 1.8622399920966448,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       },
       {
         "prop_type": "AST",
-        "train_mae": 1.2885426111816594,
-        "val_mae": 1.3395279764563295,
-        "test_mae": 1.2986385421044417,
-        "test_rmse": 1.7226785889118894,
+        "train_mae": 1.2733993530273438,
+        "val_mae": 1.4456948041915894,
+        "test_mae": 1.3587944507598877,
+        "test_rmse": 1.8213560199446317,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0015",
-        "current_test_mae": 1.2971694213459077,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       },
       {
         "prop_type": "3PM",
-        "train_mae": 0.872343128473957,
-        "val_mae": 0.9156486402611771,
-        "test_mae": 0.887255493424771,
-        "test_rmse": 1.2172399574714403,
+        "train_mae": 0.8594796061515808,
+        "val_mae": 0.9626558423042297,
+        "test_mae": 0.9325906038284302,
+        "test_rmse": 1.2815522093360892,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0004",
-        "current_test_mae": 0.8868209810179747,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       },
       {
         "prop_type": "PRA",
-        "train_mae": 5.825682546537444,
-        "val_mae": 5.8967052072760024,
-        "test_mae": 5.749444789731285,
-        "test_rmse": 7.255414332718378,
+        "train_mae": 5.675506591796875,
+        "val_mae": 6.316770076751709,
+        "test_mae": 6.085779190063477,
+        "test_rmse": 7.682828646928578,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0062",
-        "current_test_mae": 5.743208889211162,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       },
       {
         "prop_type": "PR",
-        "train_mae": 5.424317072420433,
-        "val_mae": 5.458946895848777,
-        "test_mae": 5.352938200604403,
-        "test_rmse": 6.763115850057637,
+        "train_mae": 5.267726898193359,
+        "val_mae": 5.782773494720459,
+        "test_mae": 5.591907501220703,
+        "test_rmse": 7.066714759279143,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0061",
-        "current_test_mae": 5.346806682435545,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       },
       {
         "prop_type": "PA",
-        "train_mae": 4.862853276208442,
-        "val_mae": 4.939816503850862,
-        "test_mae": 4.774833752336727,
-        "test_rmse": 6.112154369332467,
+        "train_mae": 4.837274551391602,
+        "val_mae": 5.398064613342285,
+        "test_mae": 5.095718860626221,
+        "test_rmse": 6.525849806595474,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0082",
-        "current_test_mae": 4.766609737181192,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       },
       {
         "prop_type": "RA",
-        "train_mae": 2.5352737105006065,
-        "val_mae": 2.579231804064289,
-        "test_mae": 2.537386743563268,
-        "test_rmse": 3.24481357776023,
+        "train_mae": 2.4779562950134277,
+        "val_mae": 2.715421199798584,
+        "test_mae": 2.6450624465942383,
+        "test_rmse": 3.394487703349134,
         "promoted": true,
-        "promotion_reason": "within_tolerance_0.0003",
-        "current_test_mae": 2.5370903009363315,
+        "promotion_reason": "no_existing_model",
+        "current_test_mae": null,
         "retrain_rows": 0,
-        "training_mode": "incremental"
+        "training_mode": "full"
       }
     ],
     "promoted": 8,
@@ -108,6 +108,13 @@
   },
   "retrainDataRows": 0,
   "history": [
+    {
+      "date": "2026-03-05T17:33:30.563Z",
+      "mode": "full",
+      "promoted": 8,
+      "rejected": 0,
+      "retrainRows": 0
+    },
     {
       "date": "2026-02-23T19:25:40.884Z",
       "mode": "incremental",
@@ -123,5 +130,5 @@
       "retrainRows": 0
     }
   ],
-  "lastEvaluatedCount": 820
+  "lastEvaluatedCount": 304
 }

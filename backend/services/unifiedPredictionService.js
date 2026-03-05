@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { storePrediction, getPlayerBias } from './predictionTrackingService.js';
-import { predictProp as mlPredictProp, areModelsAvailable } from '../ml/mlPredictionService.js';
+import { predictProp as mlPredictProp, areModelsAvailable, buildMLFeatures } from '../ml/mlPredictionService.js';
 
 dotenv.config();
 
@@ -614,12 +614,19 @@ export async function predictPropFromGames(games, playerName, propType = 'points
     let predictionMethod = 'xgboost_model';
     let mlFeatureVector = null;
 
+    // Always compute feature vector for retraining, even if model prediction fails
+    try {
+      mlFeatureVector = buildMLFeatures(games, propTypeFormatted);
+    } catch (featErr) {
+      console.warn('⚠️ Could not compute feature vector:', featErr.message);
+    }
+
     const mlModelsAvailable = areModelsAvailable();
     if (mlModelsAvailable) {
       try {
         const mlResult = await mlPredictProp(games, propTypeFormatted);
         predictedValue = mlResult.prediction;
-        mlFeatureVector = mlResult.features;
+        mlFeatureVector = mlResult.features; // Use the model's features (same but includes is_home override)
       } catch (mlError) {
         console.error(`ML model failed for ${propTypeFormatted}: ${mlError.message}`);
         predictedValue = features.recentAvg3 * 0.5 + features.recentAvg5 * 0.3 + features.seasonAvg * 0.2;

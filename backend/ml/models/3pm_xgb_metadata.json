@@ -1,6 +1,6 @@
 {
   "prop_type": "3PM",
-  "n_features": 17,
+  "n_features": 21,
   "feature_names": [
     "threes_avg_3",
     "threes_avg_5",
@@ -18,23 +18,27 @@
     "loss_streak",
     "recent_win_pct",
     "min_avg_10",
-    "usage"
+    "usage",
+    "fg_pct_avg_10",
+    "fg_pct_trend",
+    "min_std_10",
+    "plus_minus_avg_10"
   ],
-  "features_schema_hash": "f6b34d861800",
+  "features_schema_hash": "0418737742af",
   "train_samples": 24087,
   "val_samples": 5162,
   "test_samples": 5162,
   "retrain_rows": 0,
-  "train_mae": 0.840827465057373,
-  "train_rmse": 1.1491175085060286,
-  "val_mae": 0.9620389342308044,
-  "val_rmse": 1.3199088929986629,
-  "test_mae": 0.9277103543281555,
-  "test_rmse": 1.2767662119257233,
-  "best_iteration": 78,
+  "train_mae": 0.8594796061515808,
+  "train_rmse": 1.1742712825107766,
+  "val_mae": 0.9626558423042297,
+  "val_rmse": 1.322392828047609,
+  "test_mae": 0.9325906038284302,
+  "test_rmse": 1.2815522093360892,
+  "best_iteration": 29,
   "model_type": "xgboost",
   "training_mode": "full",
   "promoted": true,
-  "promotion_reason": "within_tolerance_0.0405",
-  "current_test_mae": 0.8872554898262024
+  "promotion_reason": "no_existing_model",
+  "current_test_mae": null
 }

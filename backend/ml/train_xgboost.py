@@ -161,11 +161,19 @@ def train_xgboost_model(prop_type, feature_names, target_col, incremental=False,
         existing_model.load_model(model_path)
 
         # Evaluate current model on test set (for promotion gate)
-        dtest_check = xgb.DMatrix(X_test, feature_names=feature_names)
-        current_preds = existing_model.predict(dtest_check)
-        current_test_mae = mean_absolute_error(y_test, current_preds)
-        current_test_rmse = np.sqrt(mean_squared_error(y_test, current_preds))
-        print(f"  Current model Test MAE: {current_test_mae:.4f} | RMSE: {current_test_rmse:.4f}")
+        try:
+            dtest_check = xgb.DMatrix(X_test, feature_names=feature_names)
+            current_preds = existing_model.predict(dtest_check)
+            current_test_mae = mean_absolute_error(y_test, current_preds)
+            current_test_rmse = np.sqrt(mean_squared_error(y_test, current_preds))
+            print(f"  Current model Test MAE: {current_test_mae:.4f} | RMSE: {current_test_rmse:.4f}")
+        except ValueError as e:
+            if 'feature_names mismatch' in str(e):
+                print(f"  Feature schema changed — skipping old model comparison, training fresh")
+                existing_model = None
+                current_test_mae = None
+            else:
+                raise
 
     if incremental and existing_model is None:
         print(f"\n  No existing model found, falling back to full training")
