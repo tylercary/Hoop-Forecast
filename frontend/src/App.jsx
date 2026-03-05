@@ -259,14 +259,15 @@ function AppHeader() {
               </div>
             </button>
 
-            <motion.h1
+            <motion.div
               onClick={() => navigate('/')}
-              className="text-2xl font-bold text-white cursor-pointer"
+              className="flex items-center gap-2 cursor-pointer"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              HoopForecast
-            </motion.h1>
+              <img src="/logo.png" alt="HF" className="h-8 w-8" />
+              <h1 className="text-2xl font-bold text-white">HoopForecast</h1>
+            </motion.div>
 
             {/* Dropdown menu */}
             <AnimatePresence>
