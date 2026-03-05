@@ -1,10 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Users, ChevronRight } from 'lucide-react';
+import { Star, Users, ChevronRight, Calendar, TrendingUp, Shield, Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { getTeamLogo, getTeamName } from '../utils/teamLogos';
+
+const OFFENSIVE_STATS = [
+  { key: 'ppg', label: 'PPG', desc: 'Points Per Game' },
+  { key: 'fgPct', label: 'FG%', desc: 'Field Goal %' },
+  { key: 'threePtPct', label: '3P%', desc: '3-Point %' },
+  { key: 'ftPct', label: 'FT%', desc: 'Free Throw %' },
+  { key: 'apg', label: 'APG', desc: 'Assists Per Game' },
+  { key: 'topg', label: 'TOPG', desc: 'Turnovers Per Game' },
+];
+
+const DEFENSIVE_STATS = [
+  { key: 'rpg', label: 'RPG', desc: 'Rebounds Per Game' },
+  { key: 'offRpg', label: 'ORPG', desc: 'Off. Rebounds Per Game' },
+  { key: 'defRpg', label: 'DRPG', desc: 'Def. Rebounds Per Game' },
+  { key: 'spg', label: 'SPG', desc: 'Steals Per Game' },
+  { key: 'bpg', label: 'BPG', desc: 'Blocks Per Game' },
+  { key: 'pfpg', label: 'PFPG', desc: 'Fouls Per Game' },
+];
 
 function TeamDetail() {
   const { abbreviation } = useParams();
@@ -37,37 +55,39 @@ function TeamDetail() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-4">
         <div className="bg-gray-800 rounded-xl p-8 animate-pulse h-32" />
-        <div className="bg-gray-800 rounded-xl p-4 animate-pulse h-8 w-32" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl p-4 animate-pulse h-16" />
-          ))}
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="bg-gray-800 rounded-xl h-24 animate-pulse" />)}
         </div>
+        <div className="bg-gray-800 rounded-xl p-4 animate-pulse h-64" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg shadow-2xl p-8 border border-gray-700 text-center">
-        <h3 className="text-xl font-bold text-white mb-2">Error</h3>
-        <p className="text-gray-400">{error}</p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+          <h3 className="text-xl font-bold text-white mb-2">Error</h3>
+          <p className="text-gray-400">{error}</p>
+        </div>
       </div>
     );
   }
 
   const teamName = getTeamName(abbreviation);
   const teamLogo = getTeamLogo(abbreviation);
+  const stats = teamData?.stats || {};
+  const hasStats = Object.keys(stats).length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       {/* Team Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-6"
+        className="bg-gray-800 rounded-xl border border-gray-700 p-6"
       >
         <div className="flex items-center gap-4">
           {teamLogo && (
@@ -75,9 +95,14 @@ function TeamDetail() {
           )}
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-white">{teamName}</h2>
-            <p className="text-gray-400 text-sm mt-1">
-              {teamData?.record ? `Record: ${teamData.record}` : 'Record unavailable'}
-            </p>
+            <div className="flex items-center gap-3 mt-1">
+              {teamData?.record && (
+                <span className="text-lg font-semibold text-yellow-400">{teamData.record}</span>
+              )}
+              {teamData?.standing && (
+                <span className="text-sm text-gray-400">{teamData.standing}</span>
+              )}
+            </div>
           </div>
           {user && (
             <button
@@ -93,81 +118,170 @@ function TeamDetail() {
         </div>
       </motion.div>
 
-      {/* Roster */}
-      <h3 className="text-lg font-bold text-white flex items-center gap-2">
-        <Users size={18} className="text-yellow-500" />
-        Roster
-        {teamData?.roster && (
-          <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
-            {teamData.roster.length}
-          </span>
-        )}
-      </h3>
+      {/* Record Cards + Next Game */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Overall', value: teamData?.record },
+          { label: 'Home', value: teamData?.homeRecord },
+          { label: 'Away', value: teamData?.awayRecord },
+        ].map(({ label, value }) => value && (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-gray-800 rounded-xl border border-gray-700 p-4 text-center"
+          >
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
+            <p className="text-xl font-bold text-white">{value}</p>
+          </motion.div>
+        ))}
 
-      {teamData?.roster?.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {teamData.roster.map((player, index) => (
-            <motion.div
-              key={player.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.02 }}
-              onClick={() => {
-                const nameSlug = encodeURIComponent(player.displayName.toLowerCase().replace(/\s+/g, '-'));
-                navigate(`/player/${player.id}/${nameSlug}`, {
-                  state: {
-                    player: {
-                      id: player.id,
-                      first_name: player.firstName,
-                      last_name: player.lastName,
-                      position: player.position,
-                      team: { abbreviation },
-                    },
-                  },
-                });
-              }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 hover:border-yellow-500/50 p-4 cursor-pointer transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0">
-                  {player.headshot ? (
-                    <img
-                      src={player.headshot}
-                      alt={player.displayName}
-                      className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-600"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextElementSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 items-center justify-center ring-2 ring-gray-600"
-                    style={{ display: player.headshot ? 'none' : 'flex' }}
-                  >
-                    <span className="text-white text-sm font-bold">
-                      {player.displayName?.split(' ').map((n) => n[0]).join('')}
-                    </span>
-                  </div>
+        {teamData?.nextGame && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            onClick={() => navigate(`/games/${teamData.nextGame.id}`)}
+            className="bg-gray-800 rounded-xl border border-gray-700 p-4 text-center cursor-pointer hover:border-yellow-500/50 transition-colors"
+          >
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+              <Calendar className="w-3 h-3" /> Next Game
+            </p>
+            <p className="text-sm font-bold text-white">{teamData.nextGame.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {new Date(teamData.nextGame.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </p>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Season Stats */}
+      {hasStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gray-800 rounded-xl border border-gray-700 p-5"
+          >
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Target className="w-4 h-4 text-yellow-400" />
+              Offense
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {OFFENSIVE_STATS.map(({ key, label, desc }) => (
+                <div key={key} className="text-center">
+                  <p className="text-xl font-bold text-white tabular-nums">{stats[key] || '-'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm truncate group-hover:text-yellow-400 transition-colors">
-                    {player.displayName}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {player.jersey ? `#${player.jersey} · ` : ''}{player.position}
-                  </p>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-gray-800 rounded-xl border border-gray-700 p-5"
+          >
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-400" />
+              Defense
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {DEFENSIVE_STATS.map(({ key, label, desc }) => (
+                <div key={key} className="text-center">
+                  <p className="text-xl font-bold text-white tabular-nums">{stats[key] || '-'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
                 </div>
-                <ChevronRight size={16} className="text-gray-500 group-hover:text-yellow-400 transition-colors flex-shrink-0" />
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-6 border border-gray-700 text-center">
-          <p className="text-gray-400">No roster data available.</p>
+              ))}
+            </div>
+          </motion.div>
         </div>
       )}
+
+      {/* Roster */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+          <Users size={18} className="text-yellow-500" />
+          Roster
+          {teamData?.roster && (
+            <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
+              {teamData.roster.length}
+            </span>
+          )}
+        </h3>
+
+        {teamData?.roster?.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {teamData.roster.map((player, index) => (
+              <motion.div
+                key={player.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + index * 0.02 }}
+                onClick={() => {
+                  const nameSlug = encodeURIComponent(player.displayName.toLowerCase().replace(/\s+/g, '-'));
+                  navigate(`/player/${player.id}/${nameSlug}`, {
+                    state: {
+                      player: {
+                        id: player.id,
+                        first_name: player.firstName,
+                        last_name: player.lastName,
+                        position: player.position,
+                        team: { abbreviation },
+                      },
+                    },
+                  });
+                }}
+                className="bg-gray-800 rounded-xl border border-gray-700 hover:border-yellow-500/50 p-4 cursor-pointer transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    {player.headshot ? (
+                      <img
+                        src={player.headshot}
+                        alt={player.displayName}
+                        className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-600"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextElementSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 items-center justify-center ring-2 ring-gray-600"
+                      style={{ display: player.headshot ? 'none' : 'flex' }}
+                    >
+                      <span className="text-white text-sm font-bold">
+                        {player.displayName?.split(' ').map((n) => n[0]).join('')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold text-sm truncate group-hover:text-yellow-400 transition-colors">
+                      {player.displayName}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {player.jersey ? `#${player.jersey} · ` : ''}{player.position}
+                    </p>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-500 group-hover:text-yellow-400 transition-colors flex-shrink-0" />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 text-center">
+            <p className="text-gray-400">No roster data available.</p>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }

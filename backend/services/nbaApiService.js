@@ -1141,6 +1141,78 @@ export async function getTeamRecord(teamAbbrev) {
 }
 
 /**
+ * Get team info (standing, record splits, next game) from ESPN
+ */
+export async function getTeamInfo(espnTeamId) {
+  try {
+    const url = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${espnTeamId}`;
+    const { data } = await axios.get(url, {
+      params: { region: 'us', lang: 'en', contentorigin: 'espn' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Accept': 'application/json' },
+      timeout: 10000
+    });
+    const team = data?.team;
+    if (!team) return {};
+
+    const records = team.record?.items || [];
+    const home = records.find(r => r.type === 'home');
+    const away = records.find(r => r.type === 'road');
+    const ne = team.nextEvent?.[0];
+
+    return {
+      standing: team.standingSummary || '',
+      homeRecord: home?.summary || '',
+      awayRecord: away?.summary || '',
+      nextGame: ne ? { id: ne.id, name: ne.shortName || ne.name || '', date: ne.date || '' } : null
+    };
+  } catch (err) {
+    console.log(`⚠️ Could not fetch team info for ${espnTeamId}: ${err.message}`);
+    return {};
+  }
+}
+
+/**
+ * Get team season stats from ESPN
+ */
+export async function getTeamStats(espnTeamId) {
+  try {
+    const url = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${espnTeamId}/statistics`;
+    const { data } = await axios.get(url, {
+      params: { region: 'us', lang: 'en', contentorigin: 'espn' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Accept': 'application/json' },
+      timeout: 10000
+    });
+
+    const categories = data?.results?.stats?.categories || [];
+    const all = {};
+    for (const cat of categories) {
+      for (const s of cat.stats || []) {
+        all[s.name] = s.displayValue || '';
+      }
+    }
+
+    return {
+      ppg: all.avgPoints || '',
+      rpg: all.avgRebounds || '',
+      apg: all.avgAssists || '',
+      spg: all.avgSteals || '',
+      bpg: all.avgBlocks || '',
+      topg: all.avgTurnovers || '',
+      fgPct: all.fieldGoalPct || '',
+      threePtPct: all.threePointPct || '',
+      ftPct: all.freeThrowPct || '',
+      offRpg: all.avgOffensiveRebounds || '',
+      defRpg: all.avgDefensiveRebounds || '',
+      pfpg: all.avgFouls || '',
+      astToRatio: all.assistTurnoverRatio || '',
+    };
+  } catch (err) {
+    console.log(`⚠️ Could not fetch team stats for ${espnTeamId}: ${err.message}`);
+    return {};
+  }
+}
+
+/**
  * Get ESPN team ID from NBA team abbreviation
  * Note: ESPN uses different abbreviations for some teams (e.g., GS instead of GSW, UTAH instead of UTA)
  */
