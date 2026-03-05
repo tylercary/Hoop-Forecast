@@ -376,10 +376,9 @@ export async function getLeaderboard() {
 // ─── Comments ────────────────────────────────────────────
 
 export async function addComment(data) {
+  const targetKey = `${data.type}_${data.type === 'game' ? data.gameId : data.playerId}`;
   return addDoc(collection(db, 'comments'), {
-    gameId: data.gameId || null,
-    playerId: data.playerId || null,
-    type: data.type,
+    targetKey,
     userId: data.userId,
     userName: data.userName,
     userPhoto: data.userPhoto || null,
@@ -393,11 +392,10 @@ export async function deleteComment(commentId) {
 }
 
 export function subscribeToComments(type, targetId, callback) {
-  const field = type === 'game' ? 'gameId' : 'playerId';
+  const targetKey = `${type}_${targetId}`;
   const q = query(
     collection(db, 'comments'),
-    where(field, '==', targetId),
-    where('type', '==', type)
+    where('targetKey', '==', targetKey)
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -411,9 +409,6 @@ export function subscribeToComments(type, targetId, callback) {
     callback(comments);
   }, (err) => {
     console.error('Comments subscription error:', err.message);
-    if (err.message?.includes('index')) {
-      console.error('Firestore composite index required. Check the link in the error above.');
-    }
     callback([]);
   });
 }

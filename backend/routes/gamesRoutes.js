@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
-import { mapEspnToNbaAbbrev } from '../services/nbaApiService.js';
+import { mapEspnToNbaAbbrev, getTeamRoster } from '../services/nbaApiService.js';
 
 const router = express.Router();
 
@@ -168,6 +168,14 @@ router.get('/:gameId', async (req, res) => {
       };
     }
 
+    // Fetch rosters for both teams
+    const homeId = home?.team?.id;
+    const awayId = away?.team?.id;
+    const [homeRoster, awayRoster] = await Promise.all([
+      homeId ? getTeamRoster(homeId).catch(() => []) : [],
+      awayId ? getTeamRoster(awayId).catch(() => [])  : []
+    ]);
+
     const game = {
       id: gameId,
       name: data.header?.gameNote || `${away?.team?.displayName || ''} @ ${home?.team?.displayName || ''}`,
@@ -180,7 +188,11 @@ router.get('/:gameId', async (req, res) => {
       homeTeam: formatTeamHeader(home),
       awayTeam: formatTeamHeader(away),
       broadcasts: event?.broadcasts?.[0]?.names || [],
-      boxScore
+      boxScore,
+      rosters: {
+        homeTeam: homeRoster,
+        awayTeam: awayRoster
+      }
     };
 
     gameDetailCache.set(gameId, game);
