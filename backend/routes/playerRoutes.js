@@ -74,7 +74,7 @@ router.get('/with-lines', async (req, res) => {
           params: {
             apiKey: THE_ODDS_API_KEY,
             regions: 'us',
-            markets: 'player_points',
+            markets: 'player_points,player_rebounds,player_assists,player_threes,player_points_rebounds_assists,player_points_rebounds,player_points_assists,player_rebounds_assists',
             oddsFormat: 'american'
           },
           timeout: 10000
@@ -87,22 +87,37 @@ router.get('/with-lines', async (req, res) => {
       const { event, data } = result.value;
       if (!data?.bookmakers?.length) continue;
 
+      const propTypeMap = {
+        'player_points': 'points',
+        'player_rebounds': 'rebounds',
+        'player_assists': 'assists',
+        'player_threes': 'threes',
+        'player_points_rebounds_assists': 'pra',
+        'player_points_rebounds': 'pr',
+        'player_points_assists': 'pa',
+        'player_rebounds_assists': 'ra'
+      };
+
       for (const bookmaker of data.bookmakers) {
         for (const market of bookmaker.markets || []) {
-          if (market.key !== 'player_points') continue;
+          const propType = propTypeMap[market.key];
+          if (!propType) continue;
 
           for (const outcome of market.outcomes || []) {
             const playerName = outcome.description;
-            if (!playerName || seenPlayers.has(playerName.toLowerCase())) continue;
+            if (!playerName) continue;
+
+            const dedupeKey = `${playerName.toLowerCase()}|${propType}`;
+            if (seenPlayers.has(dedupeKey)) continue;
 
             const line = parseFloat(outcome.point);
             if (isNaN(line) || line <= 0) continue;
 
-            seenPlayers.add(playerName.toLowerCase());
+            seenPlayers.add(dedupeKey);
             playersWithLines.push({
               name: playerName,
               betting_line: line,
-              prop_type: 'points',
+              prop_type: propType,
               bookmaker: bookmaker.title || bookmaker.key,
               event_id: event.id,
               home_team: event.home_team,

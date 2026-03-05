@@ -47,7 +47,7 @@ function Home() {
   const [showSearch, setShowSearch] = useState(true);
   const [visibleCount, setVisibleCount] = useState(12);
   const [filterTeam, setFilterTeam] = useState('all');
-  const [filterProp, setFilterProp] = useState('all');
+  const [filterProp, setFilterProp] = useState('points');
 
   // Derive unique teams and prop types from player data for filters
   const uniqueTeams = [...new Set(
@@ -65,7 +65,7 @@ function Home() {
     return true;
   });
 
-  const hasActiveFilters = filterTeam !== 'all' || filterProp !== 'all';
+  const hasActiveFilters = filterTeam !== 'all' || (filterProp !== 'all' && filterProp !== 'points');
 
   // Scroll to top when component mounts (e.g., when navigating back from player detail)
   useEffect(() => {
@@ -776,7 +776,7 @@ function Home() {
           </select>
           {hasActiveFilters && (
             <button
-              onClick={() => { setFilterTeam('all'); setFilterProp('all'); setVisibleCount(12); }}
+              onClick={() => { setFilterTeam('all'); setFilterProp('points'); setVisibleCount(12); }}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-800/60"
             >
               <X size={14} />
