@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { storePrediction, getPlayerBias } from './predictionTrackingService.js';
-import { predictProp as mlPredictProp, areModelsAvailable, buildMLFeatures } from '../ml/mlPredictionService.js';
+import { predictProp as mlPredictProp, buildMLFeatures } from '../ml/mlPredictionService.js';
 
 dotenv.config();
 
@@ -621,21 +621,9 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       console.warn('⚠️ Could not compute feature vector:', featErr.message);
     }
 
-    const mlModelsAvailable = areModelsAvailable();
-    if (mlModelsAvailable) {
-      try {
-        const mlResult = await mlPredictProp(games, propTypeFormatted);
-        predictedValue = mlResult.prediction;
-        mlFeatureVector = mlResult.features; // Use the model's features (same but includes is_home override)
-      } catch (mlError) {
-        console.error(`ML model failed for ${propTypeFormatted}: ${mlError.message}`);
-        predictedValue = features.recentAvg3 * 0.5 + features.recentAvg5 * 0.3 + features.seasonAvg * 0.2;
-        predictionMethod = 'statistical_fallback';
-      }
-    } else {
-      predictedValue = features.recentAvg3 * 0.5 + features.recentAvg5 * 0.3 + features.seasonAvg * 0.2;
-      predictionMethod = 'statistical_fallback';
-    }
+    const mlResult = await mlPredictProp(games, propTypeFormatted);
+    predictedValue = mlResult.prediction;
+    mlFeatureVector = mlResult.features;
 
     // Step 4: Dynamic recent form blending — scale by volatility.
     // High-volatility players need more recent form weight (streaky),

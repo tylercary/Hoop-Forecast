@@ -11,7 +11,6 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PYTHON_SCRIPT = path.join(__dirname, 'predict.py');
 const XGBOOST_SCRIPT = path.join(__dirname, 'predict_xgboost.py');
 const MODELS_DIR = path.join(__dirname, 'models');
 
@@ -260,56 +259,6 @@ function calculateUsage(avgPoints, avgMinutes) {
 }
 
 /**
- * Call Python prediction script
- * @param {Object} features - Features object
- * @param {string} propType - Prop type (PTS, REB, AST, etc.)
- * @returns {Promise<number>} - Predicted value
- */
-function callPythonPredictor(features, propType) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      PYTHON_SCRIPT,
-      '--features', JSON.stringify(features),
-      '--prop-type', propType.toUpperCase(),
-      '--models-dir', MODELS_DIR
-    ];
-
-    const python = spawn('python3', args);
-
-    let stdout = '';
-    let stderr = '';
-
-    python.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    python.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    python.on('close', (code) => {
-      if (code !== 0) {
-        return reject(new Error(`Python script failed: ${stderr}`));
-      }
-
-      try {
-        const result = JSON.parse(stdout);
-        if (!result.success) {
-          return reject(new Error(result.error));
-        }
-        resolve(result.prediction);
-      } catch (error) {
-        reject(new Error(`Failed to parse Python output: ${stdout}`));
-      }
-    });
-
-    python.on('error', (error) => {
-      reject(new Error(`Failed to spawn Python: ${error.message}`));
-    });
-  });
-}
-
-/**
  * Call XGBoost prediction script
  * @param {Object} features - Features object
  * @param {string} propType - Prop type (PTS, REB, AST, etc.)
@@ -360,41 +309,23 @@ function callXGBoostPredictor(features, propType) {
 }
 
 /**
- * Predict prop value using custom ML model
- * Tries XGBoost first, falls back to PyTorch
+ * Predict prop value using XGBoost model
  * @param {Array} gameLogs - Player game logs
  * @param {string} propType - Prop type (PTS, REB, AST, 3PM, PRA, PR, PA, RA)
  * @param {Object} options - Optional parameters
- * @returns {Promise<number>} - Predicted value
+ * @returns {Promise<Object>} - { prediction, features }
  */
 async function predictProp(gameLogs, propType, options = {}) {
-  try {
-    // Build features
-    const features = buildMLFeatures(gameLogs, propType);
+  const features = buildMLFeatures(gameLogs, propType);
 
-    // Override is_home if provided
-    if (options.isHome !== undefined) {
-      features.is_home = options.isHome ? 1 : 0;
-    }
-
-    // Try XGBoost first (faster, better for tabular data)
-    try {
-      const prediction = await callXGBoostPredictor(features, propType);
-      const bounded = Math.max(0, prediction);
-      console.log(`✅ [XGBoost] ${propType} prediction: ${bounded.toFixed(2)}`);
-      return { prediction: bounded, features };
-    } catch (xgbError) {
-      // Fall back to PyTorch if XGBoost fails
-      console.log(`⚠️  [XGBoost] Failed for ${propType}, trying PyTorch: ${xgbError.message}`);
-      const prediction = await callPythonPredictor(features, propType);
-      const bounded = Math.max(0, prediction);
-      console.log(`✅ [PyTorch] ${propType} prediction: ${bounded.toFixed(2)}`);
-      return { prediction: bounded, features };
-    }
-  } catch (error) {
-    console.error(`ML prediction error for ${propType}:`, error.message);
-    throw error;
+  if (options.isHome !== undefined) {
+    features.is_home = options.isHome ? 1 : 0;
   }
+
+  const prediction = await callXGBoostPredictor(features, propType);
+  const bounded = Math.max(0, prediction);
+  console.log(`✅ [XGBoost] ${propType} prediction: ${bounded.toFixed(2)}`);
+  return { prediction: bounded, features };
 }
 
 /**
