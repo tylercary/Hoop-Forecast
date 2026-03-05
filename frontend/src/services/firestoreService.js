@@ -409,5 +409,11 @@ export function subscribeToComments(type, targetId, callback) {
         return bTime - aTime;
       });
     callback(comments);
+  }, (err) => {
+    console.error('Comments subscription error:', err.message);
+    if (err.message?.includes('index')) {
+      console.error('Firestore composite index required. Check the link in the error above.');
+    }
+    callback([]);
   });
 }
