@@ -430,20 +430,27 @@ function generateAnalysis(predictedValue, vegasLine, stats, propType, coverProba
 }
 
 /**
- * Calculate confidence level from prediction vs vegas line
+ * Calculate confidence level — how confident are we in our edge over the line.
+ * Larger deviation from Vegas + low volatility = higher confidence.
  */
-function calculateConfidenceLevel(predictedValue, vegasLine) {
+function calculateConfidenceLevel(predictedValue, vegasLine, volatility = 30) {
   if (!vegasLine) return 'Medium';
-  
+
   const diff = Math.abs(predictedValue - vegasLine);
   const diffPercent = (diff / vegasLine) * 100;
-  
-  // Small difference = high confidence
-  if (diffPercent <= 5) return 'High';
-  // Moderate difference = medium confidence
-  if (diffPercent <= 15) return 'Medium';
-  // Large difference = low confidence
-  return 'Low';
+
+  // No meaningful edge over Vegas
+  if (diffPercent < 3) return 'Low';
+
+  // Factor in volatility: low vol = more trustworthy edge
+  if (volatility < 25) {
+    return diffPercent >= 8 ? 'High' : 'Medium';
+  } else if (volatility < 45) {
+    return diffPercent >= 12 ? 'High' : 'Medium';
+  } else {
+    // High volatility — only high confidence with very large edge
+    return diffPercent >= 18 ? 'High' : diffPercent >= 10 ? 'Medium' : 'Low';
+  }
 }
 
 /**
@@ -623,17 +630,21 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       predictionMethod = 'statistical_fallback';
     }
 
-    // Step 4: Apply recent form blending when there's significant deviation from model output.
-    // The ML model regresses toward season averages, so we blend 30% toward the
-    // recent 3-game average when it diverges by more than 2 points. This ensures
-    // hot/cold streaks are reflected in the projection (capped at ±5 point adjustment).
+    // Step 4: Dynamic recent form blending — scale by volatility.
+    // High-volatility players need more recent form weight (streaky),
+    // low-volatility players are more predictable so trust the model more.
     let finalPredictedValue = predictedValue;
     const recentAvg3 = features.recentAvg3;
     const recentDeviation = recentAvg3 - predictedValue;
+    const vol = features.volatility || 0;
 
-    if (Math.abs(recentDeviation) > 2 && recentAvg3 > 0) {
-      const rawAdjustment = recentDeviation * 0.30;
-      const adjustment = Math.sign(rawAdjustment) * Math.min(Math.abs(rawAdjustment), 5);
+    if (Math.abs(recentDeviation) > 1.5 && recentAvg3 > 0) {
+      // Blend ratio: 15% for low vol (<15%), up to 45% for high vol (>50%)
+      const blendRatio = vol < 15 ? 0.15 : vol > 50 ? 0.45 : 0.15 + (vol - 15) / 35 * 0.30;
+      // Cap scales with prop magnitude (bigger stats get bigger caps)
+      const maxCap = Math.max(3, features.seasonAvg * 0.15);
+      const rawAdjustment = recentDeviation * blendRatio;
+      const adjustment = Math.sign(rawAdjustment) * Math.min(Math.abs(rawAdjustment), maxCap);
       finalPredictedValue = predictedValue + adjustment;
     }
 
@@ -645,8 +656,8 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       finalPredictedValue += cappedBias;
     }
 
-    // Step 5: Calculate confidence from |prediction - vegas_line|
-    const confidenceLevel = calculateConfidenceLevel(finalPredictedValue, features.vegasLine);
+    // Step 5: Calculate confidence from edge over line + volatility
+    const confidenceLevel = calculateConfidenceLevel(finalPredictedValue, features.vegasLine, features.volatility);
 
     // Step 6: Calculate error margin from volatility (2.0 to 6.0)
     const errorMargin = calculateErrorMargin(features.volatility);

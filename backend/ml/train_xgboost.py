@@ -181,6 +181,7 @@ def train_xgboost_model(prop_type, feature_names, target_col, incremental=False,
         'colsample_bytree': 0.8,
         'reg_alpha': 0.1,
         'reg_lambda': 1.0,
+        'gamma': 0.02,                         # Light pruning of weak splits
         'random_state': 42,
         'n_jobs': -1
     }
