@@ -1213,6 +1213,49 @@ export async function getTeamStats(espnTeamId) {
 }
 
 /**
+ * Get team schedule from ESPN
+ */
+export async function getTeamSchedule(espnTeamId) {
+  try {
+    const cacheKey = `schedule:${espnTeamId}`;
+    const cached = teamSearchCache.get(cacheKey);
+    if (cached) return cached;
+
+    const url = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${espnTeamId}/schedule`;
+    const { data } = await axios.get(url, {
+      params: { region: 'us', lang: 'en', contentorigin: 'espn' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Accept': 'application/json' },
+      timeout: 10000
+    });
+
+    const schedule = (data.events || []).map(e => {
+      const comp = e.competitions?.[0];
+      if (!comp) return null;
+      const competitors = comp.competitors || [];
+      const home = competitors.find(c => c.homeAway === 'home');
+      const away = competitors.find(c => c.homeAway === 'away');
+      const status = comp.status?.type;
+      return {
+        id: e.id,
+        date: e.date,
+        name: e.shortName || e.name || '',
+        home: { abbrev: home?.team?.abbreviation || '', score: home?.score?.displayValue || '' },
+        away: { abbrev: away?.team?.abbreviation || '', score: away?.score?.displayValue || '' },
+        status: status?.completed ? 'final' : status?.name === 'STATUS_SCHEDULED' ? 'scheduled' : 'in_progress',
+        statusDetail: status?.shortDetail || '',
+        isHome: home?.team?.id === espnTeamId,
+      };
+    }).filter(Boolean);
+
+    teamSearchCache.set(cacheKey, schedule, 3600);
+    return schedule;
+  } catch (err) {
+    console.log(`⚠️ Could not fetch team schedule for ${espnTeamId}: ${err.message}`);
+    return [];
+  }
+}
+
+/**
  * Get ESPN team ID from NBA team abbreviation
  * Note: ESPN uses different abbreviations for some teams (e.g., GS instead of GSW, UTAH instead of UTA)
  */
@@ -1533,6 +1576,7 @@ export async function getTeamRoster(espnTeamId) {
         weight: base.displayWeight || null,
         college: base.college?.shortName || base.college?.name || null,
         salary: salary ? `$${salary.toLocaleString()}` : null,
+        injuries: base.injuries || [],
       };
     });
 
