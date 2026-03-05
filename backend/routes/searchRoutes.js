@@ -1,5 +1,5 @@
 import express from 'express';
-import { searchPlayersESPN, searchTeamsESPN, getTeamRoster, getTeamRecord, getEspnTeamId, getTeamInfo, getTeamStats, getTeamSchedule } from '../services/nbaApiService.js';
+import { searchPlayersESPN, searchTeamsESPN, getTeamRoster, getTeamRecord, getEspnTeamId, getTeamInfo, getTeamStats, getTeamSchedule, getTeamNews } from '../services/nbaApiService.js';
 
 const router = express.Router();
 
@@ -44,12 +44,13 @@ router.get('/team/:abbreviation', async (req, res) => {
       return res.status(404).json({ error: 'Team not found' });
     }
 
-    const [roster, record, info, stats, schedule] = await Promise.all([
+    const [roster, record, info, stats, schedule, news] = await Promise.all([
       getTeamRoster(espnTeamId),
       getTeamRecord(abbreviation),
       getTeamInfo(espnTeamId),
       getTeamStats(espnTeamId),
       getTeamSchedule(espnTeamId),
+      getTeamNews(espnTeamId),
     ]);
 
     // Extract injuries from roster data
@@ -57,7 +58,7 @@ router.get('/team/:abbreviation', async (req, res) => {
       .filter(p => p.injuries && p.injuries.length > 0)
       .map(p => ({ name: p.displayName, id: p.id, position: p.position, status: p.injuries[0].status, headshot: p.headshot }));
 
-    res.json({ abbreviation: abbreviation.toUpperCase(), espnTeamId, roster, record, ...info, stats, schedule, injuries });
+    res.json({ abbreviation: abbreviation.toUpperCase(), espnTeamId, roster, record, ...info, stats, schedule, injuries, news });
   } catch (error) {
     console.error('❌ Error fetching team:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch team data' });

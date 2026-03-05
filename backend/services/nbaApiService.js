@@ -1256,6 +1256,31 @@ export async function getTeamSchedule(espnTeamId) {
 }
 
 /**
+ * Get team news from ESPN
+ */
+export async function getTeamNews(espnTeamId) {
+  try {
+    const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news`;
+    const { data } = await axios.get(url, {
+      params: { team: espnTeamId, limit: 10 },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Accept': 'application/json' },
+      timeout: 10000
+    });
+
+    return (data.articles || []).map(a => ({
+      headline: a.headline || '',
+      description: a.description || '',
+      published: a.published || '',
+      image: a.images?.[0]?.url || null,
+      link: a.links?.web?.href || '',
+    }));
+  } catch (err) {
+    console.log(`⚠️ Could not fetch team news for ${espnTeamId}: ${err.message}`);
+    return [];
+  }
+}
+
+/**
  * Get ESPN team ID from NBA team abbreviation
  * Note: ESPN uses different abbreviations for some teams (e.g., GS instead of GSW, UTAH instead of UTA)
  */

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Calendar, Shield, Target, AlertCircle } from 'lucide-react';
+import { Star, Calendar, Shield, Target, AlertCircle, Newspaper, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { getTeamLogo, getTeamName } from '../utils/teamLogos';
 
 const TABS = [
+  { key: 'home', label: 'Home' },
   { key: 'stats', label: 'Stats' },
   { key: 'schedule', label: 'Schedule' },
   { key: 'roster', label: 'Roster' },
@@ -38,7 +39,7 @@ function TeamDetail() {
   const [teamData, setTeamData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [tab, setTab] = useState('stats');
+  const [tab, setTab] = useState('home');
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -151,11 +152,118 @@ function TeamDetail() {
       </div>
 
       {/* Tab Content */}
+      {tab === 'home' && <HomeTab news={teamData?.news} nextGame={teamData?.nextGame} injuries={teamData?.injuries} navigate={navigate} abbreviation={abbreviation} />}
       {tab === 'stats' && <StatsTab stats={teamData?.stats} nextGame={teamData?.nextGame} navigate={navigate} />}
       {tab === 'schedule' && <ScheduleTab schedule={teamData?.schedule} teamAbbrev={abbreviation} navigate={navigate} />}
       {tab === 'roster' && <RosterTab roster={teamData?.roster} abbreviation={abbreviation} navigate={navigate} />}
       {tab === 'injuries' && <InjuriesTab injuries={teamData?.injuries} abbreviation={abbreviation} navigate={navigate} />}
     </div>
+  );
+}
+
+function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
+  function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const hrs = Math.floor(diff / 3600000);
+    if (hrs < 1) return 'Just now';
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+      {/* Next Game */}
+      {nextGame && (
+        <div
+          onClick={() => navigate(`/games/${nextGame.id}`)}
+          className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-yellow-400" />
+            <div>
+              <p className="text-white font-semibold">{nextGame.name}</p>
+              <p className="text-xs text-gray-400">
+                {new Date(nextGame.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                {' · '}
+                {new Date(nextGame.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </p>
+            </div>
+          </div>
+          <span className="text-xs text-gray-500 uppercase">Next Game</span>
+        </div>
+      )}
+
+      {/* Injury Summary */}
+      {injuries?.length > 0 && (
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            Injury Report
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {injuries.map((inj, i) => (
+              <span
+                key={i}
+                onClick={() => {
+                  if (inj.id) navigate(`/player/${inj.id}/${encodeURIComponent(inj.name.replace(/\s+/g, '_'))}`);
+                }}
+                className={`text-xs font-medium px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                  inj.status === 'Out' ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25' :
+                  inj.status === 'Day-To-Day' ? 'bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/25' :
+                  'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                }`}
+              >
+                {inj.name} · {inj.status}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* News */}
+      {news?.length > 0 ? (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <Newspaper className="w-4 h-4 text-yellow-400" />
+            Latest News
+          </h3>
+          {news.map((article, i) => (
+            <a
+              key={i}
+              href={article.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex hover:border-gray-600 transition-colors group"
+            >
+              {article.image && (
+                <img
+                  src={article.image}
+                  alt=""
+                  className="w-28 sm:w-40 h-24 sm:h-28 object-cover flex-shrink-0"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )}
+              <div className="p-4 flex-1 min-w-0">
+                <h4 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-yellow-400 transition-colors">
+                  {article.headline}
+                </h4>
+                <p className="text-gray-500 text-xs mt-1 line-clamp-2">{article.description}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-gray-600">{timeAgo(article.published)}</span>
+                  <ExternalLink className="w-3 h-3 text-gray-600" />
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+          <p className="text-gray-400">No recent news</p>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
