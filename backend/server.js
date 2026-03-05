@@ -14,6 +14,7 @@ import { evaluatePendingPredictions } from './services/predictionEvaluationServi
 import { getAccuracyStats } from './services/predictionTrackingService.js';
 import optionalAuth from './middleware/optionalAuth.js';
 import { resolveAllPendingPredictions } from './services/predictionCron.js';
+import { runBatchPredictions } from './services/batchPredictionCron.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,6 +133,12 @@ async function runRetrain() {
 // Run retrain check 2 minutes after startup, then weekly
 setTimeout(runRetrain, 120000);
 setInterval(runRetrain, RETRAIN_INTERVAL);
+
+// Daily batch predictions — generate predictions for ALL players with active lines
+// Runs 5 minutes after startup, then every 12 hours
+const BATCH_PREDICT_INTERVAL = 12 * 60 * 60 * 1000;
+setTimeout(() => runBatchPredictions().catch(err => console.error('Batch prediction error:', err.message)), 300000);
+setInterval(() => runBatchPredictions().catch(err => console.error('Batch prediction error:', err.message)), BATCH_PREDICT_INTERVAL);
 
 // Pre-warm caches on startup so the first user request is fast
 async function warmCaches() {
