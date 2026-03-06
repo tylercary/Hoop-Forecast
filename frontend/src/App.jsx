@@ -29,10 +29,20 @@ function RouteLoader() {
   );
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
 
   return (
+    <>
+    <ScrollToTop />
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route
@@ -205,6 +215,7 @@ function AnimatedRoutes() {
         />
       </Routes>
     </AnimatePresence>
+    </>
   );
 }
 
