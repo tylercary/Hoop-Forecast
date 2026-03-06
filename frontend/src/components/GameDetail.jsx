@@ -9,15 +9,17 @@ import Comments from './Comments';
 const STAT_COLS = ['min', 'pts', 'reb', 'ast', 'stl', 'blk', 'fg', '3pt', 'ft', 'to'];
 
 const COMPARE_STATS = [
-  { key: 'avgPoints', label: 'PPG' },
-  { key: 'avgPointsAgainst', label: 'Opp PPG' },
   { key: 'fieldGoalPct', label: 'FG%' },
   { key: 'threePointFieldGoalPct', label: '3PT%' },
-  { key: 'avgRebounds', label: 'RPG' },
-  { key: 'avgAssists', label: 'APG' },
-  { key: 'avgSteals', label: 'SPG' },
-  { key: 'avgBlocks', label: 'BPG' },
-  { key: 'avgTotalTurnovers', label: 'TOPG' },
+  { key: 'freeThrowPct', label: 'FT%' },
+  { key: 'totalRebounds', label: 'REB' },
+  { key: 'assists', label: 'AST' },
+  { key: 'steals', label: 'STL' },
+  { key: 'blocks', label: 'BLK' },
+  { key: 'totalTurnovers', label: 'TO', lowerBetter: true },
+  { key: 'pointsInPaint', label: 'Paint PTS' },
+  { key: 'fastBreakPoints', label: 'Fast Break' },
+  { key: 'fouls', label: 'Fouls', lowerBetter: true },
 ];
 
 export default function GameDetail() {
@@ -225,12 +227,11 @@ export default function GameDetail() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
           <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Team Stats</h3>
           <div className="space-y-3">
-            {COMPARE_STATS.map(({ key, label }) => {
+            {COMPARE_STATS.map(({ key, label, lowerBetter }) => {
               const awayVal = parseFloat(awayStats[key]?.value) || 0;
               const homeVal = parseFloat(homeStats[key]?.value) || 0;
-              const isLowerBetter = key === 'avgPointsAgainst' || key === 'avgTotalTurnovers';
-              const awayBetter = isLowerBetter ? awayVal < homeVal : awayVal > homeVal;
-              const homeBetter = isLowerBetter ? homeVal < awayVal : homeVal > awayVal;
+              const awayBetter = lowerBetter ? awayVal < homeVal : awayVal > homeVal;
+              const homeBetter = lowerBetter ? homeVal < awayVal : homeVal > awayVal;
               const total = awayVal + homeVal || 1;
 
               return (
