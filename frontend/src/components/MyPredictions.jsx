@@ -173,27 +173,27 @@ function MyPredictions() {
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-2 sm:grid-cols-5 gap-3"
       >
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700 text-center">
           <Trophy className="mx-auto mb-1 text-yellow-500" size={20} />
           <p className="text-2xl font-bold text-white">{displayWins}-{displayLosses}-{displayPushes}</p>
           <p className="text-xs text-gray-400">Record</p>
         </div>
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700 text-center">
           <TrendingUp className="mx-auto mb-1 text-green-400" size={20} />
           <p className="text-2xl font-bold text-white">{displayWinPct}%</p>
           <p className="text-xs text-gray-400">Win Rate</p>
         </div>
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700 text-center">
           <Target className="mx-auto mb-1 text-blue-400" size={20} />
           <p className="text-2xl font-bold text-white">{predictions.length}</p>
           <p className="text-xs text-gray-400">Total Picks</p>
         </div>
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-gray-700 text-center">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700 text-center">
           <Clock className="mx-auto mb-1 text-orange-400" size={20} />
           <p className="text-2xl font-bold text-white">{predictions.filter((p) => !p.result).length}</p>
           <p className="text-xs text-gray-400">Pending</p>
         </div>
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-yellow-500/30 text-center">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-yellow-500/30 text-center">
           <Coins className="mx-auto mb-1 text-yellow-500" size={20} />
           <p className="text-2xl font-bold text-yellow-400">{tokens}</p>
           <p className="text-xs text-gray-400">Tokens</p>
@@ -219,7 +219,7 @@ function MyPredictions() {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4">
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
           <p className="text-red-400 text-sm font-semibold">Error loading predictions</p>
           <p className="text-red-300 text-xs mt-1">{error}</p>
           <p className="text-red-300/60 text-xs mt-2">Check the browser console (F12) for details. Make sure Firestore security rules are configured.</p>
@@ -230,7 +230,7 @@ function MyPredictions() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl p-4 animate-pulse h-20" />
+            <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse h-20" />
           ))}
         </div>
       ) : filteredPredictions.length === 0 ? (
@@ -265,7 +265,7 @@ function MyPredictions() {
                   },
                 });
               }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 hover:border-yellow-500/50 p-4 cursor-pointer transition-all group"
+              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 hover:border-yellow-500/50 p-4 cursor-pointer transition-all group"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

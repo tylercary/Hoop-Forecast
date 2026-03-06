@@ -94,10 +94,10 @@ function UserProfile() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="bg-gray-800 rounded-xl p-8 animate-pulse h-40" />
+        <div className="bg-gray-800 rounded-lg p-8 animate-pulse h-40" />
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl p-4 animate-pulse h-20" />
+            <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse h-20" />
           ))}
         </div>
       </div>
@@ -131,7 +131,7 @@ function UserProfile() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-6"
+        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 p-6"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -217,7 +217,7 @@ function UserProfile() {
                     state: { player: { id: fav.playerId, first_name: fav.playerName.split(' ')[0] || '', last_name: fav.playerName.split(' ').slice(1).join(' ') || '' } },
                   });
                 }}
-                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 hover:border-yellow-500/50 p-3 cursor-pointer transition-all group"
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 hover:border-yellow-500/50 p-3 cursor-pointer transition-all group"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
@@ -253,7 +253,7 @@ function UserProfile() {
                 key={fav.teamAbbreviation}
                 whileHover={{ scale: 1.01 }}
                 onClick={() => navigate(`/team/${fav.teamAbbreviation}`)}
-                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 hover:border-yellow-500/50 p-3 cursor-pointer transition-all group"
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 hover:border-yellow-500/50 p-3 cursor-pointer transition-all group"
               >
                 <div className="flex items-center gap-3">
                   {getTeamLogo(fav.teamAbbreviation) && (
@@ -294,7 +294,7 @@ function UserProfile() {
                   },
                 });
               }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 hover:border-yellow-500/50 p-4 cursor-pointer transition-all group"
+              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 hover:border-yellow-500/50 p-4 cursor-pointer transition-all group"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

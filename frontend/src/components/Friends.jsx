@@ -157,11 +157,11 @@ function Friends() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search users by name..."
-          className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+          className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
         />
         {/* Search Results Dropdown */}
         {searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden z-20 shadow-2xl">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden z-20 shadow-2xl">
             {searchResults.map((result) => (
               <button
                 key={result.uid}
@@ -186,7 +186,7 @@ function Friends() {
           </div>
         )}
         {searching && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl p-4 text-center text-gray-400 text-sm z-20">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-4 text-center text-gray-400 text-sm z-20">
             Searching...
           </div>
         )}
@@ -204,7 +204,7 @@ function Friends() {
               key={req.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-yellow-500/30 p-4"
+              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-yellow-500/30 p-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -246,7 +246,7 @@ function Friends() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(2)].map((_, i) => (
-              <div key={i} className="bg-gray-800 rounded-xl p-4 animate-pulse h-16" />
+              <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse h-16" />
             ))}
           </div>
         ) : friends.length === 0 ? (
@@ -261,7 +261,7 @@ function Friends() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 overflow-hidden"
+              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 overflow-hidden"
             >
               <div className="flex items-center justify-between p-4">
                 <div

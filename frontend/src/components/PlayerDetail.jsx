@@ -502,7 +502,7 @@ function PlayerDetail() {
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div
                 key={i}
-                className="h-24 w-32 bg-gray-800 rounded-xl border border-gray-700 animate-pulse"
+                className="h-24 w-32 bg-gray-800 rounded-lg border border-gray-700 animate-pulse"
               >
                 <div className="p-3 h-full flex flex-col justify-between">
                   <div className="h-4 w-20 bg-gray-700 rounded"></div>
@@ -1185,7 +1185,7 @@ function PlayerDetail() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, ease: 'easeOut' }}
-                    className="bg-[#1a2332] rounded-xl border border-gray-700/50 mb-4 overflow-hidden"
+                    className="bg-[#1a2332] rounded-lg border border-gray-700/50 mb-4 overflow-hidden"
                   >
                     {/* Header */}
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between">
@@ -1229,7 +1229,7 @@ function PlayerDetail() {
                           disabled={predictionSaving}
                           whileHover={{ scale: 1.02, y: -1 }}
                           whileTap={{ scale: 0.97 }}
-                          className={`relative py-4 px-4 rounded-xl text-center font-bold transition-all overflow-hidden ${
+                          className={`relative py-4 px-4 rounded-lg text-center font-bold transition-all overflow-hidden ${
                             userPick?.pick === 'over' || pendingPick === 'over'
                               ? 'bg-green-500/20 border-2 border-green-500 text-green-400 shadow-lg shadow-green-500/20'
                               : 'bg-gray-700/50 border-2 border-gray-600/50 text-gray-300 hover:border-green-500/50 hover:bg-green-500/10'
@@ -1252,7 +1252,7 @@ function PlayerDetail() {
                           disabled={predictionSaving}
                           whileHover={{ scale: 1.02, y: -1 }}
                           whileTap={{ scale: 0.97 }}
-                          className={`relative py-4 px-4 rounded-xl text-center font-bold transition-all overflow-hidden ${
+                          className={`relative py-4 px-4 rounded-lg text-center font-bold transition-all overflow-hidden ${
                             userPick?.pick === 'under' || pendingPick === 'under'
                               ? 'bg-red-500/20 border-2 border-red-500 text-red-400 shadow-lg shadow-red-500/20'
                               : 'bg-gray-700/50 border-2 border-gray-600/50 text-gray-300 hover:border-red-500/50 hover:bg-red-500/10'
@@ -1538,7 +1538,7 @@ function PlayerDetail() {
           />
 
           {/* Player Discussion */}
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-5 mt-6">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-5 mt-6">
             <Comments type="player" targetId={playerId} title="Player Discussion" />
           </div>
         </div>

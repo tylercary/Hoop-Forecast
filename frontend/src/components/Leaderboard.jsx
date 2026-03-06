@@ -105,7 +105,7 @@ function Leaderboard() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4">
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
           <p className="text-red-400 text-sm">{error}</p>
         </div>
       )}
@@ -114,7 +114,7 @@ function Leaderboard() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl p-4 animate-pulse h-16" />
+            <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse h-16" />
           ))}
         </div>
       ) : sorted.length === 0 ? (
@@ -145,7 +145,7 @@ function Leaderboard() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: i * 0.1 }}
                     onClick={() => navigate(`/profile/${u.uid}`)}
-                    className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border p-4 text-center cursor-pointer transition-all hover:scale-[1.02] ${
+                    className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border p-4 text-center cursor-pointer transition-all hover:scale-[1.02] ${
                       rank === 1
                         ? 'border-yellow-500/50 ring-1 ring-yellow-500/20 order-2'
                         : rank === 2
@@ -194,7 +194,7 @@ function Leaderboard() {
           )}
 
           {/* Full Rankings Table */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 overflow-hidden">
             {/* Header */}
             <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-700 text-xs text-gray-400 font-semibold uppercase">
               <div className="col-span-1">#</div>

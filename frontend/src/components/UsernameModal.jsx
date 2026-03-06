@@ -56,7 +56,7 @@ function UsernameModal() {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 flex items-center justify-center z-[90] p-4"
           >
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden">
               <div className="p-6">
                 <div className="text-center mb-5">
                   <div className="w-14 h-14 rounded-full bg-yellow-500 flex items-center justify-center mx-auto mb-3">

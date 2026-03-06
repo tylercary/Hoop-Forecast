@@ -265,7 +265,7 @@ function Home() {
             transition={{ duration: 0.4, delay: 0.2 }}
             className="max-w-3xl mx-auto"
           >
-            <div className="bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl p-5 border border-white/5">
+            <div className="bg-slate-800/80 backdrop-blur-xl rounded-lg shadow-2xl p-5 border border-white/5">
           <div className="relative">
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +277,7 @@ function Home() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search any NBA player or team..."
-                  className="w-full pl-12 pr-12 py-3.5 text-base bg-slate-700/50 text-white border border-slate-600/50 rounded-xl focus:outline-none focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 placeholder-gray-400 transition-all duration-200"
+                  className="w-full pl-12 pr-12 py-3.5 text-base bg-slate-700/50 text-white border border-slate-600/50 rounded-lg focus:outline-none focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 placeholder-gray-400 transition-all duration-200"
             />
             {isSearching && (
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -290,7 +290,7 @@ function Home() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl backdrop-blur-sm"
+                  className="mt-4 p-4 bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg backdrop-blur-sm"
             >
               {error}
             </motion.div>
@@ -524,10 +524,10 @@ function Home() {
                         event_id: prop.event_id
                       });
                     }}
-                    className="trending-card relative flex-shrink-0 w-72 snap-start rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer border border-slate-700/50 hover:border-amber-500/50 group"
+                    className="trending-card relative flex-shrink-0 w-72 snap-start rounded-lg shadow-xl hover:shadow-2xl hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer border border-slate-700/50 hover:border-amber-500/50 group"
                   >
                     {/* Card Background - Below embers */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl -z-10 overflow-hidden"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg -z-10 overflow-hidden"></div>
                     
                     {/* Rising Fire Embers Background - z-0 */}
                     <div className="absolute inset-0 z-0 pointer-events-none overflow-visible">
@@ -663,7 +663,7 @@ function Home() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-slate-800/40 backdrop-blur-sm rounded-2xl shadow-xl p-12 text-center border border-slate-700/50"
+              className="bg-slate-800/40 backdrop-blur-sm rounded-lg shadow-xl p-12 text-center border border-slate-700/50"
             >
               <svg className="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -814,7 +814,7 @@ function Home() {
                   away_team: player.away_team
                 });
               }}
-                className="relative bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 cursor-pointer overflow-hidden border border-slate-700/50 hover:border-yellow-500/50 group"
+                className="relative bg-slate-800/60 backdrop-blur-sm rounded-lg shadow-xl hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 cursor-pointer overflow-hidden border border-slate-700/50 hover:border-yellow-500/50 group"
             >
                 {/* Favorite Star */}
                 {user && (
@@ -895,7 +895,7 @@ function Home() {
                   </div>
 
                   {/* View Button */}
-                  <button className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-700 hover:shadow-yellow-500/20 transition-all font-bold shadow-lg border border-gray-700 hover:border-yellow-500/50">
+                  <button className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 hover:shadow-yellow-500/20 transition-all font-bold shadow-lg border border-gray-700 hover:border-yellow-500/50">
                     View Analysis
                   </button>
               </div>
@@ -910,7 +910,7 @@ function Home() {
             >
               <button
                 onClick={() => setVisibleCount(prev => prev + 12)}
-                className="flex items-center gap-2 px-6 py-3 bg-slate-800/60 backdrop-blur-sm text-white rounded-xl hover:bg-slate-700/60 transition-all font-semibold border border-slate-700/50 hover:border-yellow-500/50"
+                className="flex items-center gap-2 px-6 py-3 bg-slate-800/60 backdrop-blur-sm text-white rounded-lg hover:bg-slate-700/60 transition-all font-semibold border border-slate-700/50 hover:border-yellow-500/50"
               >
                 <span>Show More</span>
                 <ChevronDown size={18} />
@@ -925,7 +925,7 @@ function Home() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-800/40 backdrop-blur-sm rounded-2xl shadow-xl p-12 text-center border border-slate-700/50"
+            className="bg-slate-800/40 backdrop-blur-sm rounded-lg shadow-xl p-12 text-center border border-slate-700/50"
         >
           <p className="text-gray-300 mb-2 text-lg font-semibold">
             No players match your filters
@@ -941,7 +941,7 @@ function Home() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-800/40 backdrop-blur-sm rounded-2xl shadow-xl p-12 text-center border border-slate-700/50"
+            className="bg-slate-800/40 backdrop-blur-sm rounded-lg shadow-xl p-12 text-center border border-slate-700/50"
         >
             <svg className="w-20 h-20 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

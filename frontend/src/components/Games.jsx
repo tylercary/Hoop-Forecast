@@ -52,7 +52,7 @@ export default function Games() {
           <div className="h-8 bg-gray-800 rounded w-48" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-36 bg-gray-800 rounded-xl" />
+              <div key={i} className="h-36 bg-gray-800 rounded-lg" />
             ))}
           </div>
         </div>
@@ -170,7 +170,7 @@ function GameCard({ game, index, onClick }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
       onClick={onClick}
-      className={`bg-gray-800 border rounded-xl p-4 cursor-pointer hover:border-gray-600 transition-colors ${
+      className={`bg-gray-800 border rounded-lg p-4 cursor-pointer hover:border-gray-600 transition-colors ${
         game.status === 'in_progress' ? 'border-red-500/30' : 'border-gray-700'
       }`}
     >

@@ -235,7 +235,7 @@ function PropOddsTable({ props, selectedProp }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
-      className="bg-[#1a2332] rounded-xl p-5 border border-gray-700/50"
+      className="bg-[#1a2332] rounded-lg p-5 border border-gray-700/50"
     >
       <div className="mb-4 flex items-baseline gap-3">
         <h3 className="text-xl font-bold text-white">Prop Odds</h3>

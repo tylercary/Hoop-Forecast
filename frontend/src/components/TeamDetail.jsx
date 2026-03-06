@@ -65,9 +65,9 @@ function TeamDetail() {
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-4">
-        <div className="bg-gray-800 rounded-xl p-8 animate-pulse h-32" />
+        <div className="bg-gray-800 rounded-lg p-8 animate-pulse h-32" />
         <div className="h-10 bg-gray-800 rounded-lg animate-pulse" />
-        <div className="bg-gray-800 rounded-xl p-4 animate-pulse h-64" />
+        <div className="bg-gray-800 rounded-lg p-4 animate-pulse h-64" />
       </div>
     );
   }
@@ -75,7 +75,7 @@ function TeamDetail() {
   if (error) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
           <h3 className="text-xl font-bold text-white mb-2">Error</h3>
           <p className="text-gray-400">{error}</p>
         </div>
@@ -92,7 +92,7 @@ function TeamDetail() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gray-800 rounded-xl border border-gray-700 p-6"
+        className="bg-gray-800 rounded-lg border border-gray-700 p-6"
       >
         <div className="flex items-center gap-4">
           {teamLogo && (
@@ -178,7 +178,7 @@ function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
       {nextGame && (
         <div
           onClick={() => navigate(`/games/${nextGame.id}`)}
-          className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
+          className="bg-gray-800 rounded-lg border border-gray-700 p-4 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
         >
           <div className="flex items-center gap-3">
             <Calendar className="w-5 h-5 text-yellow-400" />
@@ -208,7 +208,7 @@ function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
               href={article.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex hover:border-gray-600 transition-colors group"
+              className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden flex hover:border-gray-600 transition-colors group"
             >
               {article.image && (
                 <img
@@ -232,7 +232,7 @@ function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
           ))}
         </div>
       ) : (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
           <p className="text-gray-400">No recent news</p>
         </div>
       )}
@@ -248,7 +248,7 @@ function StatsTab({ stats, nextGame, navigate }) {
       {nextGame && (
         <div
           onClick={() => navigate(`/games/${nextGame.id}`)}
-          className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
+          className="bg-gray-800 rounded-lg border border-gray-700 p-4 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
         >
           <div className="flex items-center gap-3">
             <Calendar className="w-5 h-5 text-yellow-400" />
@@ -267,7 +267,7 @@ function StatsTab({ stats, nextGame, navigate }) {
 
       {hasStats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Target className="w-4 h-4 text-yellow-400" />
               Offense
@@ -282,7 +282,7 @@ function StatsTab({ stats, nextGame, navigate }) {
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-blue-400" />
               Defense
@@ -300,7 +300,7 @@ function StatsTab({ stats, nextGame, navigate }) {
       )}
 
       {!hasStats && !nextGame && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
           <p className="text-gray-400">No stats available</p>
         </div>
       )}
@@ -311,7 +311,7 @@ function StatsTab({ stats, nextGame, navigate }) {
 function ScheduleTab({ schedule, teamAbbrev, navigate }) {
   if (!schedule?.length) {
     return (
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+      <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
         <p className="text-gray-400">No schedule data available</p>
       </div>
     );
@@ -323,7 +323,7 @@ function ScheduleTab({ schedule, teamAbbrev, navigate }) {
   const upcoming = schedule.filter(g => g.status !== 'final');
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -399,14 +399,14 @@ function ScheduleRow({ game, teamAbbrev, navigate }) {
 function RosterTab({ roster, abbreviation, navigate }) {
   if (!roster?.length) {
     return (
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+      <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
         <p className="text-gray-400">No roster data available</p>
       </div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -465,7 +465,7 @@ function RosterTab({ roster, abbreviation, navigate }) {
 function InjuriesTab({ injuries, abbreviation, navigate }) {
   if (!injuries?.length) {
     return (
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+      <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
         <AlertCircle className="w-8 h-8 text-gray-600 mx-auto mb-3" />
         <p className="text-gray-400">No injuries reported</p>
       </div>
@@ -473,7 +473,7 @@ function InjuriesTab({ injuries, abbreviation, navigate }) {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
       <div className="space-y-0">
         {injuries.map((inj, i) => (
           <div

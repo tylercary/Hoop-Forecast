@@ -308,7 +308,7 @@ function AppHeader() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-4 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50"
+                  className="absolute top-full left-4 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50"
                 >
                   {navItems.map((item) => {
                     const isActive = location.pathname === item.path;
@@ -374,7 +374,7 @@ function AppHeader() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full right-0 mt-1 w-64 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50"
+                        className="absolute top-full right-0 mt-1 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50"
                       >
                         {/* User info */}
                         <div className="px-4 py-3 border-b border-gray-700">

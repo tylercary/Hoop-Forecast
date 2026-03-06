@@ -181,7 +181,7 @@ function ProfileSettings() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-6"
+        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 p-6"
       >
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Camera size={18} className="text-gray-400" />
@@ -247,7 +247,7 @@ function ProfileSettings() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-6"
+        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 p-6"
       >
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <User size={18} className="text-gray-400" />
@@ -308,7 +308,7 @@ function ProfileSettings() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-6"
+          className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 p-6"
         >
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Key size={18} className="text-gray-400" />
@@ -358,7 +358,7 @@ function ProfileSettings() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-red-500/30 p-6"
+        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-red-500/30 p-6"
       >
         <h3 className="text-lg font-semibold text-red-400 mb-2 flex items-center gap-2">
           <AlertTriangle size={18} />
@@ -393,7 +393,7 @@ function ProfileSettings() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 flex items-center justify-center z-[90] p-4"
             >
-              <div className="bg-gray-800 border border-red-500/50 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+              <div className="bg-gray-800 border border-red-500/50 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden">
                 <div className="p-6 space-y-4">
                   <div className="text-center">
                     <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-3">

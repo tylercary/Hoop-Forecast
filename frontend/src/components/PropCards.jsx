@@ -71,7 +71,7 @@ function PropCards({ props, selectedProp, onSelectProp }) {
             }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelectProp(propType)}
-            className={`px-4 py-3 rounded-xl transition-all relative overflow-hidden w-full sm:w-auto sm:min-w-[160px] ${
+            className={`px-4 py-3 rounded-lg transition-all relative overflow-hidden w-full sm:w-auto sm:min-w-[160px] ${
               isSelected
                 ? 'bg-yellow-500 text-gray-900 shadow-lg shadow-yellow-500/50'
                 : 'bg-gray-700 text-white hover:bg-gray-600 hover:shadow-lg'

@@ -68,9 +68,9 @@ export default function GameDetail() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="animate-pulse space-y-6">
           <div className="h-6 bg-gray-800 rounded w-20" />
-          <div className="h-48 bg-gray-800 rounded-xl" />
+          <div className="h-48 bg-gray-800 rounded-lg" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-48 bg-gray-800 rounded-xl" />)}
+            {[...Array(3)].map((_, i) => <div key={i} className="h-48 bg-gray-800 rounded-lg" />)}
           </div>
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function GameDetail() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-gray-800 rounded-xl border p-6 mb-6 ${
+        className={`bg-gray-800 rounded-lg border p-6 mb-6 ${
           game.status === 'in_progress' ? 'border-red-500/30' : 'border-gray-700'
         }`}
       >
@@ -175,7 +175,7 @@ export default function GameDetail() {
       {/* Info Cards Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {predictor && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Matchup Predictor</h3>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export default function GameDetail() {
         )}
 
         {odds && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
               Game Odds
               {odds.provider && <span className="text-gray-600 normal-case font-normal ml-1">({odds.provider})</span>}
@@ -229,7 +229,7 @@ export default function GameDetail() {
         )}
 
         {article && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Preview</h3>
             <p className="text-white font-semibold text-sm mb-2">{article.headline}</p>
             <p className="text-gray-400 text-xs leading-relaxed line-clamp-4">{article.description}</p>
@@ -239,7 +239,7 @@ export default function GameDetail() {
 
       {/* Team Stats Comparison */}
       {Object.keys(awayStats).length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-6">
           <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
             {game.status === 'scheduled' ? 'Season Averages' : 'Team Stats'}
           </h3>
@@ -295,7 +295,7 @@ export default function GameDetail() {
 
       {/* Team Leaders */}
       {leaders && Object.keys(leaders).length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-6">
           <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Team Leaders</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
@@ -342,7 +342,7 @@ export default function GameDetail() {
 
       {/* Injuries */}
       {hasInjuries && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-6">
           <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-400" />
             Injuries
@@ -396,7 +396,7 @@ export default function GameDetail() {
 
       {/* Box Score (live/final games) */}
       {hasBoxScore && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="bg-gray-800 rounded-xl border border-gray-700 mb-6 overflow-hidden">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="bg-gray-800 rounded-lg border border-gray-700 mb-6 overflow-hidden">
           <div className="flex border-b border-gray-700">
             <button
               onClick={() => setBoxTab('away')}
@@ -465,7 +465,7 @@ export default function GameDetail() {
       )}
 
       {/* Comments */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
         <Comments type="game" targetId={gameId} title="Game Discussion" />
       </motion.div>
     </div>

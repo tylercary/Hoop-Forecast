@@ -76,7 +76,7 @@ function AuthModal({ isOpen, onClose }) {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 flex items-center justify-center z-[70] p-4"
           >
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between p-5 border-b border-gray-700">
                 <h2 className="text-xl font-bold text-white">
