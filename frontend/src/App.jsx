@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogIn, LogOut, Star, User, ChevronDown, Target, Users, Settings, Coins } from 'lucide-react';
+import { LogIn, LogOut, Star, User, ChevronDown, Target, Users, Settings, Coins, Home as HomeIcon, Gamepad2, BarChart3, Trophy } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Home from './components/Home';
 import AuthModal from './components/AuthModal';
@@ -246,12 +246,12 @@ function AppHeader() {
   }, [location.pathname]);
 
   const navItems = [
-    { path: '/', label: 'Home', icon: '🏠' },
-    { path: '/games', label: 'Games', icon: '🏀' },
-    { path: '/performance', label: 'Model Performance', icon: '📊' },
-    { path: '/leaderboard', label: 'Leaderboard', icon: '🏆' },
+    { path: '/', label: 'Home', icon: HomeIcon },
+    { path: '/games', label: 'Games', icon: Gamepad2 },
+    { path: '/performance', label: 'Model Performance', icon: BarChart3 },
+    { path: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     ...(user ? [
-      { path: '/predictions', label: 'My Predictions', icon: '🎯' },
+      { path: '/predictions', label: 'My Predictions', icon: Target },
     ] : []),
   ];
 
@@ -312,6 +312,7 @@ function AppHeader() {
                 >
                   {navItems.map((item) => {
                     const isActive = location.pathname === item.path;
+                    const Icon = item.icon;
                     return (
                       <button
                         key={item.path}
@@ -322,7 +323,7 @@ function AppHeader() {
                             : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                         }`}
                       >
-                        <span className="text-base">{item.icon}</span>
+                        <Icon size={16} />
                         {item.label}
                       </button>
                     );
