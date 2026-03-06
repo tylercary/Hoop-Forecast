@@ -8,7 +8,21 @@ import Comments from './Comments';
 
 const STAT_COLS = ['min', 'pts', 'reb', 'ast', 'stl', 'blk', 'fg', '3pt', 'ft', 'to'];
 
-const COMPARE_STATS = [
+// Season averages shown for scheduled games (preview)
+const PREVIEW_STATS = [
+  { key: 'avgPoints', label: 'PPG' },
+  { key: 'avgPointsAgainst', label: 'Opp PPG', lowerBetter: true },
+  { key: 'fieldGoalPct', label: 'FG%' },
+  { key: 'threePointFieldGoalPct', label: '3PT%' },
+  { key: 'avgRebounds', label: 'RPG' },
+  { key: 'avgAssists', label: 'APG' },
+  { key: 'avgSteals', label: 'SPG' },
+  { key: 'avgBlocks', label: 'BPG' },
+  { key: 'avgTotalTurnovers', label: 'TOPG', lowerBetter: true },
+];
+
+// Game stats shown for in-progress/final games
+const GAME_STATS = [
   { key: 'fieldGoalPct', label: 'FG%' },
   { key: 'threePointFieldGoalPct', label: '3PT%' },
   { key: 'freeThrowPct', label: 'FT%' },
@@ -76,6 +90,7 @@ export default function GameDetail() {
   const activeBox = boxTab === 'home' ? boxScore?.homeTeam : boxScore?.awayTeam;
   const awayStats = teamStats?.[awayTeam?.abbreviation] || {};
   const homeStats = teamStats?.[homeTeam?.abbreviation] || {};
+  const compareStats = game.status === 'scheduled' ? PREVIEW_STATS : GAME_STATS;
   const awayInjuries = injuries?.[awayTeam?.abbreviation] || [];
   const homeInjuries = injuries?.[homeTeam?.abbreviation] || [];
   const hasInjuries = awayInjuries.length > 0 || homeInjuries.length > 0;
@@ -225,9 +240,11 @@ export default function GameDetail() {
       {/* Team Stats Comparison */}
       {Object.keys(awayStats).length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gray-800 rounded-xl border border-gray-700 p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Team Stats</h3>
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+            {game.status === 'scheduled' ? 'Season Averages' : 'Team Stats'}
+          </h3>
           <div className="space-y-3">
-            {COMPARE_STATS.map(({ key, label, lowerBetter }) => {
+            {compareStats.map(({ key, label, lowerBetter }) => {
               const awayVal = parseFloat(awayStats[key]?.value) || 0;
               const homeVal = parseFloat(homeStats[key]?.value) || 0;
               const awayBetter = lowerBetter ? awayVal < homeVal : awayVal > homeVal;
