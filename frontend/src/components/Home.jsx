@@ -39,7 +39,6 @@ function Home() {
   const [trendingProps, setTrendingProps] = useState([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState('players');
   const [searchResults, setSearchResults] = useState([]);
   const [teamSearchResults, setTeamSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -136,27 +135,22 @@ function Home() {
     }, 800);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, searchMode]);
+  }, [searchQuery]);
 
   const performSearch = async (query) => {
     setIsSearching(true);
     setError(null);
 
     try {
-      const response = await api.get(`/search`, {
-        params: { q: query, type: searchMode }
-      });
-      if (searchMode === 'teams') {
-        setTeamSearchResults(response.data || []);
-        setSearchResults([]);
-      } else {
-        setSearchResults(response.data || []);
-        setTeamSearchResults([]);
-      }
+      const [playersRes, teamsRes] = await Promise.all([
+        api.get(`/search`, { params: { q: query, type: 'players' } }).catch(() => ({ data: [] })),
+        api.get(`/search`, { params: { q: query, type: 'teams' } }).catch(() => ({ data: [] })),
+      ]);
+      setSearchResults(playersRes.data || []);
+      setTeamSearchResults(teamsRes.data || []);
     } catch (err) {
       console.error('Search error:', err);
-      const errorMessage = err.response?.data?.error || err.message || `Failed to search ${searchMode}. Please try again.`;
-      setError(errorMessage);
+      setError('Failed to search. Please try again.');
       setSearchResults([]);
       setTeamSearchResults([]);
     } finally {
@@ -272,30 +266,6 @@ function Home() {
             className="max-w-3xl mx-auto"
           >
             <div className="bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl p-5 border border-white/5">
-          {/* Search Mode Tabs */}
-          <div className="flex gap-1 mb-3">
-            <button
-              onClick={() => { setSearchMode('players'); setSearchResults([]); setTeamSearchResults([]); setSearchQuery(''); }}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                searchMode === 'players'
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600/50'
-              }`}
-            >
-              Players
-            </button>
-            <button
-              onClick={() => { setSearchMode('teams'); setSearchResults([]); setTeamSearchResults([]); setSearchQuery(''); }}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                searchMode === 'teams'
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600/50'
-              }`}
-            >
-              Teams
-            </button>
-          </div>
-
           <div className="relative">
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -306,7 +276,7 @@ function Home() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={searchMode === 'players' ? 'Search for any NBA player...' : 'Search for any NBA team...'}
+              placeholder="Search any NBA player or team..."
                   className="w-full pl-12 pr-12 py-3.5 text-base bg-slate-700/50 text-white border border-slate-600/50 rounded-xl focus:outline-none focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 placeholder-gray-400 transition-all duration-200"
             />
             {isSearching && (
@@ -326,18 +296,73 @@ function Home() {
             </motion.div>
           )}
 
+          {/* Team Search Results */}
+          {teamSearchResults.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4"
+            >
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Teams</h4>
+              <div className="space-y-1.5">
+                {teamSearchResults.map((team, index) => (
+                  <motion.div
+                    key={team.abbreviation}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.01, duration: 0.1 }}
+                    onClick={() => navigate(`/team/${team.abbreviation}`)}
+                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-yellow-500/30 group"
+                  >
+                    <div className="flex items-center gap-3">
+                      {team.logo && (
+                        <img src={team.logo} alt={team.displayName} className="w-8 h-8 object-contain flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-white text-sm group-hover:text-yellow-400 transition-colors">{team.displayName}</h4>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {team.abbreviation}{team.record ? ` · ${team.record}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {user && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavoriteTeam(team.abbreviation, team.displayName);
+                            }}
+                            className="p-1 rounded-lg hover:bg-slate-600 transition-colors"
+                          >
+                            <Star
+                              size={16}
+                              className={isTeamFavorite(team.abbreviation) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                            />
+                          </button>
+                        )}
+                        <svg
+                          className="w-5 h-5 text-gray-400 group-hover:text-yellow-400 transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Player Search Results */}
           {searchResults.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-4"
             >
-              <h4 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
-                <span>Search Results</span>
-                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
-                  {searchResults.length}
-                </span>
-              </h4>
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Players</h4>
               <div className="max-h-96 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50">
                 {searchResults.map((player, index) => (
                   <motion.div
@@ -391,70 +416,6 @@ function Home() {
             </motion.div>
           )}
 
-          {/* Team Search Results */}
-          {teamSearchResults.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4"
-            >
-              <h4 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
-                <span>Teams</span>
-                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold border border-yellow-500/30">
-                  {teamSearchResults.length}
-                </span>
-              </h4>
-              <div className="max-h-96 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50">
-                {teamSearchResults.map((team, index) => (
-                  <motion.div
-                    key={team.abbreviation}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.01, duration: 0.1 }}
-                    onClick={() => navigate(`/team/${team.abbreviation}`)}
-                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-yellow-500/30 group"
-                  >
-                    <div className="flex items-center gap-3">
-                      {team.logo && (
-                        <img src={team.logo} alt={team.displayName} className="w-8 h-8 object-contain flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-white text-sm group-hover:text-yellow-400 transition-colors">{team.displayName}</h4>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {team.abbreviation}{team.record ? ` · ${team.record}` : ''}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {user && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFavoriteTeam(team.abbreviation, team.displayName);
-                            }}
-                            className="p-1 rounded-lg hover:bg-slate-600 transition-colors"
-                          >
-                            <Star
-                              size={16}
-                              className={isTeamFavorite(team.abbreviation) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
-                            />
-                          </button>
-                        )}
-                        <svg
-                          className="w-5 h-5 text-gray-400 group-hover:text-yellow-400 transition-colors"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
           {searchQuery && !isSearching && searchResults.length === 0 && teamSearchResults.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -464,7 +425,7 @@ function Home() {
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p>No {searchMode === 'teams' ? 'teams' : 'players'} found. Try a different search term.</p>
+              <p>No players or teams found. Try a different search term.</p>
             </motion.div>
           )}
         </div>
