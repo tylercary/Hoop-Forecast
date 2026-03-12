@@ -2,6 +2,9 @@ import express from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import { mapEspnToNbaAbbrev } from '../services/nbaApiService.js';
+import { getGameOdds } from '../services/oddsService.js';
+import { predictGameOutcome } from '../services/gameOutcomePredictionService.js';
+import { storeGamePrediction } from '../services/gamePredictionTrackingService.js';
 
 const router = express.Router();
 
@@ -212,20 +215,56 @@ router.get('/:gameId', async (req, res) => {
       awayMoneyLine: pick.awayTeamOdds?.moneyLine || 0
     } : null;
 
-    // Team leaders
+    // Team leaders — summary endpoint has them for live/final games,
+    // but for scheduled games the arrays are empty so we fall back to scoreboard data
     const leaders = {};
     for (const teamLeaders of data.leaders || []) {
       const abbrev = mapEspnToNbaAbbrev(teamLeaders.team?.abbreviation);
-      leaders[abbrev] = (teamLeaders.leaders || []).map(cat => ({
-        category: cat.displayName || '',
-        leader: {
-          name: cat.leaders?.[0]?.athlete?.displayName || '',
-          shortName: cat.leaders?.[0]?.athlete?.shortDisplayName || '',
-          headshot: cat.leaders?.[0]?.athlete?.headshot?.href || '',
-          value: cat.leaders?.[0]?.displayValue || '',
-          id: cat.leaders?.[0]?.athlete?.id || ''
+      const parsed = (teamLeaders.leaders || [])
+        .filter(cat => cat.leaders?.length > 0)
+        .map(cat => ({
+          category: cat.displayName || '',
+          leader: {
+            name: cat.leaders[0]?.athlete?.displayName || '',
+            shortName: cat.leaders[0]?.athlete?.shortDisplayName || '',
+            headshot: cat.leaders[0]?.athlete?.headshot?.href || '',
+            value: cat.leaders[0]?.displayValue || '',
+            id: cat.leaders[0]?.athlete?.id || ''
+          }
+        }));
+      if (parsed.length > 0) leaders[abbrev] = parsed;
+    }
+
+    // Fallback: fetch leaders from scoreboard for scheduled games
+    if (Object.keys(leaders).length === 0) {
+      try {
+        const { data: sbData } = await axios.get(`${ESPN_BASE}/scoreboard`, {
+          headers: ESPN_HEADERS,
+          timeout: 8000
+        });
+        const sbEvent = (sbData.events || []).find(e => e.id === gameId);
+        const sbComp = sbEvent?.competitions?.[0];
+        if (sbComp) {
+          for (const competitor of sbComp.competitors || []) {
+            const abbrev = mapEspnToNbaAbbrev(competitor.team?.abbreviation);
+            const parsed = (competitor.leaders || [])
+              .filter(cat => cat.leaders?.length > 0)
+              .map(cat => ({
+                category: cat.displayName || '',
+                leader: {
+                  name: cat.leaders[0]?.athlete?.displayName || '',
+                  shortName: cat.leaders[0]?.athlete?.shortDisplayName || '',
+                  headshot: cat.leaders[0]?.athlete?.headshot || '',
+                  value: cat.leaders[0]?.displayValue || '',
+                  id: cat.leaders[0]?.athlete?.id || ''
+                }
+              }));
+            if (parsed.length > 0) leaders[abbrev] = parsed;
+          }
         }
-      }));
+      } catch (e) {
+        console.error('[Games] Fallback leaders fetch failed:', e.message);
+      }
     }
 
     // Article preview
@@ -260,6 +299,59 @@ router.get('/:gameId', async (req, res) => {
   } catch (err) {
     console.error('[Games] Game detail fetch failed:', err.message);
     res.status(500).json({ error: 'Failed to fetch game details' });
+  }
+});
+
+/**
+ * GET /api/games/:gameId/matchup
+ * Matchup analyzer: odds from all sportsbooks + game prediction
+ */
+router.get('/:gameId/matchup', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    // First get the game info to know the teams
+    const { data } = await axios.get(`${ESPN_BASE}/summary`, {
+      params: { event: gameId },
+      headers: ESPN_HEADERS,
+      timeout: 10000
+    });
+
+    const event = data.header?.competitions?.[0];
+    const competitors = event?.competitors || [];
+    const home = competitors.find(c => c.homeAway === 'home');
+    const away = competitors.find(c => c.homeAway === 'away');
+
+    const homeAbbrev = mapEspnToNbaAbbrev(home?.team?.abbreviation);
+    const awayAbbrev = mapEspnToNbaAbbrev(away?.team?.abbreviation);
+    const homeFullName = home?.team?.displayName || '';
+    const awayFullName = away?.team?.displayName || '';
+
+    // Fetch odds first (sequential so prediction can use Vegas data)
+    const odds = await getGameOdds(homeFullName, awayFullName);
+
+    // Then run prediction with Vegas calibration
+    const prediction = await predictGameOutcome(homeAbbrev, awayAbbrev, {
+      vegasOdds: odds
+    });
+
+    // Store prediction for tracking (only for scheduled/upcoming games)
+    const gameStatus = event?.status?.type?.name;
+    if (prediction && gameStatus === 'STATUS_SCHEDULED') {
+      const gameDate = event?.date || '';
+      storeGamePrediction(prediction, gameId, homeAbbrev, awayAbbrev, gameDate.split('T')[0]);
+    }
+
+    res.json({
+      gameId,
+      homeTeam: { abbreviation: homeAbbrev, displayName: homeFullName },
+      awayTeam: { abbreviation: awayAbbrev, displayName: awayFullName },
+      odds,
+      prediction
+    });
+  } catch (err) {
+    console.error('[Games] Matchup analyzer failed:', err.message);
+    res.status(500).json({ error: 'Failed to fetch matchup data' });
   }
 });
 
