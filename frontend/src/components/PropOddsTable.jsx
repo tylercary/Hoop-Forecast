@@ -85,20 +85,20 @@ function OddsRow({ type, line, odds, isBest, hasIcon }) {
   const bgColor = isBest
     ? (type === 'over' ? 'bg-[#697843]' : 'bg-[#7c6a42]')
     : 'bg-[#3d4f66]';
-  const padding = hasIcon ? 'pl-3 pr-9' : 'px-3';
+  const padding = hasIcon ? 'pl-2 pr-8' : 'px-3';
 
   if (line == null || odds == null) {
     return (
-      <div className={`${bgColor} rounded-lg ${padding} py-2.5 text-center`}>
+      <div className={`${bgColor} rounded-lg ${padding} h-10 flex items-center justify-center`}>
         <span className="text-white text-sm font-medium opacity-50">N/A</span>
       </div>
     );
   }
 
   return (
-    <div className={`${bgColor} rounded-lg ${padding} py-2.5 text-center`}>
-      <span className="text-white font-bold text-base">
-        {label} {parseFloat(line).toFixed(1)} <span className="text-sm font-normal">({formatOdds(odds)})</span>
+    <div className={`${bgColor} rounded-lg ${padding} h-10 flex items-center justify-center whitespace-nowrap`}>
+      <span className="text-white font-bold text-sm">
+        {label} {parseFloat(line).toFixed(1)} <span className="text-xs font-normal">({formatOdds(odds)})</span>
       </span>
     </div>
   );
