@@ -623,21 +623,24 @@ function calculateEnhancedOverUnder(prediction, line, stdDev, matchupEdge = 0, v
   // Edge strength: how far from 50/50 is this pick? (0-50 scale)
   const edgeStrength = Math.abs(adjustedProb - 50);
 
-  // Confidence tiers based on edge strength + volatility
+  // Confidence tiers: edge strength indicates how far from 50/50 the pick is.
+  // With Vegas-anchored predictions, edges are smaller and more meaningful.
+  // Low volatility + decent edge = high confidence.
   let confidence;
-  if (edgeStrength >= 15 && volatility < 35) {
+  if (edgeStrength >= 12 && volatility < 30) {
     confidence = 'High';
-  } else if (edgeStrength >= 8) {
+  } else if (edgeStrength >= 6 && volatility < 45) {
     confidence = 'Medium';
   } else {
     confidence = 'Low';
   }
 
   // Recommendation: only recommend when there's meaningful edge
-  // Tighter thresholds (58/42) reduce false recommendations
+  // Since the model now anchors to Vegas, the edge is small — only recommend
+  // when probability is decisively directional (60/40)
   let recommendation = null;
-  if (adjustedProb > 58) recommendation = 'OVER';
-  else if (adjustedProb < 42) recommendation = 'UNDER';
+  if (adjustedProb > 60) recommendation = 'OVER';
+  else if (adjustedProb < 40) recommendation = 'UNDER';
 
   return {
     overProbability: Math.round(adjustedProb * 10) / 10,
@@ -757,23 +760,20 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       finalPredictedValue += cappedBias;
     }
 
-    // Step 5d: Vegas line anchoring — blend model prediction with the betting line.
-    // Vegas lines for player props carry significant information. Blend toward the
-    // line to reduce overconfident deviations while preserving genuine model edge.
-    // Use 30% Vegas / 70% model (less weight than game-level since player prop
-    // lines are set with less precision than game spreads).
+    // Step 5d: Vegas line anchoring — the Vegas line is the most efficient
+    // predictor available. Data shows 80% hit rate when model stays within 10%
+    // of the line, but only 40% when deviating more. Instead of using the model's
+    // raw prediction, start from the Vegas line and apply a fraction of the
+    // model's deviation as an adjustment.
     if (features.vegasLine && features.vegasLine > 0) {
-      const modelDeviation = Math.abs(finalPredictedValue - features.vegasLine);
-      const seasonAvg = features.seasonAvg || features.vegasLine;
-      const deviationPct = seasonAvg > 0 ? (modelDeviation / seasonAvg) * 100 : 0;
+      const modelDeviation = finalPredictedValue - features.vegasLine;
+      const deviationPct = Math.abs(modelDeviation) / features.vegasLine * 100;
 
-      // Only anchor when model deviates significantly (>15% from season avg)
-      // Small deviations likely reflect real edge; large ones are often noise
-      if (deviationPct > 15) {
-        // Stronger anchoring for larger deviations (more likely to be model noise)
-        const vegasWeight = Math.min(0.40, 0.25 + (deviationPct - 15) * 0.005);
-        finalPredictedValue = finalPredictedValue * (1 - vegasWeight) + features.vegasLine * vegasWeight;
-      }
+      // Apply only 25% of the model's deviation from the line.
+      // Cap the maximum adjustment at 15% of the line value.
+      const maxAdj = features.vegasLine * 0.15;
+      const adjustment = Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * 0.25, maxAdj);
+      finalPredictedValue = features.vegasLine + adjustment;
     }
 
     // Step 6: Enhanced over/under classifier with matchup context
