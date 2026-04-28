@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { storePrediction, getPlayerBias } from './predictionTrackingService.js';
+import { storePrediction, getPlayerBias, getGlobalBias } from './predictionTrackingService.js';
 import { predictProp as mlPredictProp, buildMLFeatures } from '../ml/mlPredictionService.js';
 import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './opponentMatchupService.js';
 
@@ -753,26 +753,33 @@ export async function predictPropFromGames(games, playerName, propType = 'points
       finalPredictedValue += cappedMatchupAdj;
     }
 
-    // Step 5c: Apply per-player bias correction from historical prediction errors.
+    // Step 5c: Apply learned bias corrections from historical prediction errors.
+    // Player-specific bias takes priority when sufficient data exists; otherwise
+    // fall back to the global bias for this prop type. This is how the model
+    // actually learns from past predictions.
     const playerBias = getPlayerBias(playerName, propType);
     if (playerBias !== null) {
       const cappedBias = Math.sign(playerBias) * Math.min(Math.abs(playerBias), 5);
       finalPredictedValue += cappedBias;
+    } else {
+      const globalBias = getGlobalBias(propType);
+      if (globalBias !== null) {
+        const cappedBias = Math.sign(globalBias) * Math.min(Math.abs(globalBias), 4);
+        finalPredictedValue += cappedBias;
+      }
     }
 
     // Step 5d: Vegas line anchoring — the Vegas line is the most efficient
     // predictor available. Data shows 80% hit rate when model stays within 10%
-    // of the line, but only 40% when deviating more. Instead of using the model's
-    // raw prediction, start from the Vegas line and apply a fraction of the
-    // model's deviation as an adjustment.
+    // of the line, but only 40% when deviating more. Use the line as the
+    // primary anchor and apply only a small fraction of the model's deviation.
     if (features.vegasLine && features.vegasLine > 0) {
       const modelDeviation = finalPredictedValue - features.vegasLine;
-      const deviationPct = Math.abs(modelDeviation) / features.vegasLine * 100;
 
-      // Apply only 25% of the model's deviation from the line.
-      // Cap the maximum adjustment at 15% of the line value.
-      const maxAdj = features.vegasLine * 0.15;
-      const adjustment = Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * 0.25, maxAdj);
+      // Apply only 15% of the model's deviation. Cap adjustment at 10% of line.
+      // Tighter than before because data shows model deviations are usually wrong.
+      const maxAdj = features.vegasLine * 0.10;
+      const adjustment = Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * 0.15, maxAdj);
       finalPredictedValue = features.vegasLine + adjustment;
     }
 

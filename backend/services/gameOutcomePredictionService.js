@@ -15,11 +15,13 @@
  * 4. Recent Form — 10-game streak factor. Hot/cold streaks shift the line modestly.
  *
  * 5. Injury Adjustments — Players rated 0-100 impact score from actual game stats.
- *    "Out" players get full penalty; "Questionable" get 40% penalty (most play).
+ *    "Out" players get full penalty; "Questionable" get 40% penalty. Final
+ *    contribution discounted 60% because season-long injuries are already
+ *    reflected in win% and net rating.
  *
- * 6. Vegas Calibration — When available, final prediction is 55% Vegas / 45% model.
- *    Vegas lines are the most efficient predictor available, but blending our
- *    injury/momentum signals adds value on game-day.
+ * 6. Vegas Calibration — When available, final prediction is 75% Vegas / 25% model
+ *    with model deviation capped at ±5 pts (spread) / ±10 pts (total). Vegas
+ *    aggregates sharp money; the model only nudges the line toward day-of edges.
  *
  * SPREAD COMPOSITION (model-only, before Vegas blend):
  *   - Point differential model: 65% weight
@@ -255,8 +257,14 @@ export async function predictGameOutcome(homeAbbrev, awayAbbrev, options = {}) {
     // ========================================
     const homeInjuries = injuries.playerTeamInjuries || [];
     const awayInjuries = injuries.opponentInjuries || [];
-    const homeInjuryPenalty = calcInjuryPenalty(homeInjuries);
-    const awayInjuryPenalty = calcInjuryPenalty(awayInjuries);
+    const rawHomeInjuryPenalty = calcInjuryPenalty(homeInjuries);
+    const rawAwayInjuryPenalty = calcInjuryPenalty(awayInjuries);
+
+    // Discount injury penalties — season-long injuries are already reflected
+    // in win% and net rating, so applying the full penalty double-counts.
+    // Use 40% to capture only the residual impact not baked into season stats.
+    const homeInjuryPenalty = rawHomeInjuryPenalty * 0.4;
+    const awayInjuryPenalty = rawAwayInjuryPenalty * 0.4;
     const injuryAdj = awayInjuryPenalty - homeInjuryPenalty; // positive = benefits home
 
     // ========================================
@@ -270,14 +278,27 @@ export async function predictGameOutcome(homeAbbrev, awayAbbrev, options = {}) {
     const modelTotal = estimateTotal(homeStats, awayStats, homeInfo, awayInfo);
 
     // ========================================
-    // VEGAS CALIBRATION (55% Vegas, 45% model)
+    // VEGAS CALIBRATION (75% Vegas, 25% model)
     // ========================================
+    // Vegas markets aggregate sharp money and sophisticated models. When the
+    // model significantly disagrees, it's usually wrong. Trust Vegas heavily,
+    // but allow the model some weight to capture genuine edges.
     let finalSpread, finalTotal;
     if (hasVegas) {
       const vegasSpread = vegasOdds.spread.line;
       const vegasTotal = vegasOdds.totals?.line || modelTotal;
-      finalSpread = Math.round((vegasSpread * 0.55 + modelSpread * 0.45) * 10) / 10;
-      finalTotal = Math.round((vegasTotal * 0.55 + modelTotal * 0.45) * 10) / 10;
+
+      // Cap the model's deviation from Vegas at 5 points (spread) and 10 (total)
+      // to prevent extreme model predictions from dragging the blend too far.
+      const spreadDelta = Math.sign(modelSpread - vegasSpread) *
+        Math.min(Math.abs(modelSpread - vegasSpread), 5);
+      const totalDelta = Math.sign(modelTotal - vegasTotal) *
+        Math.min(Math.abs(modelTotal - vegasTotal), 10);
+      const cappedModelSpread = vegasSpread + spreadDelta;
+      const cappedModelTotal = vegasTotal + totalDelta;
+
+      finalSpread = Math.round((vegasSpread * 0.75 + cappedModelSpread * 0.25) * 10) / 10;
+      finalTotal = Math.round((vegasTotal * 0.75 + cappedModelTotal * 0.25) * 10) / 10;
     } else {
       finalSpread = Math.round(modelSpread * 10) / 10;
       finalTotal = Math.round(modelTotal * 10) / 10;

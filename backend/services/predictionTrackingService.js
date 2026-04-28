@@ -5,9 +5,9 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Persistent storage for predictions and outcomes
-const PREDICTIONS_FILE = join(__dirname, '../data/predictions.json');
-const PREDICTIONS_DIR = join(__dirname, '../data');
+// Persistent storage — use mounted volume in production, local data/ in dev
+const PREDICTIONS_DIR = process.env.DATA_DIR || join(__dirname, '../data');
+const PREDICTIONS_FILE = join(PREDICTIONS_DIR, 'predictions.json');
 
 // Ensure data directory exists
 if (!fs.existsSync(PREDICTIONS_DIR)) {
@@ -96,6 +96,12 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     predicted_points: propType === 'points' ? predictedValue : null, // backward compat
     confidence: prediction.confidence,
     error_margin: prediction.error_margin,
+    recommendation: prediction.recommendation || null, // OVER, UNDER, or null
+    betting_line: prediction.betting_line || null,
+    over_probability: prediction.over_probability || null,
+    edge_strength: prediction.edge_strength || null,
+    matchup_impact: prediction.matchup_impact || null,
+    opponent: prediction.opponent || null,
     method: prediction.method || 'xgboost_model',
     stats: prediction.stats || {},
     game_history_hash: hashParts,
@@ -196,8 +202,9 @@ export function getAccuracyStats() {
   
   if (evaluated.length === 0) {
     return {
-      total_predictions: 0,
+      total_predictions: data.predictions.length,
       evaluated: 0,
+      pending: data.predictions.length,
       message: 'No evaluated predictions yet'
     };
   }
@@ -307,6 +314,49 @@ export function exportForRetraining(minAccuracy = 70) {
  * @param {string} propType - Prop type (e.g., 'points', 'assists')
  * @returns {number|null} Mean signed bias (positive = model under-predicts, negative = over-predicts)
  */
+/**
+ * Get global bias for a prop type — the systematic average error across all
+ * predictions of this type. Useful when per-player data is sparse.
+ *
+ * Returns the signed average residual (actual - predicted). A positive value
+ * means the model systematically under-predicts and the prediction should be
+ * adjusted up.
+ */
+const _globalBiasCache = new Map();
+export function getGlobalBias(propType = 'points') {
+  const cacheKey = propType;
+  const cached = _globalBiasCache.get(cacheKey);
+  // Cache for 1 hour to avoid recomputing on every prediction
+  if (cached && Date.now() - cached.timestamp < 60 * 60 * 1000) {
+    return cached.value;
+  }
+
+  const data = loadPredictions();
+  const recent = data.predictions
+    .filter(p => p.evaluated && !p.expired && (p.prop_type || 'points') === propType)
+    .sort((a, b) => new Date(b.evaluated_at || b.created_at) - new Date(a.evaluated_at || a.created_at))
+    .slice(0, 500); // Most recent 500 evaluated predictions
+
+  if (recent.length < 30) {
+    _globalBiasCache.set(cacheKey, { value: null, timestamp: Date.now() });
+    return null;
+  }
+
+  let totalError = 0;
+  let count = 0;
+  for (const p of recent) {
+    const actual = p.actual_value ?? p.actual_points;
+    const predicted = p.predicted_value ?? p.predicted_points;
+    if (actual == null || predicted == null) continue;
+    totalError += actual - predicted;
+    count++;
+  }
+
+  const bias = count > 0 ? totalError / count : null;
+  _globalBiasCache.set(cacheKey, { value: bias, timestamp: Date.now() });
+  return bias;
+}
+
 export function getPlayerBias(playerName, propType = 'points') {
   const data = loadPredictions();
   const playerPreds = data.predictions.filter(p =>
@@ -343,6 +393,19 @@ export function getPlayerBias(playerName, propType = 'points') {
   if (totalWeight === 0) return null;
 
   return weightedSum / totalWeight;
+}
+
+/**
+ * Reset all predictions — used when the model changes significantly
+ * to start tracking accuracy from a clean slate.
+ * @returns {number} Number of predictions that were cleared
+ */
+export function resetPredictions() {
+  const existing = loadPredictions();
+  const count = existing.predictions?.length || 0;
+  savePredictions({ predictions: [] });
+  console.log(`[PredictionTracking] Reset: cleared ${count} predictions`);
+  return count;
 }
 
 
