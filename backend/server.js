@@ -13,9 +13,10 @@ import { gamesRoutes } from './routes/gamesRoutes.js';
 import { testInjuryRouter } from './routes/testInjuryRoute.js';
 import { evaluatePendingPredictions } from './services/predictionEvaluationService.js';
 import { getAccuracyStats } from './services/predictionTrackingService.js';
+import { evaluatePendingGamePredictions } from './services/gamePredictionTrackingService.js';
 import optionalAuth from './middleware/optionalAuth.js';
 import { resolveAllPendingPredictions } from './services/predictionCron.js';
-import { runBatchPredictions } from './services/batchPredictionCron.js';
+import { runBatchPredictions, runBatchGamePredictions } from './services/batchPredictionCron.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,8 +73,16 @@ const EVAL_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 async function runEvaluation() {
   try {
     const stats = getAccuracyStats();
+    console.log(`[Eval] Checking: ${stats.pending || 0} pending, ${stats.evaluated || 0} evaluated`);
     if (stats.pending > 0) {
-      await evaluatePendingPredictions();
+      const result = await evaluatePendingPredictions();
+      console.log(`[Eval] Complete: ${result.evaluated} evaluated, ${result.failed} failed, ${result.skipped} skipped`);
+    }
+
+    // Also evaluate game predictions
+    const gameResult = await evaluatePendingGamePredictions();
+    if (gameResult.evaluated > 0) {
+      console.log(`[Eval] Game predictions: ${gameResult.evaluated} evaluated, ${gameResult.failed} failed`);
     }
   } catch (err) {
     console.error('Evaluation error:', err.message);
@@ -141,6 +150,12 @@ setInterval(runRetrain, RETRAIN_INTERVAL);
 const BATCH_PREDICT_INTERVAL = 12 * 60 * 60 * 1000;
 setTimeout(() => runBatchPredictions().catch(err => console.error('Batch prediction error:', err.message)), 300000);
 setInterval(() => runBatchPredictions().catch(err => console.error('Batch prediction error:', err.message)), BATCH_PREDICT_INTERVAL);
+
+// Game prediction batch — every 6 hours, generate game predictions for all
+// scheduled games so the tracker accumulates data automatically.
+const BATCH_GAME_INTERVAL = 6 * 60 * 60 * 1000;
+setTimeout(() => runBatchGamePredictions().catch(err => console.error('Batch game prediction error:', err.message)), 180000);
+setInterval(() => runBatchGamePredictions().catch(err => console.error('Batch game prediction error:', err.message)), BATCH_GAME_INTERVAL);
 
 // Pre-warm caches on startup so the first user request is fast
 async function warmCaches() {

@@ -335,9 +335,12 @@ router.get('/:gameId/matchup', async (req, res) => {
       vegasOdds: odds
     });
 
-    // Store prediction for tracking (only for scheduled/upcoming games)
+    // Store prediction for tracking (only for games that haven't started yet).
+    // Storing in-progress or final games would leak post-tip-off information
+    // back into the model via the bias-correction layer.
     const gameStatus = event?.status?.type?.name;
-    if (prediction && gameStatus === 'STATUS_SCHEDULED') {
+    const isUpcoming = gameStatus === 'STATUS_SCHEDULED' || gameStatus === 'STATUS_PRE_GAME';
+    if (prediction && isUpcoming) {
       const gameDate = event?.date || '';
       storeGamePrediction(prediction, gameId, homeAbbrev, awayAbbrev, gameDate.split('T')[0]);
     }
