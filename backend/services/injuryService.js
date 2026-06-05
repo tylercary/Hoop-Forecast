@@ -7,6 +7,7 @@
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import { imageExists, getImageUrl } from './imageStorageService.js';
+import { getPlayerStatsFromESPN } from './nbaApiService.js';
 
 // Cache injuries for 5 minutes (injuries can change frequently)
 const injuryCache = new NodeCache({ stdTTL: 300 });
@@ -259,9 +260,109 @@ function getPlayerImageUrl(playerName) {
   return imageUrl;
 }
 
+// Cache for dynamically computed impact scores (7 days — season averages are stable)
+const impactScoreCache = new NodeCache({ stdTTL: 604800, useClones: false });
+
+/**
+ * Calculate impact score from actual player stats (MPG, PPG, APG, RPG, etc.)
+ * Formula: base 40 + minutes component (up to 35) + scoring (up to 20) + production (up to 5)
+ * Result: ~50 for end-of-bench, ~80 for quality starter, ~95-100 for MVP-level
+ */
+function computeImpactFromStats(games) {
+  if (!games || games.length === 0) return null;
+
+  // Use last 15 games (or all if fewer) for a stable average
+  const recent = games.slice(0, 15);
+
+  const avg = (field) => {
+    const vals = recent.map(g => {
+      const v = g[field];
+      if (v == null) return 0;
+      // Minutes can be "32:10" string format
+      if (typeof v === 'string' && v.includes(':')) return parseInt(v, 10) || 0;
+      return Number(v) || 0;
+    });
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  };
+
+  const mpg = avg('minutes');
+  const ppg = avg('pts');
+  const rpg = avg('reb');
+  const apg = avg('ast');
+  const spg = avg('stl');
+  const bpg = avg('blk');
+
+  // Components
+  const minutesComponent = Math.min(mpg / 36, 1.0) * 35;    // 36+ mpg = max 35 pts
+  const scoringComponent = Math.min(ppg / 28, 1.0) * 20;     // 28+ ppg = max 20 pts
+  const productionComponent = Math.min((apg + rpg + spg + bpg) / 20, 1.0) * 5; // versatility bonus
+
+  const score = Math.round(40 + minutesComponent + scoringComponent + productionComponent);
+  return Math.min(score, 100);
+}
+
+/**
+ * Get impact score for a player — checks cache first, returns cached or default.
+ * Dynamic scores are populated asynchronously via enrichInjuriesWithImpact().
+ */
+function getPlayerImpactScore(playerName) {
+  if (!playerName) return 50;
+  const key = playerName.toLowerCase().trim();
+  const cached = impactScoreCache.get(key);
+  return cached != null ? cached : 50;
+}
+
+/**
+ * Fetch stats and compute dynamic impact scores for a batch of injuries.
+ * Updates the impactScoreCache and the injury objects in-place.
+ * Runs in parallel with a concurrency limit to avoid API flooding.
+ */
+async function enrichInjuriesWithImpact(injuries) {
+  if (!injuries || injuries.length === 0) return injuries;
+
+  const toFetch = injuries.filter(inj => {
+    const key = inj.playerName?.toLowerCase().trim();
+    return key && !impactScoreCache.has(key);
+  });
+
+  if (toFetch.length > 0) {
+    // Fetch stats for unknown players (max 5 concurrent to be safe)
+    const batchSize = 5;
+    for (let i = 0; i < toFetch.length; i += batchSize) {
+      const batch = toFetch.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(async (inj) => {
+          try {
+            const stats = await getPlayerStatsFromESPN(inj.playerName);
+            const score = computeImpactFromStats(stats?.games);
+            const key = inj.playerName.toLowerCase().trim();
+            if (score != null) {
+              impactScoreCache.set(key, score);
+            } else {
+              // No games found — likely a deep bench/inactive player
+              impactScoreCache.set(key, 45);
+            }
+          } catch {
+            // ESPN lookup failed — cache as default so we don't retry
+            const key = inj.playerName.toLowerCase().trim();
+            impactScoreCache.set(key, 50);
+          }
+        })
+      );
+    }
+  }
+
+  // Update injury objects with resolved scores
+  for (const inj of injuries) {
+    inj.impactScore = getPlayerImpactScore(inj.playerName);
+  }
+
+  return injuries;
+}
+
 /**
  * Format injury from RapidAPI to our standard format
- * Checks for local player images
+ * Checks for local player images and assigns real impact scores
  */
 function formatInjury(injury) {
   // Only set headshot if the local image file actually exists
@@ -277,7 +378,7 @@ function formatInjury(injury) {
     date: injury.date,
     playerId: null, // Not fetched for performance
     headshot: headshot,
-    impactScore: 50 // Default impact score
+    impactScore: getPlayerImpactScore(injury.player)
   };
 }
 
@@ -317,8 +418,11 @@ export async function getTeamInjuries(teamAbbrev) {
       });
 
       if (teamInjuries.length > 0) {
-        // Convert to our format with structured status (synchronous - no API calls)
+        // Convert to our format with structured status
         const formattedInjuries = teamInjuries.map(formatInjury);
+
+        // Enrich with dynamic impact scores from actual player stats
+        await enrichInjuriesWithImpact(formattedInjuries);
 
         injuryCache.set(cacheKey, formattedInjuries);
         return formattedInjuries;
@@ -399,10 +503,15 @@ export async function getMatchupInjuries(playerTeamAbbrev, opponentAbbrev, event
         return injuryTeamAbbrev === opponentAbbrev.toUpperCase() && !isGLeagueOrTwoWay;
       });
       
-      // Format injuries with structured status (synchronous - no expensive API calls)
+      // Format injuries with structured status
       const playerTeamInjuries = playerTeamInjuriesRaw.map(formatInjury);
       const opponentInjuries = opponentInjuriesRaw.map(formatInjury);
 
+      // Enrich with dynamic impact scores from actual player stats
+      await Promise.all([
+        enrichInjuriesWithImpact(playerTeamInjuries),
+        enrichInjuriesWithImpact(opponentInjuries)
+      ]);
 
       return {
         playerTeamInjuries,

@@ -5,6 +5,7 @@ import { ArrowLeft, Tv, AlertCircle } from 'lucide-react';
 import api from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
 import Comments from './Comments';
+import MatchupAnalyzer from './MatchupAnalyzer';
 
 const STAT_COLS = ['min', 'pts', 'reb', 'ast', 'stl', 'blk', 'fg', '3pt', 'ft', 'to'];
 
@@ -42,6 +43,7 @@ export default function GameDetail() {
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
   const [boxTab, setBoxTab] = useState('away');
+  const [activeTab, setActiveTab] = useState('game'); // 'game' | 'matchup'
 
   const fetchGame = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -172,6 +174,34 @@ export default function GameDetail() {
         {game.venue && <p className="text-center text-xs text-gray-500 mt-4">{game.venue}</p>}
       </motion.div>
 
+      {/* Tab Switcher */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab('game')}
+          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+            activeTab === 'game'
+              ? 'bg-yellow-500 text-gray-900'
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          Game Info
+        </button>
+        <button
+          onClick={() => setActiveTab('matchup')}
+          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+            activeTab === 'matchup'
+              ? 'bg-yellow-500 text-gray-900'
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          Matchup Analyzer
+        </button>
+      </div>
+
+      {activeTab === 'matchup' ? (
+        <MatchupAnalyzer gameId={gameId} homeTeam={homeTeam} awayTeam={awayTeam} />
+      ) : (
+      <>
       {/* Info Cards Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {predictor && (
@@ -464,8 +494,11 @@ export default function GameDetail() {
         </motion.div>
       )}
 
+      </>
+      )}
+
       {/* Comments */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mt-6">
         <Comments type="game" targetId={gameId} title="Game Discussion" />
       </motion.div>
     </div>

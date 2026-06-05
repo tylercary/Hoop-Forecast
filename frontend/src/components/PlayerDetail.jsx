@@ -28,13 +28,14 @@ import {
 
 
 function PlayerDetail() {
-  const { playerId } = useParams();
+  const { playerId, playerName: playerSlug } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isFavorite, toggleFavorite, tokens, deductTokens, addTokens, openAuthModal } = useAuth();
 
-  // Get player from navigation state, or use a fallback
-  const player = location.state?.player || { id: playerId, name: 'Loading...' };
+  // Get player from navigation state, or derive name from URL slug
+  const slugName = playerSlug ? decodeURIComponent(playerSlug).replace(/_/g, ' ') : '';
+  const player = location.state?.player || { id: playerId, name: slugName || 'Loading...' };
   const [comparisonData, setComparisonData] = useState(null);
   const [loading, setLoading] = useState(true); // Start with loading true
   const [error, setError] = useState(null);
@@ -192,7 +193,7 @@ function PlayerDetail() {
       setLoadingPredictions(prev => ({ ...prev, [selectedProp]: true }));
       
       try {
-        const playerName = `${player.first_name || ''} ${player.last_name || ''}`.trim();
+        const playerName = `${player.first_name || ''} ${player.last_name || ''}`.trim() || player.name || slugName;
         const params = new URLSearchParams();
         params.append('name', playerName);
         
@@ -240,7 +241,11 @@ function PlayerDetail() {
               prediction_error_margin: response.data.error_margin,
               prediction_analysis: response.data.analysis || null,
               prediction_recommendation: response.data.recommendation || null,
-              prediction_stats: response.data.stats || null
+              prediction_stats: response.data.stats || null,
+              prediction_over_probability: response.data.over_probability || null,
+              prediction_edge_strength: response.data.edge_strength || null,
+              prediction_matchup_impact: response.data.matchup_impact || null,
+              prediction_opponent: response.data.opponent || null
             }
           },
           // Also update predictions object
@@ -265,7 +270,7 @@ function PlayerDetail() {
     setError(null);
 
     try {
-      const playerName = `${player.first_name || ''} ${player.last_name || ''}`.trim();
+      const playerName = `${player.first_name || ''} ${player.last_name || ''}`.trim() || player.name || slugName;
       console.log(`Fetching comparison data for player: ${playerName}`);
       
       // Build query params with player name (required)
@@ -980,10 +985,15 @@ function PlayerDetail() {
                     (propData?.prediction_error_margin) ||
                     Math.max(2, Math.abs((prediction || 0) - (line || 0)) * 0.3);
                   
-                  // Always calculate cover probability, even if prediction/line are missing (use defaults)
-                  const coverProbability = (prediction != null && line != null)
-                    ? calculateCoverProbability(prediction, line, errorMargin, recommendation === 'OVER')
-                    : 50.0; // Default to 50% if no data
+                  // Use server-computed over probability when available (matchup-enhanced),
+                  // otherwise fall back to client-side calculation
+                  const serverOverProb = propData?.prediction_over_probability ||
+                    propPredictions[selectedProp]?.over_probability;
+                  const coverProbability = serverOverProb != null
+                    ? (recommendation === 'OVER' ? serverOverProb : (100 - serverOverProb))
+                    : (prediction != null && line != null)
+                      ? calculateCoverProbability(prediction, line, errorMargin, recommendation === 'OVER')
+                      : 50.0;
                   
                   // Get odds for EV calculation (use best odds from all_bookmakers or single bookmaker)
                   // IMPORTANT: Only use odds from bookmakers with the SAME line as consensus

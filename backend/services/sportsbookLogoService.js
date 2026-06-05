@@ -80,6 +80,16 @@ const SPORTSBOOK_LOGOS = {
     name: 'SugarHouse',
     logo: 'https://logos-world.net/wp-content/uploads/2021/02/SugarHouse-Logo.png',
     displayName: 'SugarHouse'
+  },
+  'williamhill': {
+    name: 'William Hill',
+    logo: '/images/sportsbooks/williamhill.png',
+    displayName: 'William Hill'
+  },
+  'williamhillus': {
+    name: 'William Hill',
+    logo: '/images/sportsbooks/williamhill.png',
+    displayName: 'William Hill'
   }
 };
 

@@ -19,7 +19,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PROJECT_ROOT = path.join(__dirname, '../..');
-const RETRAIN_LOG = path.join(__dirname, '../data/retrain_log.json');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
+const RETRAIN_LOG = path.join(DATA_DIR, 'retrain_log.json');
 
 function loadRetrainLog() {
   try {

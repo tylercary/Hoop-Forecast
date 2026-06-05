@@ -15,7 +15,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Same predictions file used by predictionTrackingService
-const PREDICTIONS_FILE = path.join(__dirname, '../data/predictions.json');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
+const PREDICTIONS_FILE = path.join(DATA_DIR, 'predictions.json');
 const PERFORMANCE_CACHE_TTL = 300; // 5 minutes
 
 // In-memory cache for performance metrics
@@ -38,13 +39,37 @@ function loadPredictions() {
 
 /**
  * Determine if a prediction was a "hit"
- * Primary: within_margin (prediction within model's stated error margin)
- * Fallback: accuracy >= 60
+ * A hit = the model correctly predicted OVER or UNDER the betting line.
+ * If no betting line is stored, falls back to checking if the prediction
+ * was on the correct side of the season average.
  */
 function isHit(pred) {
-  if (pred.within_margin != null) return pred.within_margin === true;
-  if (pred.accuracy != null) return pred.accuracy >= 60;
-  return false;
+  const predicted = pred.predicted_value ?? pred.predicted_points;
+  const actual = pred.actual_value ?? pred.actual_points;
+  if (predicted == null || actual == null) return false;
+
+  const line = pred.betting_line;
+
+  if (line != null) {
+    // Primary: did the model pick the right side of the line?
+    if (predicted === line) return actual === line; // push edge case
+    const predictedOver = predicted > line;
+    const actualOver = actual > line;
+    return predictedOver === actualOver;
+  }
+
+  // Fallback for old predictions without a stored line:
+  // use season average as a proxy line
+  const seasonAvg = pred.stats?.overall_avg;
+  if (seasonAvg != null) {
+    const predictedOver = predicted > seasonAvg;
+    const actualOver = actual > seasonAvg;
+    return predictedOver === actualOver;
+  }
+
+  // Last resort: within 20% of predicted value
+  const absError = Math.abs(predicted - actual);
+  return absError <= predicted * 0.2;
 }
 
 /**
@@ -136,14 +161,29 @@ function calculatePerformance() {
         isResolved: true,
         timestamp: p.created_at,
         gameDate: p.next_game?.date || null,
-        opponent: p.next_game?.opponent || null,
+        opponent: p.next_game?.opponent || p.opponent || null,
         accuracy: p.accuracy,
-        absoluteError: p.absolute_error
+        absoluteError: p.absolute_error,
+        bettingLine: p.betting_line || null,
+        recommendation: p.recommendation || null,
+        overProbability: p.over_probability || null,
+        edgeStrength: p.edge_strength || null,
+        confidence: p.confidence || null,
+        matchupImpact: p.matchup_impact || null
       };
     });
 
   // Average error for resolved predictions
   const avgError = evaluated.reduce((sum, p) => sum + (p.absolute_error || 0), 0) / evaluated.length;
+
+  // High-confidence picks breakdown (edge_strength >= 8 or confidence = 'High'/'Medium')
+  const highConfPicks = resolved.filter(p =>
+    p.edge_strength >= 8 || p.confidence === 'High' || p.confidence === 'Medium'
+  );
+  const highConfHits = highConfPicks.filter(p => p._isHit).length;
+  const highConfHitRate = highConfPicks.length > 0
+    ? Math.round((highConfHits / highConfPicks.length) * 1000) / 10
+    : 0;
 
   const performance = {
     overall: {
@@ -153,6 +193,12 @@ function calculatePerformance() {
       hitRate: Math.round(hitRate * 10) / 10,
       pending: pending.length,
       avgError: Math.round(avgError * 10) / 10
+    },
+    highConfidence: {
+      total: highConfPicks.length,
+      hits: highConfHits,
+      misses: highConfPicks.length - highConfHits,
+      hitRate: highConfHitRate
     },
     byPropType,
     recentPredictions,

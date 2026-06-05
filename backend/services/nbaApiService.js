@@ -1155,15 +1155,39 @@ export async function getTeamInfo(espnTeamId) {
     if (!team) return {};
 
     const records = team.record?.items || [];
+    const total = records.find(r => r.type === 'total');
     const home = records.find(r => r.type === 'home');
     const away = records.find(r => r.type === 'road');
     const ne = team.nextEvent?.[0];
+
+    // Extract detailed stats from total record
+    const totalStats = {};
+    for (const s of total?.stats || []) {
+      totalStats[s.name] = s.value;
+    }
 
     return {
       standing: team.standingSummary || '',
       homeRecord: home?.summary || '',
       awayRecord: away?.summary || '',
-      nextGame: ne ? { id: ne.id, name: ne.shortName || ne.name || '', date: ne.date || '' } : null
+      nextGame: ne ? { id: ne.id, name: ne.shortName || ne.name || '', date: ne.date || '' } : null,
+      // Advanced record stats for prediction model
+      winPct: totalStats.winPercent || 0,
+      wins: totalStats.wins || 0,
+      losses: totalStats.losses || 0,
+      avgPointsFor: totalStats.avgPointsFor || 0,
+      avgPointsAgainst: totalStats.avgPointsAgainst || 0,
+      pointDifferential: totalStats.differential || 0,
+      streak: totalStats.streak || 0,
+      playoffSeed: totalStats.playoffSeed || 0,
+      homeWinPct: (() => {
+        const hw = home?.stats?.find(s => s.name === 'winPercent');
+        return hw?.value || 0;
+      })(),
+      awayWinPct: (() => {
+        const aw = away?.stats?.find(s => s.name === 'winPercent');
+        return aw?.value || 0;
+      })(),
     };
   } catch (err) {
     console.log(`⚠️ Could not fetch team info for ${espnTeamId}: ${err.message}`);

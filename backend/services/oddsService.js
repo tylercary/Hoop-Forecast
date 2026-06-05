@@ -590,3 +590,158 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
     return createEmptyPropsObject(playerName);
   }
 }
+
+// ============================================================
+// Game-Level Odds (Spread, Moneyline, Totals) from all books
+// ============================================================
+
+import NodeCache from 'node-cache';
+
+const gameOddsCache = new NodeCache({ stdTTL: 300, useClones: false }); // 5 min
+
+/**
+ * Fetch game odds for a specific matchup from The Odds API
+ * Returns spread, moneyline, and totals from all sportsbooks
+ */
+export async function getGameOdds(homeTeam, awayTeam) {
+  if (!THE_ODDS_API_KEY) return null;
+
+  const cacheKey = `game_odds:${homeTeam}|${awayTeam}`;
+  const cached = gameOddsCache.get(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data: events } = await axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/odds`, {
+      params: {
+        apiKey: THE_ODDS_API_KEY,
+        regions: 'us',
+        markets: 'h2h,spreads,totals',
+        oddsFormat: 'american'
+      },
+      timeout: 15000
+    });
+
+    if (!events || events.length === 0) return null;
+
+    // Find the matching event
+    const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z]/g, '');
+    const homeNorm = normalize(homeTeam);
+    const awayNorm = normalize(awayTeam);
+
+    const event = events.find(e => {
+      const eHome = normalize(e.home_team);
+      const eAway = normalize(e.away_team);
+      return (eHome.includes(homeNorm) || homeNorm.includes(eHome)) &&
+             (eAway.includes(awayNorm) || awayNorm.includes(eAway));
+    });
+
+    if (!event) return null;
+
+    const result = {
+      event_id: event.id,
+      home_team: event.home_team,
+      away_team: event.away_team,
+      commence_time: event.commence_time,
+      spread: { all_bookmakers: [] },
+      moneyline: { all_bookmakers: [] },
+      totals: { all_bookmakers: [] }
+    };
+
+    for (const bookmaker of event.bookmakers || []) {
+      const bk = bookmaker.key;
+      const bkName = bookmaker.title;
+
+      for (const market of bookmaker.markets || []) {
+        if (market.key === 'spreads') {
+          const homeOutcome = market.outcomes?.find(o => o.name === event.home_team);
+          const awayOutcome = market.outcomes?.find(o => o.name === event.away_team);
+          if (homeOutcome) {
+            result.spread.all_bookmakers.push({
+              bookmaker: bkName,
+              bookmaker_key: bk,
+              home_spread: homeOutcome.point,
+              away_spread: awayOutcome?.point,
+              home_odds: homeOutcome.price,
+              away_odds: awayOutcome?.price,
+              last_update: market.last_update
+            });
+          }
+        } else if (market.key === 'h2h') {
+          const homeOutcome = market.outcomes?.find(o => o.name === event.home_team);
+          const awayOutcome = market.outcomes?.find(o => o.name === event.away_team);
+          if (homeOutcome) {
+            result.moneyline.all_bookmakers.push({
+              bookmaker: bkName,
+              bookmaker_key: bk,
+              home_odds: homeOutcome.price,
+              away_odds: awayOutcome?.price,
+              last_update: market.last_update
+            });
+          }
+        } else if (market.key === 'totals') {
+          const over = market.outcomes?.find(o => o.name === 'Over');
+          const under = market.outcomes?.find(o => o.name === 'Under');
+          if (over) {
+            result.totals.all_bookmakers.push({
+              bookmaker: bkName,
+              bookmaker_key: bk,
+              line: over.point,
+              over_odds: over.price,
+              under_odds: under?.price,
+              last_update: market.last_update
+            });
+          }
+        }
+      }
+    }
+
+    // Sort each market's bookmakers by priority
+    const sortByPriority = (a, b) => getBookmakerPriority(a.bookmaker_key) - getBookmakerPriority(b.bookmaker_key);
+    result.spread.all_bookmakers.sort(sortByPriority);
+    result.moneyline.all_bookmakers.sort(sortByPriority);
+    result.totals.all_bookmakers.sort(sortByPriority);
+
+    // Set consensus values (most common line / highest priority book)
+    if (result.spread.all_bookmakers.length > 0) {
+      const lineCounts = {};
+      result.spread.all_bookmakers.forEach(b => {
+        const k = String(b.home_spread);
+        lineCounts[k] = (lineCounts[k] || 0) + 1;
+      });
+      const consensusSpread = parseFloat(Object.entries(lineCounts).sort((a, b) => b[1] - a[1])[0][0]);
+      const top = result.spread.all_bookmakers[0];
+      result.spread.line = consensusSpread;
+      result.spread.home_odds = top.home_odds;
+      result.spread.away_odds = top.away_odds;
+    }
+
+    if (result.moneyline.all_bookmakers.length > 0) {
+      const top = result.moneyline.all_bookmakers[0];
+      result.moneyline.home_odds = top.home_odds;
+      result.moneyline.away_odds = top.away_odds;
+    }
+
+    if (result.totals.all_bookmakers.length > 0) {
+      const lineCounts = {};
+      result.totals.all_bookmakers.forEach(b => {
+        const k = String(b.line);
+        lineCounts[k] = (lineCounts[k] || 0) + 1;
+      });
+      const consensusTotal = parseFloat(Object.entries(lineCounts).sort((a, b) => b[1] - a[1])[0][0]);
+      result.totals.line = consensusTotal;
+      const top = result.totals.all_bookmakers[0];
+      result.totals.over_odds = top.over_odds;
+      result.totals.under_odds = top.under_odds;
+    }
+
+    gameOddsCache.set(cacheKey, result);
+    return result;
+  } catch (error) {
+    if (error.response?.status === 401 || error.response?.status === 429) {
+      console.error(`[GameOdds] API quota/auth error (${error.response.status})`);
+    } else {
+      console.error(`[GameOdds] Error: ${error.message}`);
+    }
+    return null;
+  }
+}
