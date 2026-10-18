@@ -46,8 +46,11 @@ export async function searchPlayersESPN(playerName) {
         .trim();
     };
     
-    const searchName = normalizeName(playerName);
-    const searchTokens = searchName.split(' ').filter(Boolean);
+    // Ignore name suffixes: sportsbooks say "Paul Reed Jr" where ESPN says "Paul Reed"
+    const NAME_SUFFIXES = ['jr', 'sr', 'ii', 'iii', 'iv'];
+    const searchTokens = normalizeName(playerName).split(' ')
+      .filter(token => token && !NAME_SUFFIXES.includes(token));
+    const searchName = searchTokens.join(' ');
     const results = [];
     
     // ESPN API endpoint for NBA teams
