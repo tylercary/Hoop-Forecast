@@ -15,14 +15,14 @@ function PropCards({ props, selectedProp, onSelectProp }) {
     steals: 'Steals',
     blocks: 'Blocks',
     turnovers: 'Turnovers',
-    pra: 'Points + Rebounds + Assists',
-    pr: 'Points + Rebounds',
-    pa: 'Points + Assists',
-    ra: 'Rebounds + Assists',
-    points_rebounds: 'Points + Rebounds',
-    points_assists: 'Points + Assists',
-    rebounds_assists: 'Rebounds + Assists',
-    points_rebounds_assists: 'Points + Rebounds + Assists'
+    pra: 'Pts + Reb + Ast',
+    pr: 'Pts + Reb',
+    pa: 'Pts + Ast',
+    ra: 'Reb + Ast',
+    points_rebounds: 'Pts + Reb',
+    points_assists: 'Pts + Ast',
+    rebounds_assists: 'Reb + Ast',
+    points_rebounds_assists: 'Pts + Reb + Ast'
   };
 
   const formatOdds = (odds) => {
@@ -42,7 +42,7 @@ function PropCards({ props, selectedProp, onSelectProp }) {
   });
 
   return (
-    <div className="flex flex-wrap gap-3 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2.5 mb-6">
       {sortedProps.map(([propType, propData], index) => {
         // Only skip if propData is null/undefined or line is null/undefined
         // Allow line = 0 (which is valid for some props like blocks)
@@ -57,44 +57,27 @@ function PropCards({ props, selectedProp, onSelectProp }) {
         return (
           <motion.button
             key={propType}
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{
-              delay: index * 0.02,
-              duration: 0.2,
-              ease: "easeOut"
-            }}
-            whileHover={{
-              scale: 1.05,
-              y: -2,
-              transition: { duration: 0.1, ease: "easeOut" }
-            }}
-            whileTap={{ scale: 0.98 }}
+            type="button"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: index * 0.02, duration: 0.2, ease: "easeOut" }}
             onClick={() => onSelectProp(propType)}
-            className={`px-4 py-3 rounded-lg transition-all relative overflow-hidden w-full sm:w-auto sm:min-w-[160px] ${
+            aria-pressed={isSelected}
+            className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
               isSelected
-                ? 'bg-yellow-500 text-gray-900 shadow-lg shadow-yellow-500/50'
-                : 'bg-gray-700 text-white hover:bg-gray-600 hover:shadow-lg'
+                ? 'border-amber-400 bg-amber-400/10'
+                : 'border-slate-700/60 bg-slate-800/40 hover:border-slate-500 hover:bg-slate-800/70'
             }`}
           >
-            {isSelected && (
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-yellow-600"
-                layoutId="selectedProp"
-                transition={{ type: "spring", stiffness: 600, damping: 40 }}
-              />
-            )}
-            <span className="relative z-10">
-            <div className="text-sm font-semibold mb-1">
+            <div className={`truncate text-[11px] font-semibold uppercase tracking-wide ${isSelected ? 'text-amber-400' : 'text-slate-400'}`}>
               {propLabels[propType] || propType}
             </div>
-            <div className="text-lg font-bold mb-1">
+            <div className="mt-0.5 text-xl font-bold text-white tabular-nums">
               {propData.line.toFixed(1)}
             </div>
-            <div className="text-xs opacity-90">
-              O {formatOdds(overOdds)} | U {formatOdds(underOdds)}
+            <div className="mt-0.5 text-xs text-slate-400 tabular-nums">
+              O {formatOdds(overOdds)} · U {formatOdds(underOdds)}
             </div>
-            </span>
           </motion.button>
         );
       })}

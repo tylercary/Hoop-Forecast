@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Check, Users, Coins } from 'lucide-react';
+import { Star, Check, Users, Coins, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -508,7 +508,7 @@ function PlayerDetail() {
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div
                 key={i}
-                className="h-24 w-32 bg-gray-800 rounded-lg border border-gray-700 animate-pulse"
+                className="h-24 w-32 panel animate-pulse"
               >
                 <div className="p-3 h-full flex flex-col justify-between">
                   <div className="h-4 w-20 bg-gray-700 rounded"></div>
@@ -526,7 +526,7 @@ function PlayerDetail() {
             {/* Top Section: 6 Metric Cards Skeleton (including Season Prop Record) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+                <div key={i} className="panel p-6">
                   <div className="h-4 w-24 bg-gray-700 rounded animate-pulse mb-3"></div>
                   <div className="h-10 w-32 bg-gray-700 rounded animate-pulse mb-2"></div>
                   <div className="h-3 w-20 bg-gray-700 rounded animate-pulse"></div>
@@ -535,10 +535,10 @@ function PlayerDetail() {
             </div>
 
             {/* Prediction Reasoning Toggle Skeleton */}
-            <div className="h-12 bg-gray-800 rounded-lg border border-gray-700 animate-pulse"></div>
+            <div className="h-12 panel animate-pulse"></div>
 
             {/* Chart Skeleton */}
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+            <div className="panel p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="h-7 w-32 bg-gray-700 rounded animate-pulse mb-2"></div>
@@ -565,7 +565,7 @@ function PlayerDetail() {
             </div>
 
             {/* Prop Odds Table Skeleton */}
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+            <div className="panel p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="h-7 w-32 bg-gray-700 rounded animate-pulse mb-2"></div>
@@ -597,7 +597,7 @@ function PlayerDetail() {
             </div>
 
             {/* Game Log Skeleton */}
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+            <div className="panel p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="h-7 w-40 bg-gray-700 rounded animate-pulse"></div>
                 <div className="flex gap-2">
@@ -624,7 +624,7 @@ function PlayerDetail() {
             </div>
 
             {/* Injuries Table Skeleton */}
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+            <div className="panel p-6">
               <div className="h-7 w-32 bg-gray-700 rounded animate-pulse mb-4"></div>
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
@@ -647,7 +647,7 @@ function PlayerDetail() {
         >
           ← Back
         </button>
-        <div className="bg-gray-800 rounded-lg shadow-xl p-8 border border-gray-700">
+        <div className="panel p-8">
           <div className="text-red-400 text-center">
             <p className="text-xl font-semibold">Error</p>
             <p className="mt-2 text-gray-300">{error}</p>
@@ -666,7 +666,7 @@ function PlayerDetail() {
   if (!comparisonData) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="bg-gray-800 rounded-lg shadow-xl p-8 border border-gray-700">
+        <div className="panel p-8">
           <p className="text-gray-400 text-center">Loading player data...</p>
         </div>
       </div>
@@ -716,10 +716,7 @@ function PlayerDetail() {
 
             {/* Player Image — diagonal clip with team-color background */}
             {comparisonData?.player_image && (
-              <div
-                className="relative flex-shrink-0 overflow-hidden"
-                style={{ width: '230px' }}
-              >
+              <div className="relative flex-shrink-0 overflow-hidden w-[120px] sm:w-[230px]">
                 {comparisonData.player_team_logo && (
                   <img
                     src={comparisonData.player_team_logo}
@@ -737,9 +734,9 @@ function PlayerDetail() {
             )}
 
             {/* Player Info */}
-            <div className="flex-1 flex flex-col justify-center px-8 py-5">
+            <div className="flex-1 min-w-0 flex flex-col justify-center px-4 sm:px-8 py-5">
               <div className="flex items-center gap-2 mb-1.5">
-                <h1 className="text-2xl font-bold text-white tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                   {comparisonData?.player || `${player.first_name} ${player.last_name}`}
                 </h1>
                 {user && (
@@ -806,7 +803,7 @@ function PlayerDetail() {
 
             {/* Divider */}
             {comparisonData?.next_game && (
-              <div className="w-px bg-gray-700/50 flex-shrink-0 my-6" />
+              <div className="hidden md:block w-px bg-gray-700/50 flex-shrink-0 my-6" />
             )}
 
             {/* Matchup */}
@@ -845,7 +842,7 @@ function PlayerDetail() {
                 : nextGame.time;
 
               return (
-                <div className="flex items-center gap-5 px-8 py-5 flex-shrink-0">
+                <div className="hidden md:flex items-center gap-5 px-8 py-5 flex-shrink-0">
                   {/* Home team */}
                   <div className="flex flex-col items-center gap-1 text-center" style={{ minWidth: '72px' }}>
                     {comparisonData.player_team_logo && (
@@ -912,7 +909,7 @@ function PlayerDetail() {
               onSelectProp={setSelectedProp}
             />
           ) : (
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
+            <div className="panel p-6 mb-6">
               <p className="text-gray-400 text-center">No prop bets available for this player</p>
               <p className="text-gray-500 text-center text-xs mt-2">Props object: {JSON.stringify(props)}</p>
             </div>
@@ -933,7 +930,7 @@ function PlayerDetail() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="bg-[#1a1f2e] rounded-lg shadow-xl border border-gray-700 mb-6 relative"
+                className="panel mb-6 relative"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
                 {(() => {
@@ -1050,7 +1047,6 @@ function PlayerDetail() {
                   
                   // Calculate season prop record
                   let seasonRecord = null;
-                  let seasonRecordDisplay = 'N/A';
                   if (line && comparisonData?.stats && comparisonData.stats.length > 0) {
                     const getStatValue = (game) => {
                       switch (selectedProp) {
@@ -1085,7 +1081,6 @@ function PlayerDetail() {
                     
                     if (overCount + underCount > 0) {
                       seasonRecord = `${overCount}-${underCount}`;
-                      seasonRecordDisplay = `${overCount}-${underCount} (Over - Under)`;
                     }
                   }
                   
@@ -1094,9 +1089,10 @@ function PlayerDetail() {
                       {/* Consensus Line */}
                       <PropMetricCard
                         title="Consensus Line"
-                        value={line != null ? `${line.toFixed(1)} ${propLabel} (o/u)` : 'N/A'}
+                        value={line != null ? line.toFixed(1) : 'N/A'}
+                        subtitle={line != null ? `${propLabel} · over/under` : null}
                         color="text-white"
-                        valueSize="text-base sm:text-lg lg:text-xl"
+                        valueSize="text-2xl"
                         index={0}
                       />
 
@@ -1104,10 +1100,11 @@ function PlayerDetail() {
                       <PropMetricCard
                         title="Projection"
                         value={prediction != null
-                          ? `${prediction.toFixed(1)} ${propLabel} ${recommendation ? `(${recommendation.toLowerCase()})` : ''}`
+                          ? prediction.toFixed(1)
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
+                        subtitle={prediction != null ? `${propLabel}${recommendation ? ` · leans ${recommendation.toLowerCase()}` : ''}` : null}
                         color={recommendation === 'OVER' ? 'text-green-400' : recommendation === 'UNDER' ? 'text-red-400' : 'text-yellow-400'}
-                        valueSize="text-base sm:text-lg lg:text-xl"
+                        valueSize="text-2xl"
                         index={1}
                         locked={!user}
                         onSignIn={openAuthModal}
@@ -1123,7 +1120,7 @@ function PlayerDetail() {
                         progressBar={hasPrediction && coverProbability != null ? coverProbability : null}
                         infoTooltip="The probability that the bet will cover based on our model's prediction and historical performance."
                         infoTooltipLabel="Cover Probability"
-                        valueSize="text-2xl sm:text-3xl"
+                        valueSize="text-2xl"
                         index={2}
                         locked={!user}
                         onSignIn={openAuthModal}
@@ -1138,7 +1135,7 @@ function PlayerDetail() {
                         color={ev != null ? getEVColor(ev) : 'text-gray-400'}
                         infoTooltip="The expected value of the bet calculated from cover probability and current odds. Positive EV indicates a profitable bet over time."
                         infoTooltipLabel="Expected Value"
-                        valueSize="text-2xl sm:text-3xl"
+                        valueSize="text-2xl"
                         index={3}
                         locked={!user}
                         onSignIn={openAuthModal}
@@ -1148,7 +1145,7 @@ function PlayerDetail() {
                       <PropMetricCard
                         title="Bet Rating"
                         customValue={betRating != null ? (
-                          <span className={`inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xl sm:text-2xl font-bold ${getBetRatingColor(betRating)} bg-gray-700 border-2 ${getBetRatingColor(betRating).replace('text-', 'border-')}`}>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xl font-bold ${getBetRatingColor(betRating)} bg-slate-800 border ${getBetRatingColor(betRating).replace('text-', 'border-')}`}>
                             {betRating}
                           </span>
                         ) : null}
@@ -1164,9 +1161,10 @@ function PlayerDetail() {
                       {/* Season Prop Record */}
                       <PropMetricCard
                         title="Season Prop Record"
-                        value={seasonRecordDisplay}
+                        value={seasonRecord}
+                        subtitle={seasonRecord ? 'over – under' : null}
                         color="text-white"
-                        valueSize="text-base sm:text-lg lg:text-xl"
+                        valueSize="text-2xl"
                         index={5}
                       />
                     </>
@@ -1198,7 +1196,7 @@ function PlayerDetail() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, ease: 'easeOut' }}
-                    className="bg-[#1a2332] rounded-lg border border-gray-700/50 mb-4 overflow-hidden"
+                    className="panel mb-4 overflow-hidden"
                   >
                     {/* Header */}
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between">
@@ -1459,9 +1457,9 @@ function PlayerDetail() {
                   <div className="mb-6">
                     <button
                       onClick={() => setShowReasoning(!showReasoning)}
-                      className="w-full p-3 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors text-white font-medium flex items-center justify-center gap-2"
+                      className="panel w-full p-3 hover:border-slate-500 transition-colors text-sm text-slate-200 font-medium flex items-center justify-center gap-2"
                     >
-                      <span>{showReasoning ? '▼' : '▶'}</span>
+                      <ChevronDown size={16} className={`text-slate-400 transition-transform ${showReasoning ? 'rotate-180' : ''}`} />
                       <span>{showReasoning ? 'Hide' : 'Show'} Prediction Reasoning</span>
                     </button>
                   </div>
@@ -1553,7 +1551,7 @@ function PlayerDetail() {
           />
 
           {/* Player Discussion */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-5 mt-6">
+          <div className="panel p-5 mt-6">
             <Comments type="player" targetId={playerId} title="Player Discussion" />
           </div>
         </div>

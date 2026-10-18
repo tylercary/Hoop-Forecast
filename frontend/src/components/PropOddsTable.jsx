@@ -82,9 +82,10 @@ function getPropDisplayLabel(prop) {
 // OddsRow Component - Single Over or Under row
 function OddsRow({ type, line, odds, isBest, hasIcon }) {
   const label = type === 'over' ? 'O' : 'U';
+  // Best price gets a green outline; everything else stays neutral
   const bgColor = isBest
-    ? (type === 'over' ? 'bg-[#697843]' : 'bg-[#7c6a42]')
-    : 'bg-[#3d4f66]';
+    ? 'bg-emerald-500/10 border border-emerald-500/50'
+    : 'bg-slate-800/80 border border-slate-700/60';
   const padding = hasIcon ? 'pl-2 pr-8' : 'px-3';
 
   if (line == null || odds == null) {
@@ -98,7 +99,7 @@ function OddsRow({ type, line, odds, isBest, hasIcon }) {
   return (
     <div className={`${bgColor} rounded-lg ${padding} h-10 flex items-center justify-center whitespace-nowrap`}>
       <span className="text-white font-bold text-sm">
-        {label} {parseFloat(line).toFixed(1)} <span className="text-xs font-normal">({formatOdds(odds)})</span>
+        {label} {parseFloat(line).toFixed(1)} <span className={`text-xs font-normal ${isBest ? 'text-emerald-300' : 'text-slate-400'}`}>({formatOdds(odds)})</span>
       </span>
     </div>
   );
@@ -235,11 +236,11 @@ function PropOddsTable({ props, selectedProp }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
-      className="bg-[#1a2332] rounded-lg p-5 border border-gray-700/50"
+      className="panel p-5"
     >
       <div className="mb-4 flex items-baseline gap-3">
-        <h3 className="text-xl font-bold text-white">Prop Odds</h3>
-        <span className="text-sm font-semibold text-yellow-400">{getPropDisplayLabel(selectedProp)} Over/Under</span>
+        <h3 className="panel-title">Prop Odds</h3>
+        <span className="panel-subtitle">{getPropDisplayLabel(selectedProp)} Over/Under</span>
       </div>
 
       <div className="overflow-x-auto pb-2">
@@ -247,8 +248,8 @@ function PropOddsTable({ props, selectedProp }) {
 
           {/* OPEN LINE Column */}
           <div className="flex-shrink-0 w-36 flex flex-col">
-            <div className="h-12 mb-2 flex items-center justify-center rounded-lg bg-[#2a3544] border border-gray-600/30">
-              <span className="text-xs font-bold text-gray-300">CONSENSUS</span>
+            <div className="h-12 mb-2 flex items-center justify-center rounded-lg bg-slate-800/80 border border-slate-700/60">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">Consensus</span>
             </div>
             <div className="mb-1.5">
               <OddsRow type="over" line={consensusLine} odds={consensusOverOdds} isBest={false} />
@@ -258,8 +259,8 @@ function PropOddsTable({ props, selectedProp }) {
 
           {/* BEST ODDS Column */}
           <div className="flex-shrink-0 w-36 flex flex-col">
-            <div className="h-12 mb-2 flex items-center justify-center rounded-lg bg-[#f9c744]">
-              <span className="text-xs font-bold text-gray-900">BEST ODDS</span>
+            <div className="h-12 mb-2 flex items-center justify-center rounded-lg bg-emerald-500/15 border border-emerald-500/40">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">Best odds</span>
             </div>
             <div className="mb-1.5 relative">
               {bestOverBookmaker ? (

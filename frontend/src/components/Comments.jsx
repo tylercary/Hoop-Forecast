@@ -62,8 +62,8 @@ export default function Comments({ type, targetId, title = 'Comments' }) {
 
   return (
     <div className="mt-6">
-      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        <MessageCircle className="w-5 h-5 text-yellow-400" />
+      <h3 className="panel-title mb-4 flex items-center gap-2">
+        <MessageCircle className="w-5 h-5 text-amber-400" />
         {title}
         {comments.length > 0 && (
           <span className="text-sm text-gray-400 font-normal">({comments.length})</span>

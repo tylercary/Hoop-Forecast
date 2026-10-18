@@ -12,9 +12,9 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
-        className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700"
+        className="panel p-6"
       >
-        <h3 className="text-xl font-bold text-white mb-4">Player Game Log</h3>
+        <h3 className="panel-title mb-4">Player Game Log</h3>
         <p className="text-gray-400 text-center py-8">No game data available</p>
       </motion.div>
     );
@@ -213,7 +213,7 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
   // Show empty state for H2H if no games found
   if (seasonFilter === 'H2H' && nextGameOpponent && filteredStats.length === 0) {
     return (
-      <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+      <div className="panel p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-xl font-bold text-white mb-1">
@@ -239,11 +239,11 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700"
+      className="panel p-6"
     >
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-2xl font-bold text-white mb-2">
+          <h3 className="panel-title mb-1">
             {seasonFilter === 'H2H' && nextGameOpponent
               ? `Head-to-Head vs ${nextGameOpponent}`
               : 'Player Game Log'}
@@ -268,7 +268,7 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
         <select
           value={seasonFilter || activeSeason || ''}
           onChange={(e) => setSeasonFilter(e.target.value)}
-          className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-white focus:border-amber-400/60 focus:outline-none cursor-pointer"
         >
           {seasons.map(season => (
             <option key={season} value={season}>{season} Season</option>
@@ -285,7 +285,7 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
               <th className="text-left py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Matchup</th>
               <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Result</th>
               <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">MIN</th>
-              <th className="text-center py-3 px-4 text-yellow-400 font-bold uppercase text-xs tracking-wider bg-yellow-500/10">
+              <th className="text-center py-3 px-4 text-amber-400 font-bold uppercase text-xs tracking-wider bg-amber-400/5">
                 {selectedProp === 'pr' || selectedProp === 'points_rebounds' ? 'PTS+REB' :
                  selectedProp === 'pa' || selectedProp === 'points_assists' ? 'PTS+AST' :
                  selectedProp === 'ra' || selectedProp === 'rebounds_assists' ? 'REB+AST' :
@@ -348,7 +348,7 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
                     </span>
                   </td>
                   <td className="py-3 px-4 text-center text-gray-300 font-medium">{game.minutes || 0}</td>
-                  <td className="py-3 px-4 text-center bg-yellow-500/10">
+                  <td className="py-3 px-4 text-center bg-amber-400/5">
                     <div className="flex items-center justify-center gap-2">
                       <span className="font-bold text-lg text-white">{propValue}</span>
                       {line && ou && (
@@ -375,13 +375,13 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="border-t-2 border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-transparent"
+                className="border-t border-slate-600"
               >
-                <td className="py-4 px-4 text-yellow-400 font-bold uppercase text-sm">Season Avg</td>
+                <td className="py-4 px-4 text-slate-300 font-semibold uppercase text-xs tracking-wide">Season Avg</td>
                 <td className="py-4 px-4"></td>
                 <td className="py-4 px-4"></td>
                 <td className="py-4 px-4 text-center text-white font-semibold">{averages.minutes}</td>
-                <td className="py-4 px-4 text-center text-yellow-400 font-bold text-lg bg-yellow-500/20">{averages.propValue}</td>
+                <td className="py-4 px-4 text-center text-amber-400 font-bold text-lg bg-amber-400/5">{averages.propValue}</td>
                 <td className="py-4 px-4 text-center text-white font-semibold">{averages.rebounds}</td>
                 <td className="py-4 px-4 text-center text-white font-semibold">{averages.assists}</td>
                 <td className="py-4 px-4 text-center text-white font-semibold">{averages.threes}</td>

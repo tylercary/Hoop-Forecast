@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 function PredictionReasoning({ predictionData, selectedProp, playerName }) {
   if (!predictionData) {
     return (
-      <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+      <div className="panel p-6">
         <h3 className="text-xl font-bold text-white mb-4">Prediction Reasoning</h3>
         <p className="text-gray-400 text-center py-8">No prediction data available</p>
       </div>
@@ -40,7 +40,7 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
 
   if (!propPrediction) {
     return (
-      <div className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+      <div className="panel p-6">
         <h3 className="text-xl font-bold text-white mb-4">Prediction Reasoning</h3>
         <p className="text-gray-400 text-center py-8">Prediction reasoning not available for this prop. The prediction may still be loading.</p>
       </div>
@@ -78,7 +78,7 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700"
+      className="panel p-6"
     >
       <h3 className="text-xl font-bold text-white mb-6">
         Prediction Reasoning: {propLabels[selectedProp] || selectedProp.replace(/_/g, ' ')}

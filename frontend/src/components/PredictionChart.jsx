@@ -213,10 +213,10 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-gray-800 rounded-lg shadow-2xl p-5 border border-gray-700"
+        className="panel p-5"
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-white">Prop Analysis</h3>
+          <h3 className="panel-title">Prop Analysis</h3>
           <span className="text-xs text-gray-400">vs {nextGameOpponent}</span>
         </div>
         <div className="flex flex-wrap gap-1.5 mb-6">
@@ -346,8 +346,8 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
   // Handle empty stats
   if (!stats || stats.length === 0) {
     return (
-      <div className="bg-gray-800 rounded-lg shadow-2xl p-5 border border-gray-700">
-        <h3 className="text-lg font-bold text-white mb-4">Prop Analysis</h3>
+      <div className="panel p-5">
+        <h3 className="panel-title mb-4">Prop Analysis</h3>
         <p className="text-gray-400 text-center py-8 text-sm">No game data available</p>
       </div>
     );
@@ -356,8 +356,8 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
   // Loading state
   if (loading && prediction == null) {
     return (
-      <div className="bg-gray-800 rounded-lg shadow-2xl p-5 border border-gray-700">
-        <h3 className="text-lg font-bold text-white mb-4">Prop Analysis</h3>
+      <div className="panel p-5">
+        <h3 className="panel-title mb-4">Prop Analysis</h3>
         <div className="flex items-center justify-center py-10">
           <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
           <span className="ml-3 text-gray-400 text-sm">Loading...</span>
@@ -393,11 +393,11 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="bg-gray-800 rounded-lg shadow-2xl p-5 border border-gray-700"
+      className="panel p-5"
     >
       {/* Row 1: Title + Over/Under pills */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-bold text-white">Prop Analysis</h3>
+        <h3 className="panel-title">Prop Analysis</h3>
         {line != null && chartData.length > 0 && (
           <motion.div
             initial={{ opacity: 0, x: 10 }}

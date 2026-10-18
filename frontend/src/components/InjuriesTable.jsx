@@ -53,11 +53,11 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
-        className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700"
+        className="panel p-6"
       >
         <div className="mb-4">
-          <h3 className="text-2xl font-bold text-white mb-1">Injuries</h3>
-          <p className="text-sm text-gray-400">Key injury updates for both teams</p>
+          <h3 className="panel-title mb-1">Injuries</h3>
+          <p className="panel-subtitle">Key injury updates for both teams</p>
         </div>
         <p className="text-gray-400 text-center py-8">No injuries reported</p>
       </motion.div>
@@ -102,12 +102,12 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700"
+      className="panel p-6"
     >
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-2xl font-bold text-white mb-1">Injuries</h3>
-          <p className="text-sm text-gray-400">Key injury updates for both teams</p>
+          <h3 className="panel-title mb-1">Injuries</h3>
+          <p className="panel-subtitle">Key injury updates for both teams</p>
         </div>
         {allInjuries.length > 5 && (
           <button

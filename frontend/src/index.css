@@ -108,6 +108,19 @@
   .card-glow, .heat-border-ember { animation: none; }
 }
 
+/* Shared card surface and section heading used across the player page */
+@layer components {
+  .panel {
+    @apply rounded-xl border border-slate-700/60 bg-slate-800/40;
+  }
+  .panel-title {
+    @apply text-lg font-semibold text-white;
+  }
+  .panel-subtitle {
+    @apply text-sm text-slate-400;
+  }
+}
+
 /* Optimize transitions */
 button, a, [role="button"] {
   transition: transform 0.1s ease-out, opacity 0.1s ease-out;
