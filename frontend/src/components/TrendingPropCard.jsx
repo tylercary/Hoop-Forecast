@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Flame } from 'lucide-react';
 import { resolveImageUrl } from '../utils/api';
@@ -38,6 +38,28 @@ function formatOdds(odds) {
 
 function initials(name) {
   return name.split(' ').map(part => part[0]).join('').slice(0, 2);
+}
+
+// Card border drawn as an SVG outline (not a CSS mask, which Safari renders
+// badly with the blurred banner): orange under the flames fading into grey,
+// plus an ember of light that orbits it while the card is hovered.
+function HeatBorder() {
+  const id = useId().replace(/:/g, '');
+  return (
+    <svg className="heat-border" aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}-heat`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f97316" />
+          <stop offset="30%" stopColor="#fb923c" stopOpacity="0.55" />
+          <stop offset="65%" stopColor="#475569" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#475569" stopOpacity="0.45" />
+        </linearGradient>
+      </defs>
+      {/* Stroke is 3px on the edge; the card clips the outer half, leaving 1.5px */}
+      <rect className="heat-border-ring" width="100%" height="100%" rx="12" stroke={`url(#${id}-heat)`} />
+      <rect className="heat-border-ember" width="100%" height="100%" rx="12" pathLength="100" />
+    </svg>
+  );
 }
 
 // Sportsbook logo, falling back to initials when there's no logo file
@@ -96,16 +118,15 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
         onClick={onSelect}
         className="group relative w-full text-left rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
       >
-        {/* Heat-gradient border: hot under the flames, cooling down the sides,
-            plus an ember that travels around it on hover (styles in index.css) */}
-        <div className="heat-ring" aria-hidden="true" />
-        <div className="ember-ring" aria-hidden="true" />
+        <HeatBorder />
         {/* White-hot highlight along the middle of the top edge, under the flames */}
         <div className="pointer-events-none absolute inset-x-6 top-0 z-20 h-px bg-gradient-to-r from-transparent via-amber-200/90 to-transparent" />
 
-        {/* Header: headshot at half its native 260x190 size so it's sharp on retina.
-            Translucent + backdrop blur, so the card's fire shows through behind the player. */}
-        <div className="relative h-[6.5rem] bg-slate-900/40 backdrop-blur-md">
+        {/* Header: headshot at half its native 260x190 size so it's sharp on retina */}
+        <div className="relative h-[6.5rem]">
+          {/* Translucent, blurred backdrop on its own layer (not wrapping the photo
+              and badge), so the card's fire glows through behind the player */}
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" aria-hidden="true" />
           {prop.player_image ? (
             <img
               src={resolveImageUrl(prop.player_image)}
@@ -123,8 +144,8 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
           )}
 
           <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
-            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold text-slate-900 ${
-              isTopThree ? 'bg-gradient-to-r from-amber-300 to-orange-500' : 'bg-amber-400'
+            <span className={`relative inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold text-slate-900 shadow-sm shadow-black/40 ${
+              isTopThree ? 'bg-orange-400' : 'bg-amber-400'
             }`}>
               <Flame size={12} strokeWidth={2.5} />
               #{rank}
