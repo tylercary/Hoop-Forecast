@@ -94,10 +94,14 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
       <button
         type="button"
         onClick={onSelect}
-        className={`group relative w-full text-left rounded-xl border overflow-hidden transition-colors duration-200 hover:border-amber-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-          isTopThree ? 'border-amber-500/60' : 'border-slate-700/80'
+        // Orange top edge meets the flames; sides and bottom stay quiet
+        className={`group relative w-full text-left rounded-xl border border-slate-700/70 overflow-hidden transition-colors duration-200 hover:border-slate-600 hover:border-t-orange-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+          isTopThree ? 'border-t-orange-500' : 'border-t-orange-500/60'
         }`}
       >
+        {/* White-hot highlight along the middle of the top edge, under the flames */}
+        <div className="pointer-events-none absolute inset-x-6 top-0 z-10 h-px bg-gradient-to-r from-transparent via-amber-200/90 to-transparent" />
+
         {/* Header: headshot at half its native 260x190 size so it's sharp on retina.
             Translucent + backdrop blur, so the card's fire shows through behind the player. */}
         <div className="relative h-[6.5rem] bg-slate-900/40 backdrop-blur-md">

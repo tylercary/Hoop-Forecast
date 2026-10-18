@@ -9,39 +9,33 @@
 }
 
 /* Fire glow attached behind each trending card (TrendingPropCard.jsx).
-   It's a blurred layer under the card. The card body is solid so stats stay
-   crisp; the headshot banner is translucent + backdrop-blurred so the fire
-   shows through behind the player.
+   The card body is solid so stats stay crisp; the headshot banner is
+   translucent + backdrop-blurred so the top glow shows through behind the player.
    --glow sets the strength: normal < top three < hovered. */
-.trending-card { --glow: 0.4; }
-.trending-card-hot { --glow: 0.65; }
+.trending-card { --glow: 0.55; }
+.trending-card-hot { --glow: 0.8; }
 .trending-card:hover { --glow: 1; }
 
+/* Soft ember glow only at the top of the card, right behind the flames. It
+   bleeds down behind the translucent headshot banner; the sides and bottom
+   of the card stay clean. */
 .card-glow {
   position: absolute;
-  inset: -5px;
+  top: -18px;
+  left: 4%;
+  right: 4%;
+  height: 84px;
   z-index: -1;
-  border-radius: 1rem;
   pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(ellipse 60% 55% at 50% 40%,
+    rgba(251, 146, 60, 0.9),
+    rgba(234, 88, 12, 0.55) 45%,
+    transparent 75%);
+  filter: blur(10px);
   opacity: var(--glow);
+  transform-origin: 50% 30%;
   transition: opacity 0.25s ease;
-}
-
-/* The glow body: white-hot core at the bottom fading through orange and red */
-.card-glow::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse 70% 35% at 50% 100%, rgba(254, 240, 138, 0.95), transparent 70%),
-    linear-gradient(to top,
-      rgba(234, 88, 12, 1) 0%,
-      rgba(239, 68, 68, 0.9) 30%,
-      rgba(249, 115, 22, 0.85) 60%,
-      rgba(251, 191, 36, 0.8) 100%);
-  filter: blur(12px);
-  transform-origin: 50% 100%;
   animation: card-glow-flicker 1.8s ease-in-out infinite alternate;
 }
 
@@ -60,14 +54,14 @@
 
 /* Transform only, so the flicker stays cheap with 15 cards on screen */
 @keyframes card-glow-flicker {
-  0% { transform: scale(0.98, 0.96); }
-  35% { transform: scale(1.015, 1.05); }
-  65% { transform: scale(0.99, 0.99); }
+  0% { transform: scale(0.97, 0.9); }
+  40% { transform: scale(1.02, 1.08); }
+  70% { transform: scale(0.99, 0.97); }
   100% { transform: scale(1.01, 1.04); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card-glow::before { animation: none; }
+  .card-glow { animation: none; }
 }
 
 /* Optimize transitions */
