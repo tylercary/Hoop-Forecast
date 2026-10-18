@@ -20,6 +20,15 @@ const PROP_LABELS = {
 
 const MAX_BOOK_LOGOS = 5;
 
+// Flame tongues over the top edge of each card's glow
+const FLAME_TONGUES = [
+  { left: '12%', delay: 0, height: 40 },
+  { left: '31%', delay: -0.35, height: 58 },
+  { left: '50%', delay: -0.15, height: 66 },
+  { left: '69%', delay: -0.55, height: 52 },
+  { left: '88%', delay: -0.25, height: 42 }
+];
+
 // "Today 7:30 PM", "Tue 12:00 PM", in the viewer's timezone
 function formatGameTime(isoTime) {
   if (!isoTime) return null;
@@ -87,17 +96,30 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
       }`}
     >
       {/* Fire glow attached behind this card (styles in index.css) */}
-      <div className="card-glow" style={{ animationDelay: `${(index % 5) * -0.6}s` }} aria-hidden="true" />
+      <div className="card-glow" aria-hidden="true">
+        {FLAME_TONGUES.map((tongue, i) => (
+          <span
+            key={i}
+            className="flame-tongue"
+            style={{
+              left: tongue.left,
+              '--flame-h': `${tongue.height}px`,
+              animationDelay: `${tongue.delay - (index % 4) * 0.3}s`
+            }}
+          />
+        ))}
+      </div>
 
       <button
         type="button"
         onClick={onSelect}
-        className={`group relative w-full text-left rounded-xl border bg-slate-900 overflow-hidden transition-colors duration-200 hover:border-amber-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+        className={`group relative w-full text-left rounded-xl border overflow-hidden transition-colors duration-200 hover:border-amber-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
           isTopThree ? 'border-amber-500/60' : 'border-slate-700/80'
         }`}
       >
-        {/* Header: headshot at half its native 260x190 size so it's sharp on retina */}
-        <div className="relative h-[6.5rem] bg-gradient-to-br from-slate-800 via-slate-800 to-amber-950/50">
+        {/* Header: headshot at half its native 260x190 size so it's sharp on retina.
+            Translucent + backdrop blur, so the card's fire shows through behind the player. */}
+        <div className="relative h-[6.5rem] bg-slate-900/40 backdrop-blur-md">
           {prop.player_image ? (
             <img
               src={resolveImageUrl(prop.player_image)}
@@ -121,7 +143,7 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
               <Flame size={12} strokeWidth={2.5} />
               #{rank}
             </span>
-            <span className="text-xs font-medium text-slate-300">
+            <span className="text-xs font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
               {prop.bookCount} books
             </span>
           </div>
@@ -130,7 +152,8 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
           <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-slate-900 to-transparent" />
         </div>
 
-        <div className="px-4 pb-4 pt-2">
+        {/* Body is solid so stats stay crisp over the fire */}
+        <div className="bg-slate-900 px-4 pb-4 pt-2">
           {/* Player & matchup */}
           <h3 className="truncate text-base font-semibold text-white group-hover:text-amber-300 transition-colors">
             {prop.player}

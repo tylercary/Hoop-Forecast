@@ -9,40 +9,78 @@
 }
 
 /* Fire glow attached behind each trending card (TrendingPropCard.jsx).
-   It's a blurred layer under the solid card, so card text stays crisp.
+   It's a blurred layer under the card. The card body is solid so stats stay
+   crisp; the headshot banner is translucent + backdrop-blurred so the fire
+   shows through behind the player.
    --glow sets the strength: normal < top three < hovered. */
-.trending-card { --glow: 0.4; }
-.trending-card-hot { --glow: 0.7; }
+.trending-card { --glow: 0.6; }
+.trending-card-hot { --glow: 0.85; }
 .trending-card:hover { --glow: 1; }
 
 .card-glow {
   position: absolute;
-  inset: -4px;
+  inset: -5px;
   z-index: -1;
   border-radius: 1rem;
   pointer-events: none;
-  /* Hotter at the bottom, fading to amber at the top, like flames rising */
-  background: linear-gradient(to top,
-    rgba(239, 68, 68, 0.95) 0%,
-    rgba(249, 115, 22, 0.85) 35%,
-    rgba(251, 191, 36, 0.45) 100%);
-  filter: blur(12px);
   opacity: var(--glow);
-  transform-origin: 50% 100%;
   transition: opacity 0.25s ease;
-  animation: card-glow-flicker 2.6s ease-in-out infinite alternate;
+}
+
+/* The glow body: white-hot core at the bottom fading through orange and red */
+.card-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 70% 35% at 50% 100%, rgba(254, 240, 138, 0.95), transparent 70%),
+    linear-gradient(to top,
+      rgba(234, 88, 12, 1) 0%,
+      rgba(239, 68, 68, 0.9) 30%,
+      rgba(249, 115, 22, 0.85) 60%,
+      rgba(251, 191, 36, 0.8) 100%);
+  filter: blur(12px);
+  transform-origin: 50% 100%;
+  animation: card-glow-flicker 1.8s ease-in-out infinite alternate;
+}
+
+/* Flame tongues licking up over the card's top edge */
+.flame-tongue {
+  position: absolute;
+  bottom: calc(100% - 14px);
+  width: 20%;
+  height: var(--flame-h, 52px);
+  margin-left: -10%;
+  /* Teardrop: narrow pointed top, wide rounded base */
+  border-radius: 50% 50% 45% 45% / 85% 85% 15% 15%;
+  background: radial-gradient(ellipse 60% 75% at 50% 85%,
+    rgba(254, 249, 195, 0.95) 0%,
+    rgba(253, 186, 116, 0.9) 25%,
+    rgba(249, 115, 22, 0.75) 50%,
+    rgba(220, 38, 38, 0.45) 72%,
+    transparent 88%);
+  filter: blur(5px);
+  transform-origin: 50% 100%;
+  animation: flame-tongue-lick 0.9s ease-in-out infinite alternate;
 }
 
 /* Transform only, so the flicker stays cheap with 15 cards on screen */
 @keyframes card-glow-flicker {
   0% { transform: scale(0.98, 0.96); }
-  40% { transform: scale(1.01, 1.04); }
-  70% { transform: scale(0.995, 0.99); }
-  100% { transform: scale(1.005, 1.03); }
+  35% { transform: scale(1.015, 1.05); }
+  65% { transform: scale(0.99, 0.99); }
+  100% { transform: scale(1.01, 1.04); }
+}
+
+@keyframes flame-tongue-lick {
+  0% { transform: scale(0.85, 0.65) skewX(-8deg); }
+  45% { transform: scale(1.05, 1.15) skewX(5deg); }
+  100% { transform: scale(0.92, 0.85) skewX(-3deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card-glow { animation: none; }
+  .card-glow::before, .flame-tongue { animation: none; }
 }
 
 /* Optimize transitions */

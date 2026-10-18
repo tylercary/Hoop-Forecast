@@ -511,7 +511,7 @@ function Home() {
           ) : trendingProps.length > 0 ? (
             <div
               ref={trendingScrollRef}
-              className="-mx-4 sm:-mx-6 overflow-x-auto snap-x snap-mandatory scroll-px-4 sm:scroll-px-6 scroll-smooth py-8 [scrollbar-width:thin]"
+              className="-mx-4 sm:-mx-6 overflow-x-auto snap-x snap-mandatory scroll-px-4 sm:scroll-px-6 scroll-smooth pt-12 pb-8 [scrollbar-width:thin]"
             >
               {/* Side padding matches the negative margin: cards line up with the
                   heading while each card's glow has room to fade out */}
