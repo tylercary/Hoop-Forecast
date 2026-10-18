@@ -824,13 +824,24 @@ function PlayerDetail() {
                 });
               }
 
-              const dateStr = nextGame.date ? (() => {
-                try {
-                  const d = new Date(nextGame.date);
-                  if (isNaN(d.getTime())) return nextGame.date;
-                  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
-                } catch { return nextGame.date; }
-              })() : 'TBD';
+              // Prefer the raw start time so date/time render in the viewer's timezone;
+              // the backend's preformatted strings use the server's timezone.
+              const startTime = nextGame.commence_time ? new Date(nextGame.commence_time) : null;
+              const hasStartTime = startTime && !isNaN(startTime.getTime());
+
+              const dateStr = hasStartTime
+                ? startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
+                : nextGame.date ? (() => {
+                  try {
+                    const d = new Date(nextGame.date);
+                    if (isNaN(d.getTime())) return nextGame.date;
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+                  } catch { return nextGame.date; }
+                })() : 'TBD';
+
+              const timeStr = hasStartTime
+                ? startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                : nextGame.time;
 
               return (
                 <div className="flex items-center gap-5 px-8 py-5 flex-shrink-0">
@@ -846,8 +857,8 @@ function PlayerDetail() {
                   {/* Date & Time */}
                   <div className="text-center px-2">
                     <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{dateStr}</div>
-                    {nextGame.time && nextGame.time !== 'TBD' && (
-                      <div className="text-xs text-gray-500 mt-0.5">{nextGame.time}</div>
+                    {timeStr && timeStr !== 'TBD' && (
+                      <div className="text-xs text-gray-500 mt-0.5">{timeStr}</div>
                     )}
                   </div>
 
@@ -1205,7 +1216,9 @@ function PlayerDetail() {
                           Make Your Prediction
                         </h4>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {comparisonData.next_game.opponent ? `vs ${comparisonData.next_game.opponent} · ` : ''}{comparisonData.next_game.date}
+                          {comparisonData.next_game.opponent ? `vs ${comparisonData.next_game.opponent} · ` : ''}{comparisonData.next_game.commence_time
+                            ? new Date(comparisonData.next_game.commence_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            : comparisonData.next_game.date}
                         </p>
                       </div>
                       {hasCommunityData && (

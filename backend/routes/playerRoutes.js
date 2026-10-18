@@ -313,7 +313,8 @@ router.get('/:id/prediction/:propType', async (req, res) => {
               date: gameDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
               time: gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
               isHome: isHome,
-              eventId: gameInfo.event_id
+              eventId: gameInfo.event_id,
+              commence_time: gameInfo.commence_time
             };
             
             nextGameInfo = {

@@ -1046,7 +1046,8 @@ export async function getNextGame(nbaPlayerId, teamAbbrev) {
                   date: formattedDate,
                   time: gameTime,
                   isHome: isHome,
-                  eventId: eventId // Add event ID for summary API
+                  eventId: eventId, // Add event ID for summary API
+                  commence_time: gameTime !== 'TBD' ? event.date : null // Raw ISO time so the client can format in the viewer's timezone
                 };
               }
             }
