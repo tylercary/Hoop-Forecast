@@ -40,7 +40,8 @@ function PlayerDetail() {
   const [comparisonData, setComparisonData] = useState(null);
   const [loading, setLoading] = useState(true); // Start with loading true
   const [error, setError] = useState(null);
-  const [selectedProp, setSelectedProp] = useState('points'); // Default to points prop
+  // Start on the prop the user clicked (trending card or stat chip), else points
+  const [selectedProp, setSelectedProp] = useState(location.state?.player?.prop_type || 'points');
   const [loadingPredictions, setLoadingPredictions] = useState({}); // Track loading state for each prop
   const [propPredictions, setPropPredictions] = useState({}); // Store predictions for each prop
   const [showReasoning, setShowReasoning] = useState(false); // Toggle for prediction reasoning

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, ChevronDown, ChevronLeft, ChevronRight, Filter, Flame, X } from 'lucide-react';
+import { Star, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import api, { resolveImageUrl } from '../utils/api';
-import { getTeamLogo } from '../utils/teamLogos';
+import api from '../utils/api';
 import TrendingPropCard from './TrendingPropCard';
+import FeaturedPlayers from './FeaturedPlayers';
 
 // Module-level cache to persist data across component remounts (e.g., back navigation)
 const dataCache = {
@@ -13,23 +13,6 @@ const dataCache = {
   trendingProps: null,
   lastFetched: 0,
   TTL: 5 * 60 * 1000 // 5 minutes
-};
-
-// Helper function to format prop type for display
-const formatPropType = (propType) => {
-  const labels = {
-    'points': 'PTS',
-    'rebounds': 'REB',
-    'assists': 'AST',
-    'threes': '3PT',
-    'pra': 'PTS+REB+AST',
-    'pr': 'PTS+REB',
-    'pa': 'PTS+AST',
-    'ra': 'REB+AST',
-    'steals': 'STL',
-    'blocks': 'BLK'
-  };
-  return labels[propType] || propType.toUpperCase();
 };
 
 function Home() {
@@ -53,28 +36,6 @@ function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
   const [showSearch, setShowSearch] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(12);
-  const [filterTeam, setFilterTeam] = useState('all');
-  const [filterProp, setFilterProp] = useState('points');
-
-  // Derive unique teams and prop types from player data for filters
-  const uniqueTeams = [...new Set(
-    playersWithLines.flatMap(p => [p.home_team, p.away_team]).filter(Boolean)
-  )].sort();
-
-  const uniqueProps = [...new Set(
-    playersWithLines.map(p => p.prop_type).filter(Boolean)
-  )].sort();
-
-  // Apply filters
-  const filteredPlayers = playersWithLines.filter(p => {
-    if (filterTeam !== 'all' && p.home_team !== filterTeam && p.away_team !== filterTeam) return false;
-    if (filterProp !== 'all' && p.prop_type !== filterProp) return false;
-    return true;
-  });
-
-  const hasActiveFilters = filterTeam !== 'all' || (filterProp !== 'all' && filterProp !== 'points');
-
   // Scroll to top when component mounts (e.g., when navigating back from player detail)
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -187,6 +148,7 @@ function Home() {
     const bettingLineData = {
       betting_line: player.betting_line,
       bookmaker: player.bookmaker,
+      prop_type: player.prop_type,
       event_id: player.event_id,
       home_team: player.home_team,
       away_team: player.away_team
@@ -554,282 +516,22 @@ function Home() {
         </motion.div>
       </div>
 
-      {/* Featured Players Section - Vertical Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="mb-6 flex items-end justify-between"
-        >
-        <div>
-            <h2 className="text-2xl font-bold text-white mb-1 leading-tight">
-            Featured Players
-          </h2>
-            <p className="text-gray-400 text-sm font-medium">
-            Players with active betting lines
-          </p>
-        </div>
-        {playersWithLines.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex-shrink-0"
-            >
-              <span className="text-yellow-400 font-bold text-xs whitespace-nowrap">
-              {filteredPlayers.length} Available
-            </span>
-            </motion.div>
-        )}
-        </motion.div>
-
-      {/* Filters */}
-      {playersWithLines.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <Filter size={16} className="text-gray-400" />
-          <select
-            value={filterTeam}
-            onChange={(e) => { setFilterTeam(e.target.value); setVisibleCount(12); }}
-            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-yellow-500/50 focus:outline-none cursor-pointer"
-          >
-            <option value="all">All Teams</option>
-            {uniqueTeams.map(team => (
-              <option key={team} value={team}>{team}</option>
-            ))}
-          </select>
-          <select
-            value={filterProp}
-            onChange={(e) => { setFilterProp(e.target.value); setVisibleCount(12); }}
-            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-yellow-500/50 focus:outline-none cursor-pointer"
-          >
-            <option value="all">All Props</option>
-            {uniqueProps.map(prop => (
-              <option key={prop} value={prop}>{formatPropType(prop)}</option>
-            ))}
-          </select>
-          {hasActiveFilters && (
-            <button
-              onClick={() => { setFilterTeam('all'); setFilterProp('points'); setVisibleCount(12); }}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-800/60"
-            >
-              <X size={14} />
-              Clear filters
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Players with Lines Grid */}
-      {loadingLines ? (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="text-center py-20"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="rounded-full h-16 w-16 border-4 border-slate-700 border-t-yellow-500 mx-auto"
-            />
-            <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="mt-6 text-gray-300 text-lg font-medium"
-            >
-              Loading players with betting lines...
-            </motion.p>
-            <div className="flex items-center justify-center space-x-2 mt-4">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-2 h-2 bg-yellow-500 rounded-full"
-                  animate={{
-                    y: [0, -8, 0],
-                    opacity: [0.5, 1, 0.5]
-                  }}
-                  transition={{
-                    duration: 0.6,
-                    repeat: Infinity,
-                    delay: i * 0.2,
-                    ease: "easeInOut"
-                  }}
-                />
-              ))}
-            </div>
-        </motion.div>
-      ) : filteredPlayers.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
-          {filteredPlayers.slice(0, visibleCount).map((player, index) => (
-            <motion.div
-              key={`${player.name}-${index}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-                transition={{ 
-                  delay: index * 0.05, 
-                  duration: 0.3,
-                  ease: "easeOut"
-                }}
-                whileHover={{ 
-                  y: -4, 
-                  scale: 1.01,
-                  transition: { duration: 0.2 }
-                }}
-                whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                handleSelectPlayer({ 
-                  name: player.name,
-                  betting_line: player.betting_line,
-                  bookmaker: player.bookmaker,
-                  event_id: player.event_id,
-                  home_team: player.home_team,
-                  away_team: player.away_team
-                });
-              }}
-                className="relative bg-slate-800/60 backdrop-blur-sm rounded-lg shadow-xl hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 cursor-pointer overflow-hidden border border-slate-700/50 hover:border-yellow-500/50 group"
-            >
-                {/* Favorite Star */}
-                {user && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(String(player.player_id || player.name), player.name);
-                    }}
-                    className="absolute top-3 right-3 p-1 transition-colors z-10"
-                  >
-                    <Star
-                      size={16}
-                      className={isFavorite(String(player.player_id || player.name)) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
-                    />
-                  </button>
-                )}
-
-                {/* Player Image */}
-                <div className="flex justify-center pt-5 pb-2.5">
-                {player.player_image ? (
-                  <img
-                    src={resolveImageUrl(player.player_image)}
-                    alt={player.name}
-                    loading="lazy"
-                      className="w-24 h-24 rounded-full object-cover ring-2 ring-gray-500/40 group-hover:ring-yellow-500 shadow-xl transition-all duration-300"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      const fallback = e.target.nextElementSibling;
-                      if (fallback) fallback.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                <div 
-                    className={`${player.player_image ? 'hidden' : 'flex'} w-24 h-24 rounded-full bg-gradient-to-br from-gray-500 via-gray-400 to-gray-500 items-center justify-center ring-2 ring-gray-500/40 group-hover:ring-yellow-500 shadow-xl transition-all duration-300`}
-                >
-                    <span className="text-white text-3xl font-bold">
-                    {player.name.split(' ').map(n => n[0]).join('')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Player Info */}
-                <div className="px-4 pb-4 text-center">
-                  <h3 className="font-bold text-base text-white mb-0.5 truncate group-hover:text-yellow-400 transition-colors">
-                  {player.name}
-                </h3>
-                  <div className="text-xs text-gray-400 mb-4">
-                    {player.home_team} vs {player.away_team}
-                  </div>
-
-                {/* Prop Line Box */}
-                  <div className="rounded-lg border border-slate-600/40 bg-slate-700/30 p-2.5 mb-4">
-                    <div className="text-xs font-semibold text-yellow-400 mb-0.5">
-                      {(() => {
-                        const propLabels = {
-                          points: 'PTS',
-                          assists: 'AST',
-                          rebounds: 'REB',
-                          threes: '3PT',
-                          steals: 'STL',
-                          blocks: 'BLK',
-                          pra: 'PTS + AST + REB',
-                          pr: 'PTS + REB',
-                          pa: 'PTS + AST',
-                          ra: 'REB + AST',
-                          points_rebounds: 'PTS + REB',
-                          points_assists: 'PTS + AST',
-                          rebounds_assists: 'REB + AST',
-                          points_rebounds_assists: 'PTS + AST + REB'
-                        };
-                        return propLabels[player.prop_type] || player.prop_type?.toUpperCase() || 'PTS';
-                      })()}
-                    </div>
-                    <div className="text-2xl font-extrabold text-yellow-400">
-                      {player.betting_line}
-                    </div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">{player.bookmaker}</div>
-                  </div>
-
-                  {/* View Button */}
-                  <button className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 hover:shadow-yellow-500/20 transition-all font-bold shadow-lg border border-gray-700 hover:border-yellow-500/50">
-                    View Analysis
-                  </button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-          {filteredPlayers.length > visibleCount && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-center mt-8"
-            >
-              <button
-                onClick={() => setVisibleCount(prev => prev + 12)}
-                className="flex items-center gap-2 px-6 py-3 bg-slate-800/60 backdrop-blur-sm text-white rounded-lg hover:bg-slate-700/60 transition-all font-semibold border border-slate-700/50 hover:border-yellow-500/50"
-              >
-                <span>Show More</span>
-                <ChevronDown size={18} />
-                <span className="text-xs text-gray-400">
-                  ({filteredPlayers.length - visibleCount} remaining)
-                </span>
-              </button>
-            </motion.div>
-          )}
-        </>
-      ) : hasActiveFilters && playersWithLines.length > 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-800/40 backdrop-blur-sm rounded-lg shadow-xl p-12 text-center border border-slate-700/50"
-        >
-          <p className="text-gray-300 mb-2 text-lg font-semibold">
-            No players match your filters
-          </p>
-          <button
-            onClick={() => { setFilterTeam('all'); setFilterProp('all'); }}
-            className="mt-3 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
-          >
-            Clear all filters
-          </button>
-        </motion.div>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-800/40 backdrop-blur-sm rounded-lg shadow-xl p-12 text-center border border-slate-700/50"
-        >
-            <svg className="w-20 h-20 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <p className="text-gray-300 mb-2 text-lg font-semibold">
-            No players with betting lines available
-          </p>
-          <p className="text-sm text-gray-400">
-            Use the search above to find any player and see their prediction
-          </p>
-        </motion.div>
-      )}
-      </div>
+      <FeaturedPlayers
+        players={playersWithLines}
+        loading={loadingLines}
+        onSelectPlayer={(line) => handleSelectPlayer({
+          name: line.name,
+          betting_line: line.betting_line,
+          bookmaker: line.bookmaker,
+          prop_type: line.prop_type,
+          event_id: line.event_id,
+          home_team: line.home_team,
+          away_team: line.away_team
+        })}
+        user={user}
+        isFavorite={isFavorite}
+        toggleFavorite={toggleFavorite}
+      />
 
     </div>
   );

@@ -83,3 +83,15 @@ export function getTeamName(teamAbbrev) {
   if (!teamAbbrev) return teamAbbrev;
   return TEAM_NAMES[teamAbbrev.toUpperCase().trim()] || teamAbbrev;
 }
+
+// "Detroit Pistons" -> "DET" (the odds feed sends full team names)
+const ABBREV_BY_NAME = Object.entries(TEAM_NAMES).reduce((map, [abbrev, name]) => {
+  if (!map[name] || abbrev.length === 3) map[name] = abbrev;
+  return map;
+}, {});
+
+export function getTeamAbbrev(teamName) {
+  if (!teamName) return teamName;
+  if (TEAM_NAMES[teamName.toUpperCase()]) return teamName.toUpperCase();
+  return ABBREV_BY_NAME[teamName] || (teamName === 'Los Angeles Clippers' ? 'LAC' : teamName);
+}
