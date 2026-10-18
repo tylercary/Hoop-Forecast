@@ -73,6 +73,7 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
   const leanPct = overPct == null ? null : Math.max(overPct, 100 - overPct);
   const books = prop.books || [];
   const shownBooks = books.slice(0, MAX_BOOK_LOGOS);
+  const isTopThree = rank <= 3;
 
   return (
     <motion.button
@@ -82,10 +83,15 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
       animate={{ opacity: 1 }}
       transition={{ delay: Math.min(index, 6) * 0.04, duration: 0.25, ease: 'easeOut' }}
       onClick={onSelect}
-      className="group relative flex-shrink-0 w-[17.5rem] snap-start text-left rounded-xl bg-slate-900 border border-slate-700/80 overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-1 hover:border-amber-400/70 hover:shadow-lg hover:shadow-amber-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+      className={`group relative flex-shrink-0 w-[17.5rem] snap-start text-left rounded-xl border overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-1 hover:border-amber-400/80 hover:shadow-[0_14px_40px_-12px_rgba(249,115,22,0.7)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+        isTopThree
+          ? 'border-amber-500/50 shadow-[0_12px_32px_-14px_rgba(249,115,22,0.6)]'
+          : 'border-slate-700/80 shadow-lg shadow-black/30'
+      }`}
     >
-      {/* Header: headshot at half its native 260x190 size so it's sharp on retina */}
-      <div className="relative h-[6.5rem] bg-gradient-to-br from-slate-800 via-slate-800 to-amber-950/40">
+      {/* Header: headshot at half its native 260x190 size so it's sharp on retina.
+          Semi-transparent so the fire behind the row flickers behind the photo. */}
+      <div className="relative h-[6.5rem] bg-gradient-to-br from-slate-800/75 via-slate-800/55 to-slate-900/40">
         {prop.player_image ? (
           <img
             src={resolveImageUrl(prop.player_image)}
@@ -103,7 +109,9 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
         )}
 
         <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-md bg-amber-400 px-2 py-0.5 text-xs font-bold text-slate-900">
+          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold text-slate-900 ${
+            isTopThree ? 'bg-gradient-to-r from-amber-300 to-orange-500' : 'bg-amber-400'
+          }`}>
             <Flame size={12} strokeWidth={2.5} />
             #{rank}
           </span>
@@ -116,7 +124,8 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
         <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-slate-900 to-transparent" />
       </div>
 
-      <div className="px-4 pb-4 pt-2">
+      {/* Body stays solid so stats are always crisp and readable */}
+      <div className="bg-slate-900 px-4 pb-4 pt-2">
         {/* Player & matchup */}
         <h3 className="truncate text-base font-semibold text-white group-hover:text-amber-300 transition-colors">
           {prop.player}
