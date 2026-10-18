@@ -30,4 +30,14 @@ jobs:
           # Trending props needs The Odds API, so this catches an expired or deactivated key
           check "Trending props" "$API/trending/props"
           check "Today's games" "$API/games/today"
+
+          # A build without the VITE_FIREBASE_* env vars still returns 200 but renders
+          # a blank page, so make sure the config made it into the main bundle
+          bundle=$(curl -s --max-time 30 https://hoopforecast.com | grep -oE '/assets/index-[^"]+\.js' | head -1)
+          if [ -n "$bundle" ] && curl -s --max-time 30 "https://hoopforecast.com$bundle" | grep -q 'firebaseapp.com'; then
+            echo "OK    Firebase config in $bundle"
+          else
+            echo "::error::Firebase config missing from the site bundle ($bundle) - check Vercel env vars"
+            failed=1
+          fi
           exit $failed
