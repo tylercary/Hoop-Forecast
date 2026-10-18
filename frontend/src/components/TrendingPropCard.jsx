@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Flame } from 'lucide-react';
 import { resolveImageUrl } from '../utils/api';
+import FlameCrown from './FlameCrown';
 import { getTeamLogo } from '../utils/teamLogos';
 import { getSportsbookLogo, getSportsbookDisplayName, hasLogoMapping } from '../utils/sportsbookLogos';
 
@@ -19,15 +20,6 @@ const PROP_LABELS = {
 };
 
 const MAX_BOOK_LOGOS = 5;
-
-// Flame tongues over the top edge of each card's glow
-const FLAME_TONGUES = [
-  { left: '12%', delay: 0, height: 40 },
-  { left: '31%', delay: -0.35, height: 58 },
-  { left: '50%', delay: -0.15, height: 66 },
-  { left: '69%', delay: -0.55, height: 52 },
-  { left: '88%', delay: -0.25, height: 42 }
-];
 
 // "Today 7:30 PM", "Tue 12:00 PM", in the viewer's timezone
 function formatGameTime(isoTime) {
@@ -95,20 +87,9 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
         isTopThree ? 'trending-card-hot' : ''
       }`}
     >
-      {/* Fire glow attached behind this card (styles in index.css) */}
-      <div className="card-glow" aria-hidden="true">
-        {FLAME_TONGUES.map((tongue, i) => (
-          <span
-            key={i}
-            className="flame-tongue"
-            style={{
-              left: tongue.left,
-              '--flame-h': `${tongue.height}px`,
-              animationDelay: `${tongue.delay - (index % 4) * 0.3}s`
-            }}
-          />
-        ))}
-      </div>
+      {/* Soft fire glow behind the card, plus crisp flames rising off its top edge */}
+      <div className="card-glow" aria-hidden="true" />
+      <FlameCrown variant={index} height={isTopThree ? 54 : 40} />
 
       <button
         type="button"

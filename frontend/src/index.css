@@ -13,8 +13,8 @@
    crisp; the headshot banner is translucent + backdrop-blurred so the fire
    shows through behind the player.
    --glow sets the strength: normal < top three < hovered. */
-.trending-card { --glow: 0.6; }
-.trending-card-hot { --glow: 0.85; }
+.trending-card { --glow: 0.4; }
+.trending-card-hot { --glow: 0.65; }
 .trending-card:hover { --glow: 1; }
 
 .card-glow {
@@ -45,24 +45,17 @@
   animation: card-glow-flicker 1.8s ease-in-out infinite alternate;
 }
 
-/* Flame tongues licking up over the card's top edge */
-.flame-tongue {
+/* Crisp SVG flames (FlameCrown.jsx) rising off the card's top edge; the base
+   tucks 8px behind the card so the flames look like they come out of it */
+.flame-crown {
   position: absolute;
-  bottom: calc(100% - 14px);
-  width: 20%;
-  height: var(--flame-h, 52px);
-  margin-left: -10%;
-  /* Teardrop: narrow pointed top, wide rounded base */
-  border-radius: 50% 50% 45% 45% / 85% 85% 15% 15%;
-  background: radial-gradient(ellipse 60% 75% at 50% 85%,
-    rgba(254, 249, 195, 0.95) 0%,
-    rgba(253, 186, 116, 0.9) 25%,
-    rgba(249, 115, 22, 0.75) 50%,
-    rgba(220, 38, 38, 0.45) 72%,
-    transparent 88%);
-  filter: blur(5px);
-  transform-origin: 50% 100%;
-  animation: flame-tongue-lick 0.9s ease-in-out infinite alternate;
+  left: 3%;
+  width: 94%;
+  bottom: calc(100% - 8px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: calc(0.55 + var(--glow) * 0.45);
+  transition: opacity 0.25s ease;
 }
 
 /* Transform only, so the flicker stays cheap with 15 cards on screen */
@@ -73,14 +66,8 @@
   100% { transform: scale(1.01, 1.04); }
 }
 
-@keyframes flame-tongue-lick {
-  0% { transform: scale(0.85, 0.65) skewX(-8deg); }
-  45% { transform: scale(1.05, 1.15) skewX(5deg); }
-  100% { transform: scale(0.92, 0.85) skewX(-3deg); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .card-glow::before, .flame-tongue { animation: none; }
+  .card-glow::before { animation: none; }
 }
 
 /* Optimize transitions */
