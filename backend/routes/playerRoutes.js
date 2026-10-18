@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPlayerStats, getTeamRecord, searchPlayer, searchPlayersESPN } from '../services/nbaApiService.js';
+import { getPlayerStats, getTeamRecord, searchPlayer } from '../services/nbaApiService.js';
 import { getPlayerOdds } from '../services/oddsService.js';
 import { predictPointsFromGames } from '../services/predictionService.js';
 import { 
@@ -130,60 +130,34 @@ router.get('/with-lines', async (req, res) => {
       }
     }
 
-    // Step 3: Download and store player images locally (using ESPN to avoid NBA.com rate limits)
-    // Using static imports from top of file
-    
-    // Process images in smaller batches to avoid overwhelming APIs
-    const batchSize = 5;
-    for (let i = 0; i < playersWithLines.length; i += batchSize) {
-      const batch = playersWithLines.slice(i, i + batchSize);
-      
-      await Promise.allSettled(
-        batch.map(async (player) => {
+    // Step 3: Attach local player images. Rows are per player per prop, so look up
+    // each player once. Missing images download in the background so the response
+    // isn't held up (they're picked up on the next cache refresh).
+    const missingImageNames = new Set();
+    for (const player of playersWithLines) {
+      if (imageExists(player.name)) {
+        player.player_image = getImageUrl(player.name);
+      } else {
+        missingImageNames.add(player.name);
+      }
+    }
+
+    if (missingImageNames.size > 0) {
+      (async () => {
+        for (const name of missingImageNames) {
           try {
-            // Check if image already exists locally
-            if (imageExists(player.name)) {
-              player.player_image = getImageUrl(player.name);
-              return;
-            }
-            
-            // Use ESPN search to find player (more reliable than NBA.com)
-            const espnResults = await searchPlayersESPN(player.name);
-            if (espnResults && espnResults.length > 0) {
-              const espnPlayer = espnResults[0];
-              
-              // Try to get NBA ID from ESPN player data if available
-              // ESPN sometimes includes external IDs, but we'll need to search NBA.com
-              // For now, try NBA.com search with short timeout
-              try {
-                // Using static import from top of file
-                const searchPromise = searchPlayer(player.name);
-                const timeoutPromise = new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('timeout')), 3000)
-                );
-                
-                const nbaPlayer = await Promise.race([searchPromise, timeoutPromise]);
-                if (nbaPlayer && nbaPlayer.id) {
-                  const imageUrl = await downloadPlayerImage(player.name, nbaPlayer.id);
-                  if (imageUrl) {
-                    player.player_image = imageUrl;
-                  }
-                }
-              } catch (nbaError) {
-                // If NBA.com search fails, skip image for this player
-                // They'll just use initials
-              }
+            const nbaPlayer = await Promise.race([
+              searchPlayer(name),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+            ]);
+            if (nbaPlayer && nbaPlayer.id) {
+              await downloadPlayerImage(name, nbaPlayer.id);
             }
           } catch (error) {
-            // Silently fail - player will just have no image
+            // Skip - player will just show initials
           }
-        })
-      );
-      
-      // Small delay between batches to avoid rate limiting
-      if (i + batchSize < playersWithLines.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+        }
+      })();
     }
     
     // Cache the results

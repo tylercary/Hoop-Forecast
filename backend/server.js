@@ -53,9 +53,16 @@ app.use('/images', express.static(path.join(__dirname, 'public/images'), {
   }
 }));
 
-// Health check route
+// Health check route. commit is set by Railway for deploys from GitHub,
+// so it shows which commit production is actually running.
+const startedAt = new Date().toISOString();
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'HoopForecast API is running' });
+  res.json({
+    status: 'ok',
+    message: 'HoopForecast API is running',
+    commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || null,
+    startedAt
+  });
 });
 
 // API routes

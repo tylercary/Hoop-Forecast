@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { getGameSeason, getSeasonsInStats } from '../utils/seasons';
 
 function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOpponent }) {
-  const [seasonFilter, setSeasonFilter] = useState('2025 Season');
+  // null = most recent season with games; otherwise a season like '2025-26' or 'H2H'
+  const [seasonFilter, setSeasonFilter] = useState(null);
 
   if (!stats || stats.length === 0) {
     return (
@@ -29,7 +31,10 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
     return dateB - dateA;
   });
 
-  // Filter by season or H2H - use season field if available, otherwise use date
+  const seasons = getSeasonsInStats(stats);
+  const activeSeason = seasonFilter && seasonFilter !== 'H2H' ? seasonFilter : seasons[0];
+
+  // Filter by season or H2H
   let filteredStats = sortedStats;
   if (seasonFilter === 'H2H') {
     // Filter to only show games against the next opponent (ALL historical games, no season filter)
@@ -71,36 +76,8 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
       // If no next opponent, show no games for H2H
       filteredStats = [];
     }
-  } else if (seasonFilter === '2025 Season') {
-    filteredStats = sortedStats.filter(game => {
-      // First try to use the season field if available
-      if (game.season) {
-        // 2025 Season = 2025-26 season (current season)
-        return game.season === '2025-26' || game.season.includes('2025-26');
-      }
-      // Fallback to date parsing - games from 2025 calendar year
-      try {
-        const date = new Date(game.date);
-        return date.getFullYear() === 2025;
-      } catch {
-        return true;
-      }
-    });
-  } else if (seasonFilter === '2024 Season') {
-    filteredStats = sortedStats.filter(game => {
-      // First try to use the season field if available
-      if (game.season) {
-        // 2024 Season = 2024-25 season (previous season)
-        return game.season === '2024-25' || game.season.includes('2024-25');
-      }
-      // Fallback to date parsing - games from 2024 calendar year
-      try {
-        const date = new Date(game.date);
-        return date.getFullYear() === 2024;
-      } catch {
-        return true;
-      }
-    });
+  } else {
+    filteredStats = sortedStats.filter(game => getGameSeason(game) === activeSeason);
   }
 
   const getPropValue = (game) => {
@@ -289,12 +266,13 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
           </div>
         </div>
         <select
-          value={seasonFilter}
+          value={seasonFilter || activeSeason || ''}
           onChange={(e) => setSeasonFilter(e.target.value)}
           className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500"
         >
-          <option>2025 Season</option>
-          <option>2024 Season</option>
+          {seasons.map(season => (
+            <option key={season} value={season}>{season} Season</option>
+          ))}
           {nextGameOpponent && <option>H2H</option>}
         </select>
       </div>

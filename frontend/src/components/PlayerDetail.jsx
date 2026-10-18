@@ -17,6 +17,7 @@ import Comments from './Comments';
 import InjuriesTable from './InjuriesTable';
 import PropMetricCard from './PropMetricCard';
 import PredictionReasoning from './PredictionReasoning';
+import { getGameSeason, getSeasonsInStats } from '../utils/seasons';
 import {
   calculateCoverProbability,
   calculateExpectedValue,
@@ -544,7 +545,7 @@ function PlayerDetail() {
                   <div className="h-4 w-64 bg-gray-700 rounded animate-pulse"></div>
                 </div>
                 <div className="flex gap-2">
-                  {['L5', 'L10', 'L15', 'H2H', 'Season', '2025', '2024'].map((f) => (
+                  {['L5', 'L10', 'L15', 'H2H', 'Season', 'Prev1', 'Prev2'].map((f) => (
                     <div key={f} className="h-8 w-12 bg-gray-700 rounded animate-pulse"></div>
                   ))}
                 </div>
@@ -1071,17 +1072,8 @@ function PlayerDetail() {
                       }
                     };
                     
-                    const currentSeasonGames = comparisonData.stats.filter(game => {
-                      if (game.season) {
-                        return game.season === '2025-26' || game.season.includes('2025-26');
-                      }
-                      try {
-                        const date = new Date(game.date);
-                        return date.getFullYear() === 2025;
-                      } catch {
-                        return false;
-                      }
-                    });
+                    const latestSeason = getSeasonsInStats(comparisonData.stats)[0];
+                    const currentSeasonGames = comparisonData.stats.filter(game => getGameSeason(game) === latestSeason);
                     
                     let overCount = 0;
                     let underCount = 0;

@@ -272,11 +272,22 @@ export async function getPlayerStatsFromESPN(playerName) {
     const currentGames = parseEspnGamelog(currentData, getCurrentSeason());
     const previousGames = previousData ? parseEspnGamelog(previousData, getPreviousSeason(getCurrentSeason())) : [];
 
-    // Combine: current season first (most recent first), then previous season
-    const allGames = [...currentGames, ...previousGames].map((game, index) => ({
-      ...game,
-      game_number: index + 1
-    }));
+    // Combine both responses, most recent first. Before a new season starts, ESPN's
+    // default season is still the previous one, so both responses can hold the same
+    // games — keep one per date (a player can't play twice in a day).
+    const seenDates = new Set();
+    const allGames = [...currentGames, ...previousGames]
+      .filter(game => {
+        if (!game.date) return true;
+        if (seenDates.has(game.date)) return false;
+        seenDates.add(game.date);
+        return true;
+      })
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .map((game, index) => ({
+        ...game,
+        game_number: index + 1
+      }));
 
     if (allGames.length === 0) {
       throw new Error(`No game data found for ${playerName}`);
@@ -398,7 +409,9 @@ function parseEspnGamelog(data, seasonLabel) {
           personal_fouls: personalFouls,
           home: isHome,
           result: result,
-          season: seasonLabel
+          // Label from the game's own date: ESPN's default (no season param) can still be
+          // last season before the new one starts, so the requested label isn't reliable
+          season: gameDate ? getSeasonForDate(gameDate) : seasonLabel
         });
       }
     }
@@ -1095,8 +1108,37 @@ export function mapEspnToNbaAbbrev(espnAbbrev) {
   return mapping[upper] || upper;
 }
 
+// Regular-season records (30 min). ESPN's team endpoint returns the preseason
+// record during preseason, so records come from the core API's season type 2.
+const regularSeasonRecordCache = new NodeCache({ stdTTL: 1800, useClones: false });
+
 /**
- * Get team record from ESPN API
+ * Get a team's regular-season record summaries keyed by type
+ * (total, home, road, ...), e.g. { total: '56-26', home: '30-11' }.
+ */
+async function getRegularSeasonRecords(espnTeamId) {
+  const cached = regularSeasonRecordCache.get(espnTeamId);
+  if (cached) return cached;
+
+  // ESPN season years use the end year (2026-27 -> 2027); from October on it's the new season
+  const now = new Date();
+  const seasonYear = now.getMonth() + 1 >= 10 ? now.getFullYear() + 1 : now.getFullYear();
+  const url = `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/${seasonYear}/types/2/teams/${espnTeamId}/record`;
+  const { data } = await axios.get(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Accept': 'application/json' },
+    timeout: 10000
+  });
+
+  const records = {};
+  for (const item of data?.items || []) {
+    if (item.type && item.summary) records[item.type] = item.summary;
+  }
+  regularSeasonRecordCache.set(espnTeamId, records);
+  return records;
+}
+
+/**
+ * Get team regular-season record from ESPN API
  */
 export async function getTeamRecord(teamAbbrev) {
   try {
@@ -1109,32 +1151,8 @@ export async function getTeamRecord(teamAbbrev) {
       return null;
     }
     
-    const teamUrl = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${espnTeamId}`;
-    const response = await axios.get(teamUrl, {
-      params: {
-        region: 'us',
-        lang: 'en',
-        contentorigin: 'espn'
-      },
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'application/json'
-      },
-      timeout: 10000
-    });
-    
-    if (response.data && response.data.team) {
-      const team = response.data.team;
-      const record = team.record;
-      if (record && record.items && record.items.length > 0) {
-        const seasonRecord = record.items[0];
-        const wins = seasonRecord.stats?.find(s => s.name === 'wins')?.value || 0;
-        const losses = seasonRecord.stats?.find(s => s.name === 'losses')?.value || 0;
-        return `${wins}-${losses}`;
-      }
-    }
-    
-    return null;
+    const records = await getRegularSeasonRecords(espnTeamId);
+    return records.total || null;
   } catch (error) {
     console.log(`⚠️ Could not fetch team record for ${teamAbbrev}: ${error.message}`);
     return null;
@@ -1167,10 +1185,13 @@ export async function getTeamInfo(espnTeamId) {
       totalStats[s.name] = s.value;
     }
 
+    // Display records come from the regular season; the team endpoint's are preseason in October
+    const regularRecords = await getRegularSeasonRecords(espnTeamId).catch(() => ({}));
+
     return {
       standing: team.standingSummary || '',
-      homeRecord: home?.summary || '',
-      awayRecord: away?.summary || '',
+      homeRecord: regularRecords.home || home?.summary || '',
+      awayRecord: regularRecords.road || away?.summary || '',
       nextGame: ne ? { id: ne.id, name: ne.shortName || ne.name || '', date: ne.date || '' } : null,
       // Advanced record stats for prediction model
       winPct: totalStats.winPercent || 0,
@@ -1428,6 +1449,16 @@ function getCurrentSeason() {
   } else {
     return `${year}-${String(year + 1).slice(-2)}`;
   }
+}
+
+/**
+ * Get the NBA season a game date belongs to (e.g., "2026-03-07" -> "2025-26").
+ * Seasons start in October and end with the Finals in June.
+ */
+function getSeasonForDate(dateStr) {
+  const [year, month] = dateStr.split('-').map(Number);
+  const startYear = month >= 10 ? year : year - 1;
+  return `${startYear}-${String(startYear + 1).slice(-2)}`;
 }
 
 /**

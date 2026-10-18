@@ -1,0 +1,33 @@
+name: Uptime check
+
+# Pings production every 30 minutes. A failed run emails the repo owner
+# (GitHub notifies on failed scheduled workflows by default).
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check endpoints
+        run: |
+          API=https://zealous-kindness-production-3ecb.up.railway.app/api
+          failed=0
+          check() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$2")
+            if [ "$code" = "200" ]; then
+              echo "OK    $1 ($code)"
+            else
+              echo "::error::$1 returned $code ($2)"
+              failed=1
+            fi
+          }
+          check "Website" "https://hoopforecast.com"
+          check "API health" "$API/health"
+          # Trending props needs The Odds API, so this catches an expired or deactivated key
+          check "Trending props" "$API/trending/props"
+          check "Today's games" "$API/games/today"
+          exit $failed

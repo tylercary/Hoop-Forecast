@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
+import { getGameSeason, getSeasonsInStats } from '../utils/seasons';
 
 function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading, nextGameOpponent }) {
-  const [filter, setFilter] = useState('L15'); // L5, L10, L15, H2H, Season, 2025, 2024
+  const [filter, setFilter] = useState('L15'); // L5, L10, L15, H2H, Season, or a season like '2025-26'
   const [adjustedLine, setAdjustedLine] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const chartRef = useRef(null);
@@ -153,6 +154,8 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
     }
   };
 
+  const seasons = getSeasonsInStats(stats);
+
   // Filter stats based on selected filter
   let filteredStats = sortedStats;
   if (filter === 'L5') {
@@ -161,49 +164,10 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
     filteredStats = sortedStats.slice(0, 10);
   } else if (filter === 'L15') {
     filteredStats = sortedStats.slice(0, 15);
-  } else if (filter === '2025') {
-    filteredStats = sortedStats.filter(game => {
-      // First try to use the season field if available
-      if (game.season) {
-        // 2025 filter = 2025-26 season (current season)
-        return game.season === '2025-26' || game.season.includes('2025-26');
-      }
-      // Fallback to date parsing - games from 2025 calendar year
-      try {
-        const date = new Date(game.date);
-        return date.getFullYear() === 2025;
-      } catch {
-        return true;
-      }
-    });
-  } else if (filter === '2024') {
-    filteredStats = sortedStats.filter(game => {
-      // First try to use the season field if available
-      if (game.season) {
-        // 2024 filter = 2024-25 season (previous season)
-        return game.season === '2024-25' || game.season.includes('2024-25');
-      }
-      // Fallback to date parsing - games from 2024 calendar year
-      try {
-        const date = new Date(game.date);
-        return date.getFullYear() === 2024;
-      } catch {
-        return true;
-      }
-    });
-  } else if (filter === 'Season') {
-    // Show all games from current season (2025-26)
-    filteredStats = sortedStats.filter(game => {
-      if (game.season) {
-        return game.season === '2025-26' || game.season.includes('2025-26');
-      }
-      try {
-        const date = new Date(game.date);
-        return date.getFullYear() === 2025;
-      } catch {
-        return false;
-      }
-    });
+  } else if (filter === 'Season' || seasons.includes(filter)) {
+    // 'Season' is the most recent season with games
+    const season = filter === 'Season' ? seasons[0] : filter;
+    filteredStats = sortedStats.filter(game => getGameSeason(game) === season);
   } else if (filter === 'H2H') {
     // Filter to only show games against the next opponent (ALL historical games, no season filter)
     // Use ALL available stats, not just sortedStats (which might be limited)
@@ -238,7 +202,7 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
   }
 
   // Filter buttons shared across all states
-  const filterButtons = ['L5', 'L10', 'L15', ...(nextGameOpponent ? ['H2H'] : []), 'Season', '2025', '2024'];
+  const filterButtons = ['L5', 'L10', 'L15', ...(nextGameOpponent ? ['H2H'] : []), 'Season', ...seasons];
 
   // Show empty state for H2H if no games found
   if (filter === 'H2H' && nextGameOpponent && filteredStats.length === 0) {
