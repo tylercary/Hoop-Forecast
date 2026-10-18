@@ -32,9 +32,25 @@ function RouteLoader() {
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [pathname]);
   return null;
+}
+
+// Quick fade between pages; kept short because exit and enter run back to back.
+// slide: detail pages (player, team, game) come in from the right.
+function PageTransition({ children, slide = false }) {
+  const offset = slide ? { x: 12 } : { y: 6 };
+  return (
+    <motion.div
+      initial={{ opacity: 0, ...offset }}
+      animate={{ opacity: 1, x: 0, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: 0.08 } }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 function AnimatedRoutes() {
@@ -48,169 +64,97 @@ function AnimatedRoutes() {
         <Route
           path="/"
           element={
-            <motion.div
-              key="home"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Home />
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/performance"
           element={
-            <motion.div
-              key="performance"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><ModelPerformance /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/favorites"
           element={
-            <motion.div
-              key="favorites"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><Favorites /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/predictions"
           element={
-            <motion.div
-              key="predictions"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><MyPredictions /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/profile/:userId"
           element={
-            <motion.div
-              key="profile"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><UserProfile /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/friends"
           element={
-            <motion.div
-              key="friends"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><Friends /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/leaderboard"
           element={
-            <motion.div
-              key="leaderboard"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><Leaderboard /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/settings"
           element={
-            <motion.div
-              key="settings"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><ProfileSettings /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/player/:playerId/:playerName"
           element={
-            <motion.div
-              key="player-detail"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition slide>
               <Suspense fallback={<RouteLoader />}><PlayerDetail /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/team/:abbreviation"
           element={
-            <motion.div
-              key="team-detail"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition slide>
               <Suspense fallback={<RouteLoader />}><TeamDetail /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/games"
           element={
-            <motion.div
-              key="games"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition>
               <Suspense fallback={<RouteLoader />}><Games /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
         <Route
           path="/games/:gameId"
           element={
-            <motion.div
-              key="game-detail"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
+            <PageTransition slide>
               <Suspense fallback={<RouteLoader />}><GameDetail /></Suspense>
-            </motion.div>
+            </PageTransition>
           }
         />
       </Routes>
@@ -308,7 +252,7 @@ function AppHeader() {
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
               <img src="/logo.png" alt="HF" className="h-12 w-12" />
-              <h1 className="text-2xl font-bold text-white">HoopForecast</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-white whitespace-nowrap">HoopForecast</h1>
             </motion.div>
 
             {/* Dropdown menu */}
@@ -452,7 +396,7 @@ function AppHeader() {
                 /* Logged out: Sign In button */
                 <button
                   onClick={() => setAuthModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg font-semibold text-sm hover:bg-yellow-400 transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg font-semibold text-sm whitespace-nowrap flex-shrink-0 hover:bg-yellow-400 transition-colors"
                 >
                   <LogIn size={16} />
                   Sign In

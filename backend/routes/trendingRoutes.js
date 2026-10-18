@@ -6,7 +6,8 @@ import {
   getPropBookCount,
   findBestOdds,
   getPropSportsbooks,
-  sortByBookCount
+  sortByBookCount,
+  getMarketOverPct
 } from '../utils/trendingHelpers.js';
 import { getTeamAbbrevFromFullName } from '../services/teamMappingService.js';
 
@@ -113,6 +114,7 @@ router.get('/props', async (req, res) => {
                   event_id: event.id,
                   home_team: event.home_team,
                   away_team: event.away_team,
+                  commence_time: event.commence_time,
                   sportsbooks: new Map() // Map of sportsbook → { over, under }
                 });
               }
@@ -165,6 +167,7 @@ router.get('/props', async (req, res) => {
 
       const bestOdds = findBestOdds(sportsbooksObj);
       const booksList = Array.from(propData.sportsbooks.keys());
+      const marketOverPct = getMarketOverPct(sportsbooksObj);
 
       // Convert full team names to abbreviations
       const homeTeamAbbrev = getTeamAbbrevFromFullName(propData.home_team) || propData.home_team;
@@ -179,7 +182,9 @@ router.get('/props', async (req, res) => {
         bestOdds: bestOdds,
         home_team: homeTeamAbbrev,
         away_team: awayTeamAbbrev,
-        event_id: propData.event_id
+        event_id: propData.event_id,
+        commence_time: propData.commence_time,
+        market_over_pct: marketOverPct
       });
     }
 

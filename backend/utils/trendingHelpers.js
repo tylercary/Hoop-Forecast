@@ -119,3 +119,31 @@ export function formatPropType(propType) {
   return labels[propType] || propType.toUpperCase();
 }
 
+
+/**
+ * Convert American odds to implied probability (e.g. -110 -> 0.524)
+ */
+function impliedProbability(americanOdds) {
+  const odds = Number(americanOdds);
+  if (!odds) return null;
+  return odds < 0 ? -odds / (-odds + 100) : 100 / (odds + 100);
+}
+
+/**
+ * Market lean: the no-vig probability of the OVER, averaged across books
+ * that list both sides. Returns a whole-number percent (e.g. 54), or null.
+ */
+export function getMarketOverPct(propData) {
+  if (!propData || typeof propData !== 'object') return null;
+
+  const overShares = [];
+  for (const data of Object.values(propData)) {
+    const over = impliedProbability(data.over?.odds);
+    const under = impliedProbability(data.under?.odds);
+    if (over && under) overShares.push(over / (over + under));
+  }
+
+  if (overShares.length === 0) return null;
+  const average = overShares.reduce((sum, share) => sum + share, 0) / overShares.length;
+  return Math.round(average * 100);
+}

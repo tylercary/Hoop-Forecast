@@ -252,8 +252,9 @@ function getPlayerImageUrl(playerName) {
     return null;
   }
 
-  // Construct image URL (frontend will handle 404s gracefully)
-  const imageUrl = `/images/players/${formattedName}.png`;
+  // Use the saved headshot if there is one (handles name suffixes); otherwise
+  // construct the URL and let the frontend handle the 404
+  const imageUrl = imageExists(playerName) ? getImageUrl(playerName) : `/images/players/${formattedName}.png`;
 
   // Cache the result
   playerImageCache.set(playerName, imageUrl);

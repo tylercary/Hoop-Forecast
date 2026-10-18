@@ -35,11 +35,30 @@ export function getLocalImagePath(playerName) {
   return path.join(IMAGES_DIR, filename);
 }
 
+const NAME_SUFFIXES = ['jr', 'sr', 'ii', 'iii', 'iv'];
+
+/**
+ * Find the saved image filename for a player, tolerating name suffixes:
+ * sportsbooks say "Paul Reed Jr" where the file is paul_reed.png, and
+ * NBA.com says "Jimmy Butler III" where the file is jimmy_butler.png.
+ */
+function findImageFilename(playerName) {
+  const stem = normalizeForFilename(playerName);
+  const parts = stem.split('_');
+  const baseParts = NAME_SUFFIXES.includes(parts[parts.length - 1]) ? parts.slice(0, -1) : parts;
+  const base = baseParts.join('_');
+  const candidates = [stem, base, ...NAME_SUFFIXES.map(suffix => `${base}_${suffix}`)];
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(IMAGES_DIR, `${candidate}.png`))) return `${candidate}.png`;
+  }
+  return null;
+}
+
 /**
  * Get image URL for frontend
  */
 export function getImageUrl(playerName) {
-  const filename = `${normalizeForFilename(playerName)}.png`;
+  const filename = findImageFilename(playerName) || `${normalizeForFilename(playerName)}.png`;
   return `/images/players/${filename}`;
 }
 
@@ -47,8 +66,7 @@ export function getImageUrl(playerName) {
  * Check if image exists locally
  */
 export function imageExists(playerName) {
-  const imagePath = getLocalImagePath(playerName);
-  return fs.existsSync(imagePath);
+  return findImageFilename(playerName) !== null;
 }
 
 /**
