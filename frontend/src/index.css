@@ -52,6 +52,64 @@
   transition: opacity 0.25s ease;
 }
 
+/* Heat-gradient border (TrendingPropCard.jsx): a 1.5px ring drawn with a
+   mask so only the border shows. Orange at the top where the flames are,
+   cooling to red down the sides, nearly gone at the bottom. */
+.heat-ring,
+.ember-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+.heat-ring {
+  background: linear-gradient(to bottom,
+    #fdba74 0%,
+    #f97316 18%,
+    #dc2626 50%,
+    rgba(127, 29, 29, 0.55) 78%,
+    rgba(51, 65, 85, 0.6) 100%);
+  opacity: calc(0.45 + var(--glow) * 0.55);
+  transition: opacity 0.25s ease;
+}
+
+/* An ember of light that runs around the border while the card is hovered */
+@property --ember-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.ember-ring {
+  padding: 2px;
+  background: conic-gradient(from var(--ember-angle),
+    transparent 0deg,
+    transparent 290deg,
+    rgba(251, 146, 60, 0.9) 330deg,
+    #fef3c7 350deg,
+    transparent 360deg);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  animation: ember-orbit 2.4s linear infinite;
+  animation-play-state: paused;
+}
+
+.trending-card:hover .ember-ring,
+.trending-card:focus-within .ember-ring {
+  opacity: 1;
+  animation-play-state: running;
+}
+
+@keyframes ember-orbit {
+  to { --ember-angle: 360deg; }
+}
+
 /* Transform only, so the flicker stays cheap with 15 cards on screen */
 @keyframes card-glow-flicker {
   0% { transform: scale(0.97, 0.9); }
@@ -61,7 +119,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card-glow { animation: none; }
+  .card-glow, .ember-ring { animation: none; }
 }
 
 /* Optimize transitions */
