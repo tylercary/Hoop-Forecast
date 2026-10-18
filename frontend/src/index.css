@@ -8,94 +8,41 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Fire behind the trending cards (see FireBackdrop.jsx). Everything here is a
-   layer underneath the solid cards, so the blur never affects card text. */
-.fire-backdrop {
+/* Fire glow attached behind each trending card (TrendingPropCard.jsx).
+   It's a blurred layer under the solid card, so card text stays crisp.
+   --glow sets the strength: normal < top three < hovered. */
+.trending-card { --glow: 0.4; }
+.trending-card-hot { --glow: 0.7; }
+.trending-card:hover { --glow: 1; }
+
+.card-glow {
   position: absolute;
-  inset: -2.5rem 0 -3rem 0;
+  inset: -4px;
   z-index: -1;
+  border-radius: 1rem;
   pointer-events: none;
-  overflow: hidden;
-  /* Fade every edge out so the fire has no visible box */
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 14%, #000 78%, transparent 100%),
-    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 14%, #000 78%, transparent 100%),
-    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%);
-  mask-composite: intersect;
-}
-
-/* Wide ember bed glowing up from below the row */
-.fire-glow {
-  position: absolute;
-  inset: auto -10% -5% -10%;
-  height: 80%;
-  background:
-    radial-gradient(ellipse 45% 70% at 25% 100%, rgba(249, 115, 22, 0.75), transparent 70%),
-    radial-gradient(ellipse 45% 70% at 75% 100%, rgba(239, 68, 68, 0.6), transparent 70%),
-    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(251, 191, 36, 0.55), transparent 75%);
-  filter: blur(24px);
-  transform-origin: bottom;
-  animation: fire-breathe 3.2s ease-in-out infinite;
-}
-
-/* Individual flame tongues licking up between the cards */
-.fire-flames {
-  position: absolute;
-  inset: 0;
-  filter: blur(14px);
-}
-
-.flame {
-  position: absolute;
-  bottom: -8%;
-  width: 20%;
-  height: 105%;
-  margin-left: -10%;
-  border-radius: 50% 50% 35% 35%;
-  background: radial-gradient(ellipse at 50% 85%,
-    rgba(254, 240, 138, 0.75) 0%,
-    rgba(251, 146, 60, 0.6) 30%,
-    rgba(220, 38, 38, 0.35) 60%,
-    transparent 78%);
+  /* Hotter at the bottom, fading to amber at the top, like flames rising */
+  background: linear-gradient(to top,
+    rgba(239, 68, 68, 0.95) 0%,
+    rgba(249, 115, 22, 0.85) 35%,
+    rgba(251, 191, 36, 0.45) 100%);
+  filter: blur(12px);
+  opacity: var(--glow);
   transform-origin: 50% 100%;
-  animation: flame-lick 1.9s ease-in-out infinite alternate;
+  transition: opacity 0.25s ease;
+  animation: card-glow-flicker 2.6s ease-in-out infinite alternate;
 }
 
-/* Sparks drifting up through the gaps and above the cards */
-.spark {
-  position: absolute;
-  bottom: 0;
-  border-radius: 9999px;
-  background: #fde68a;
-  box-shadow: 0 0 6px 2px rgba(251, 146, 60, 0.8);
-  opacity: 0;
-  animation: spark-rise 4.5s linear infinite;
-}
-
-@keyframes fire-breathe {
-  0%, 100% { opacity: 0.85; transform: scaleY(1); }
-  50% { opacity: 1; transform: scaleY(1.12); }
-}
-
-@keyframes flame-lick {
-  0% { transform: scale(1, 0.85) skewX(-4deg); opacity: 0.7; }
-  50% { transform: scale(0.92, 1.1) skewX(3deg); opacity: 0.95; }
-  100% { transform: scale(1.05, 0.95) skewX(-2deg); opacity: 0.8; }
-}
-
-@keyframes spark-rise {
-  0% { transform: translate(0, 0); opacity: 0; }
-  10% { opacity: 1; }
-  60% { transform: translate(10px, -200px); opacity: 0.8; }
-  100% { transform: translate(-6px, -380px); opacity: 0; }
+/* Transform only, so the flicker stays cheap with 15 cards on screen */
+@keyframes card-glow-flicker {
+  0% { transform: scale(0.98, 0.96); }
+  40% { transform: scale(1.01, 1.04); }
+  70% { transform: scale(0.995, 0.99); }
+  100% { transform: scale(1.005, 1.03); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fire-glow, .flame { animation: none; }
-  .spark { display: none; }
+  .card-glow { animation: none; }
 }
 
 /* Optimize transitions */

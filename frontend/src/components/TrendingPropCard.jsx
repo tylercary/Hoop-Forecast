@@ -76,138 +76,144 @@ function TrendingPropCard({ prop, rank, index, onSelect }) {
   const isTopThree = rank <= 3;
 
   return (
-    <motion.button
-      type="button"
+    // Wrapper carries the hover lift so the glow moves with the card
+    <motion.div
       // Opacity only: a framer transform would override the CSS hover lift
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: Math.min(index, 6) * 0.04, duration: 0.25, ease: 'easeOut' }}
-      onClick={onSelect}
-      className={`group relative flex-shrink-0 w-[17.5rem] snap-start text-left rounded-xl border overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-1 hover:border-amber-400/80 hover:shadow-[0_14px_40px_-12px_rgba(249,115,22,0.7)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-        isTopThree
-          ? 'border-amber-500/50 shadow-[0_12px_32px_-14px_rgba(249,115,22,0.6)]'
-          : 'border-slate-700/80 shadow-lg shadow-black/30'
+      className={`trending-card relative isolate flex-shrink-0 w-[17.5rem] snap-start transition-transform duration-200 hover:-translate-y-1 ${
+        isTopThree ? 'trending-card-hot' : ''
       }`}
     >
-      {/* Header: headshot at half its native 260x190 size so it's sharp on retina.
-          Semi-transparent so the fire behind the row flickers behind the photo. */}
-      <div className="relative h-[6.5rem] bg-gradient-to-br from-slate-800/75 via-slate-800/55 to-slate-900/40">
-        {prop.player_image ? (
-          <img
-            src={resolveImageUrl(prop.player_image)}
-            alt={prop.player}
-            loading="lazy"
-            width={130}
-            height={95}
-            className="absolute bottom-0 left-3 w-[130px] h-[95px] object-contain object-bottom"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-        ) : (
-          <div className="absolute bottom-3 left-4 w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-200">
-            {initials(prop.player)}
-          </div>
-        )}
+      {/* Fire glow attached behind this card (styles in index.css) */}
+      <div className="card-glow" style={{ animationDelay: `${(index % 5) * -0.6}s` }} aria-hidden="true" />
 
-        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
-          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold text-slate-900 ${
-            isTopThree ? 'bg-gradient-to-r from-amber-300 to-orange-500' : 'bg-amber-400'
-          }`}>
-            <Flame size={12} strokeWidth={2.5} />
-            #{rank}
-          </span>
-          <span className="text-xs font-medium text-slate-300">
-            {prop.bookCount} books
-          </span>
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`group relative w-full text-left rounded-xl border bg-slate-900 overflow-hidden transition-colors duration-200 hover:border-amber-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+          isTopThree ? 'border-amber-500/60' : 'border-slate-700/80'
+        }`}
+      >
+        {/* Header: headshot at half its native 260x190 size so it's sharp on retina */}
+        <div className="relative h-[6.5rem] bg-gradient-to-br from-slate-800 via-slate-800 to-amber-950/50">
+          {prop.player_image ? (
+            <img
+              src={resolveImageUrl(prop.player_image)}
+              alt={prop.player}
+              loading="lazy"
+              width={130}
+              height={95}
+              className="absolute bottom-0 left-3 w-[130px] h-[95px] object-contain object-bottom"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          ) : (
+            <div className="absolute bottom-3 left-4 w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-200">
+              {initials(prop.player)}
+            </div>
+          )}
+
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
+            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold text-slate-900 ${
+              isTopThree ? 'bg-gradient-to-r from-amber-300 to-orange-500' : 'bg-amber-400'
+            }`}>
+              <Flame size={12} strokeWidth={2.5} />
+              #{rank}
+            </span>
+            <span className="text-xs font-medium text-slate-300">
+              {prop.bookCount} books
+            </span>
+          </div>
+
+          {/* Fade the bottom of the headshot into the card body */}
+          <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-slate-900 to-transparent" />
         </div>
 
-        {/* Fade the bottom of the headshot into the card body */}
-        <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-slate-900 to-transparent" />
-      </div>
-
-      {/* Body stays solid so stats are always crisp and readable */}
-      <div className="bg-slate-900 px-4 pb-4 pt-2">
-        {/* Player & matchup */}
-        <h3 className="truncate text-base font-semibold text-white group-hover:text-amber-300 transition-colors">
-          {prop.player}
-        </h3>
-        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
-          {getTeamLogo(prop.away_team) && (
-            <img src={getTeamLogo(prop.away_team)} alt="" className="w-4 h-4 object-contain" />
-          )}
-          <span className="font-medium text-slate-300">{prop.away_team}</span>
-          <span>@</span>
-          {getTeamLogo(prop.home_team) && (
-            <img src={getTeamLogo(prop.home_team)} alt="" className="w-4 h-4 object-contain" />
-          )}
-          <span className="font-medium text-slate-300">{prop.home_team}</span>
-          {gameTime && (
-            <>
-              <span className="text-slate-600">·</span>
-              <span>{gameTime}</span>
-            </>
-          )}
-        </div>
-
-        {/* Line */}
-        <div className="mt-3 flex items-end justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">
-              {PROP_LABELS[prop.prop_type] || prop.prop_type}
-            </p>
-            <p className="text-3xl font-bold leading-none text-white tabular-nums">
-              {prop.line}
-            </p>
+        <div className="px-4 pb-4 pt-2">
+          {/* Player & matchup */}
+          <h3 className="truncate text-base font-semibold text-white group-hover:text-amber-300 transition-colors">
+            {prop.player}
+          </h3>
+          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
+            {getTeamLogo(prop.away_team) && (
+              <img src={getTeamLogo(prop.away_team)} alt="" className="w-4 h-4 object-contain" />
+            )}
+            <span className="font-medium text-slate-300">{prop.away_team}</span>
+            <span>@</span>
+            {getTeamLogo(prop.home_team) && (
+              <img src={getTeamLogo(prop.home_team)} alt="" className="w-4 h-4 object-contain" />
+            )}
+            <span className="font-medium text-slate-300">{prop.home_team}</span>
+            {gameTime && (
+              <>
+                <span className="text-slate-600">·</span>
+                <span>{gameTime}</span>
+              </>
+            )}
           </div>
-          {prop.bestOdds && (
-            <div className="text-right" title={`Best price at ${getSportsbookDisplayName(prop.bestOdds.sportsbook)}`}>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Best price</p>
-              <p className="text-sm font-semibold text-white tabular-nums">
-                <span className={prop.bestOdds.type === 'over' ? 'text-emerald-400' : 'text-sky-400'}>
-                  {prop.bestOdds.type === 'over' ? 'O' : 'U'}
-                </span>{' '}
-                {formatOdds(prop.bestOdds.odds)}
+
+          {/* Line */}
+          <div className="mt-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">
+                {PROP_LABELS[prop.prop_type] || prop.prop_type}
+              </p>
+              <p className="text-3xl font-bold leading-none text-white tabular-nums">
+                {prop.line}
+              </p>
+            </div>
+            {prop.bestOdds && (
+              <div className="text-right" title={`Best price at ${getSportsbookDisplayName(prop.bestOdds.sportsbook)}`}>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Best price</p>
+                <p className="text-sm font-semibold text-white tabular-nums">
+                  <span className={prop.bestOdds.type === 'over' ? 'text-emerald-400' : 'text-sky-400'}>
+                    {prop.bestOdds.type === 'over' ? 'O' : 'U'}
+                  </span>{' '}
+                  {formatOdds(prop.bestOdds.odds)}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Market lean: no-vig over/under split across books */}
+          {lean && (
+            <div className="mt-3">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span className={overPct > 50 ? 'text-emerald-400' : 'text-slate-500'}>Over {overPct}%</span>
+                <span className={overPct < 50 ? 'text-sky-400' : 'text-slate-500'}>Under {100 - overPct}%</span>
+              </div>
+              <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-slate-800">
+                <div className="bg-emerald-500/80" style={{ width: `${overPct}%` }} />
+                <div className="bg-sky-500/80" style={{ width: `${100 - overPct}%` }} />
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                {overPct === 50 ? (
+                  <>Market is <span className="font-semibold text-slate-200">split evenly</span></>
+                ) : (
+                  <>Market leans <span className="font-semibold text-slate-200">{lean.toLowerCase()}</span> ({leanPct}%)</>
+                )}
               </p>
             </div>
           )}
-        </div>
 
-        {/* Market lean: no-vig over/under split across books */}
-        {lean && (
-          <div className="mt-3">
-            <div className="flex justify-between text-[11px] font-medium">
-              <span className={overPct > 50 ? 'text-emerald-400' : 'text-slate-500'}>Over {overPct}%</span>
-              <span className={overPct < 50 ? 'text-sky-400' : 'text-slate-500'}>Under {100 - overPct}%</span>
-            </div>
-            <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-slate-800">
-              <div className="bg-emerald-500/80" style={{ width: `${overPct}%` }} />
-              <div className="bg-sky-500/80" style={{ width: `${100 - overPct}%` }} />
-            </div>
-            <p className="mt-1 text-[11px] text-slate-400">
-              {overPct === 50 ? (
-                <>Market is <span className="font-semibold text-slate-200">split evenly</span></>
-              ) : (
-                <>Market leans <span className="font-semibold text-slate-200">{lean.toLowerCase()}</span> ({leanPct}%)</>
+          {/* Books listing this prop */}
+          {shownBooks.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 border-t border-slate-800 pt-3">
+              <div className="flex -space-x-1.5">
+                {shownBooks.map(book => <BookLogo key={book} book={book} />)}
+              </div>
+              {books.length > MAX_BOOK_LOGOS && (
+                <span className="text-xs text-slate-400">+{books.length - MAX_BOOK_LOGOS}</span>
               )}
-            </p>
-          </div>
-        )}
-
-        {/* Books listing this prop */}
-        {shownBooks.length > 0 && (
-          <div className="mt-3 flex items-center gap-2 border-t border-slate-800 pt-3">
-            <div className="flex -space-x-1.5">
-              {shownBooks.map(book => <BookLogo key={book} book={book} />)}
+              <span className="ml-auto text-xs font-medium text-amber-400 opacity-0 transition-opacity group-hover:opacity-100">
+                View →
+              </span>
             </div>
-            {books.length > MAX_BOOK_LOGOS && (
-              <span className="text-xs text-slate-400">+{books.length - MAX_BOOK_LOGOS}</span>
-            )}
-            <span className="ml-auto text-xs font-medium text-amber-400 opacity-0 transition-opacity group-hover:opacity-100">
-              View →
-            </span>
-          </div>
-        )}
-      </div>
-    </motion.button>
+          )}
+        </div>
+      </button>
+    </motion.div>
   );
 }
 

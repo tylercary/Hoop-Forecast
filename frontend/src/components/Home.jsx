@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import api, { resolveImageUrl } from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
 import TrendingPropCard from './TrendingPropCard';
-import FireBackdrop from './FireBackdrop';
 
 // Module-level cache to persist data across component remounts (e.g., back navigation)
 const dataCache = {
@@ -510,30 +509,29 @@ function Home() {
               </motion.p>
             </motion.div>
           ) : trendingProps.length > 0 ? (
-            <div className="relative isolate">
-              <FireBackdrop />
-              <div
-                ref={trendingScrollRef}
-                className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto snap-x snap-mandatory scroll-smooth pt-2 pb-6 [scrollbar-width:thin]"
-              >
-                <div className="flex gap-4 px-1">
-                  {trendingProps.map((prop, index) => (
-                    <TrendingPropCard
-                      key={`${prop.player}-${prop.prop_type}-${prop.line}`}
-                      prop={prop}
-                      rank={index + 1}
-                      index={index}
-                      onSelect={() => handleSelectPlayer({
-                        name: prop.player,
-                        betting_line: prop.line,
-                        prop_type: prop.prop_type,
-                        home_team: prop.home_team,
-                        away_team: prop.away_team,
-                        event_id: prop.event_id
-                      })}
-                    />
-                  ))}
-                </div>
+            <div
+              ref={trendingScrollRef}
+              className="-mx-4 sm:-mx-6 overflow-x-auto snap-x snap-mandatory scroll-px-4 sm:scroll-px-6 scroll-smooth py-8 [scrollbar-width:thin]"
+            >
+              {/* Side padding matches the negative margin: cards line up with the
+                  heading while each card's glow has room to fade out */}
+              <div className="flex w-max gap-5 px-4 sm:px-6">
+                {trendingProps.map((prop, index) => (
+                  <TrendingPropCard
+                    key={`${prop.player}-${prop.prop_type}-${prop.line}`}
+                    prop={prop}
+                    rank={index + 1}
+                    index={index}
+                    onSelect={() => handleSelectPlayer({
+                      name: prop.player,
+                      betting_line: prop.line,
+                      prop_type: prop.prop_type,
+                      home_team: prop.home_team,
+                      away_team: prop.away_team,
+                      event_id: prop.event_id
+                    })}
+                  />
+                ))}
               </div>
             </div>
           ) : (
