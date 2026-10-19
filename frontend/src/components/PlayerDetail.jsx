@@ -940,11 +940,12 @@ function PlayerDetail() {
                   const serverRecommendation = propPredictions[selectedProp]?.recommendation ??
                     propData?.prediction_recommendation ??
                     (selectedProp === 'points' ? comparisonData.recommendation : null) ?? null;
+                  // No pick from the server: the lean is simply which side of the
+                  // line the projection sits on, so it never contradicts the number shown
                   const recommendation = (prediction != null && line != null)
                     ? (serverRecommendation
-                        || (serverOverProb != null
-                            ? (serverOverProb >= 50 ? 'OVER' : 'UNDER')
-                            : (prediction > line ? 'OVER' : prediction < line ? 'UNDER' : 'PUSH')))
+                        || (prediction > line ? 'OVER' : prediction < line ? 'UNDER'
+                            : serverOverProb != null ? (serverOverProb >= 50 ? 'OVER' : 'UNDER') : 'PUSH'))
                     : null;
                   const isLean = recommendation != null && !serverRecommendation;
                   // The model's own number before it is pulled toward the market line
