@@ -41,6 +41,14 @@ jobs:
       - name: Pull evaluated predictions from production
         run: node backend/scripts/pullPredictions.mjs --features --out "$EXPORT"
 
+      - name: Install backend dependencies
+        run: npm --prefix backend ci --omit=dev
+
+      - name: Backfill opponent and minutes context for the stored rows
+        run: |
+          node backend/scripts/refreshTeamGameStats.mjs 2025-26 2026-27
+          node backend/scripts/backfillGameLogs.mjs --in "$EXPORT"
+
       - name: Grade the live edge model
         run: node backend/scripts/gradeEdgeModel.mjs --in "$EXPORT" | tee backend/data/edge_grading.txt
 
