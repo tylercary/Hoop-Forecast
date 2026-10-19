@@ -7,7 +7,6 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { savePrediction, updatePrediction, deletePrediction, getCommunityPicks } from '../services/firestoreService';
 import api, { resolveImageUrl } from '../utils/api';
-import PlayerCard from './PlayerCard';
 import PredictionChart from './PredictionChart';
 import LoadingAnimation from './LoadingAnimation';
 import PropCards from './PropCards';
@@ -454,47 +453,47 @@ function PlayerDetail() {
           <div className="flex items-center gap-2 text-sm">
             <button
               onClick={() => navigate(-1)}
-              className="hover:text-white transition-colors text-gray-400"
+              className="hover:text-white transition-colors text-slate-400"
             >
               ← Back
             </button>
-            <span className="text-gray-600">/</span>
-            <span className="text-gray-400">Prop Bet Analyzer</span>
-            <span className="text-gray-600">/</span>
-            <div className="h-4 w-32 bg-gray-700 rounded animate-pulse"></div>
+            <span className="text-slate-600">/</span>
+            <span className="text-slate-400">Prop Bet Analyzer</span>
+            <span className="text-slate-600">/</span>
+            <div className="h-4 w-32 bg-slate-700 rounded animate-pulse"></div>
           </div>
         </div>
 
         {/* Banner Skeleton */}
         <div className="w-screen relative" style={{ left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw' }}>
-          <div className="bg-gray-800 shadow-xl p-6 mb-6 border-b border-t border-gray-700">
+          <div className="bg-slate-800 shadow-xl p-6 mb-6 border-b border-t border-slate-700">
             <div className="max-w-7xl mx-auto px-4">
               <div className="flex items-start gap-8">
                 {/* Player Image Skeleton */}
-                <div className="w-40 h-40 rounded-full bg-gray-700 animate-pulse flex-shrink-0"></div>
+                <div className="w-40 h-40 rounded-full bg-slate-700 animate-pulse flex-shrink-0"></div>
                 
                 {/* Player Info Skeleton */}
                 <div className="flex-1 space-y-3">
-                  <div className="h-4 w-32 bg-gray-700 rounded animate-pulse"></div>
-                  <div className="h-8 w-48 bg-gray-700 rounded animate-pulse"></div>
-                  <div className="h-4 w-40 bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-4 w-32 bg-slate-700 rounded animate-pulse"></div>
+                  <div className="h-8 w-48 bg-slate-700 rounded animate-pulse"></div>
+                  <div className="h-4 w-40 bg-slate-700 rounded animate-pulse"></div>
                 </div>
                 
                 {/* Matchup Skeleton */}
                 <div className="flex items-center gap-8 flex-shrink-0">
                   <div className="text-center space-y-2">
-                    <div className="w-20 h-20 bg-gray-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-4 w-24 bg-gray-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-3 w-16 bg-gray-700 rounded animate-pulse mx-auto"></div>
+                    <div className="w-20 h-20 bg-slate-700 rounded animate-pulse mx-auto"></div>
+                    <div className="h-4 w-24 bg-slate-700 rounded animate-pulse mx-auto"></div>
+                    <div className="h-3 w-16 bg-slate-700 rounded animate-pulse mx-auto"></div>
                   </div>
                   <div className="text-center space-y-2">
-                    <div className="h-5 w-32 bg-gray-700 rounded animate-pulse"></div>
-                    <div className="h-3 w-24 bg-gray-700 rounded animate-pulse"></div>
+                    <div className="h-5 w-32 bg-slate-700 rounded animate-pulse"></div>
+                    <div className="h-3 w-24 bg-slate-700 rounded animate-pulse"></div>
                   </div>
                   <div className="text-center space-y-2">
-                    <div className="w-20 h-20 bg-gray-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-4 w-24 bg-gray-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-3 w-16 bg-gray-700 rounded animate-pulse mx-auto"></div>
+                    <div className="w-20 h-20 bg-slate-700 rounded animate-pulse mx-auto"></div>
+                    <div className="h-4 w-24 bg-slate-700 rounded animate-pulse mx-auto"></div>
+                    <div className="h-3 w-16 bg-slate-700 rounded animate-pulse mx-auto"></div>
                   </div>
                 </div>
               </div>
@@ -511,9 +510,9 @@ function PlayerDetail() {
                 className="h-24 w-32 panel animate-pulse"
               >
                 <div className="p-3 h-full flex flex-col justify-between">
-                  <div className="h-4 w-20 bg-gray-700 rounded"></div>
-                  <div className="h-6 w-16 bg-gray-700 rounded"></div>
-                  <div className="h-3 w-24 bg-gray-700 rounded"></div>
+                  <div className="h-4 w-20 bg-slate-700 rounded"></div>
+                  <div className="h-6 w-16 bg-slate-700 rounded"></div>
+                  <div className="h-3 w-24 bg-slate-700 rounded"></div>
                 </div>
               </div>
             ))}
@@ -527,9 +526,9 @@ function PlayerDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="panel p-6">
-                  <div className="h-4 w-24 bg-gray-700 rounded animate-pulse mb-3"></div>
-                  <div className="h-10 w-32 bg-gray-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-3 w-20 bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-4 w-24 bg-slate-700 rounded animate-pulse mb-3"></div>
+                  <div className="h-10 w-32 bg-slate-700 rounded animate-pulse mb-2"></div>
+                  <div className="h-3 w-20 bg-slate-700 rounded animate-pulse"></div>
                 </div>
               ))}
             </div>
@@ -541,22 +540,22 @@ function PlayerDetail() {
             <div className="panel p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="h-7 w-32 bg-gray-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-4 w-64 bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-7 w-32 bg-slate-700 rounded animate-pulse mb-2"></div>
+                  <div className="h-4 w-64 bg-slate-700 rounded animate-pulse"></div>
                 </div>
                 <div className="flex gap-2">
                   {['L5', 'L10', 'L15', 'H2H', 'Season', 'Prev1', 'Prev2'].map((f) => (
-                    <div key={f} className="h-8 w-12 bg-gray-700 rounded animate-pulse"></div>
+                    <div key={f} className="h-8 w-12 bg-slate-700 rounded animate-pulse"></div>
                   ))}
                 </div>
               </div>
-              <div className="h-96 bg-gray-700/50 rounded-lg animate-pulse relative overflow-hidden">
+              <div className="h-96 bg-slate-700/50 rounded-lg animate-pulse relative overflow-hidden">
                 {/* Simulated chart bars */}
                 <div className="absolute bottom-0 left-0 right-0 flex items-end justify-around px-4 pb-4 gap-2">
                   {[20, 35, 45, 30, 50, 40, 55, 35, 45, 50, 30, 40, 45, 35, 50].map((height, i) => (
                     <div
                       key={i}
-                      className="w-6 bg-gray-600 rounded-t animate-pulse"
+                      className="w-6 bg-slate-600 rounded-t animate-pulse"
                       style={{ height: `${height}%`, animationDelay: `${i * 50}ms` }}
                     ></div>
                   ))}
@@ -568,29 +567,29 @@ function PlayerDetail() {
             <div className="panel p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="h-7 w-32 bg-gray-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-4 w-40 bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-7 w-32 bg-slate-700 rounded animate-pulse mb-2"></div>
+                  <div className="h-4 w-40 bg-slate-700 rounded animate-pulse"></div>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <div className="grid grid-cols-[150px_140px_repeat(6,140px)] gap-2">
                   {/* Header row */}
-                  <div className="h-8 bg-gray-700 rounded animate-pulse"></div>
-                  <div className="h-8 bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-8 bg-slate-700 rounded animate-pulse"></div>
+                  <div className="h-8 bg-slate-700 rounded animate-pulse"></div>
                   {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-8 bg-gray-700 rounded animate-pulse"></div>
+                    <div key={i} className="h-8 bg-slate-700 rounded animate-pulse"></div>
                   ))}
                   {/* Over row */}
-                  <div className="h-12 bg-gray-700/50 rounded animate-pulse"></div>
-                  <div className="h-12 bg-gray-700/50 rounded animate-pulse"></div>
+                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
+                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
                   {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-12 bg-gray-700/50 rounded animate-pulse"></div>
+                    <div key={i} className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
                   ))}
                   {/* Under row */}
-                  <div className="h-12 bg-gray-700/50 rounded animate-pulse"></div>
-                  <div className="h-12 bg-gray-700/50 rounded animate-pulse"></div>
+                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
+                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
                   {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-12 bg-gray-700/50 rounded animate-pulse"></div>
+                    <div key={i} className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
                   ))}
                 </div>
               </div>
@@ -599,16 +598,16 @@ function PlayerDetail() {
             {/* Game Log Skeleton */}
             <div className="panel p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="h-7 w-40 bg-gray-700 rounded animate-pulse"></div>
+                <div className="h-7 w-40 bg-slate-700 rounded animate-pulse"></div>
                 <div className="flex gap-2">
-                  <div className="h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
-                  <div className="h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-8 w-24 bg-slate-700 rounded animate-pulse"></div>
+                  <div className="h-8 w-24 bg-slate-700 rounded animate-pulse"></div>
                 </div>
               </div>
               {/* Table header skeleton */}
-              <div className="grid grid-cols-8 gap-2 mb-2 pb-2 border-b border-gray-700">
+              <div className="grid grid-cols-8 gap-2 mb-2 pb-2 border-b border-slate-700">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                  <div key={i} className="h-4 bg-gray-700 rounded animate-pulse"></div>
+                  <div key={i} className="h-4 bg-slate-700 rounded animate-pulse"></div>
                 ))}
               </div>
               {/* Table rows skeleton */}
@@ -616,7 +615,7 @@ function PlayerDetail() {
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
                   <div key={i} className="grid grid-cols-8 gap-2">
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((j) => (
-                      <div key={j} className="h-8 bg-gray-700/50 rounded animate-pulse"></div>
+                      <div key={j} className="h-8 bg-slate-700/50 rounded animate-pulse"></div>
                     ))}
                   </div>
                 ))}
@@ -625,10 +624,10 @@ function PlayerDetail() {
 
             {/* Injuries Table Skeleton */}
             <div className="panel p-6">
-              <div className="h-7 w-32 bg-gray-700 rounded animate-pulse mb-4"></div>
+              <div className="h-7 w-32 bg-slate-700 rounded animate-pulse mb-4"></div>
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-gray-700/50 rounded animate-pulse"></div>
+                  <div key={i} className="h-16 bg-slate-700/50 rounded animate-pulse"></div>
                 ))}
               </div>
             </div>
@@ -643,17 +642,17 @@ function PlayerDetail() {
       <div className="max-w-6xl mx-auto">
         <button
           onClick={() => navigate(-1)}
-          className="mb-4 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          className="mb-4 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
         >
           ← Back
         </button>
         <div className="panel p-8">
-          <div className="text-red-400 text-center">
+          <div className="text-rose-400 text-center">
             <p className="text-xl font-semibold">Error</p>
-            <p className="mt-2 text-gray-300">{error}</p>
+            <p className="mt-2 text-slate-300">{error}</p>
             <button
               onClick={fetchComparisonData}
-              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="mt-4 px-4 py-2 bg-amber-400 text-slate-900 rounded-lg hover:bg-amber-300 transition-colors"
             >
               Retry
             </button>
@@ -667,7 +666,7 @@ function PlayerDetail() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="panel p-8">
-          <p className="text-gray-400 text-center">Loading player data...</p>
+          <p className="text-slate-400 text-center">Loading player data...</p>
         </div>
       </div>
     );
@@ -683,12 +682,12 @@ function PlayerDetail() {
         transition={{ duration: 0.2 }}
         className="max-w-7xl mx-auto px-4 mb-4"
       >
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
           <motion.button
             onClick={() => navigate(-1)}
             whileHover={{ x: -4, scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="hover:text-white transition-colors flex items-center gap-1 text-gray-400"
+            className="hover:text-white transition-colors flex items-center gap-1 text-slate-400"
           >
             <motion.span
               animate={{ x: [0, -4, 0] }}
@@ -699,7 +698,7 @@ function PlayerDetail() {
             Back
           </motion.button>
           <span>›</span>
-          <span className="text-gray-300 font-medium">{comparisonData?.player || `${player.first_name} ${player.last_name}`}</span>
+          <span className="text-slate-300 font-medium">{comparisonData?.player || `${player.first_name} ${player.last_name}`}</span>
         </div>
       </motion.div>
 
@@ -709,7 +708,7 @@ function PlayerDetail() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="bg-[#0f1923] border-b border-gray-800 mb-6 overflow-hidden"
+          className="bg-slate-800/30 border-b border-slate-800 mb-6 overflow-hidden"
           style={{ minHeight: '160px' }}
         >
           <div className="max-w-7xl mx-auto flex items-stretch" style={{ minHeight: '160px' }}>
@@ -745,27 +744,27 @@ function PlayerDetail() {
                       const name = comparisonData?.player || `${player.first_name} ${player.last_name}`;
                       toggleFavorite(playerId, name);
                     }}
-                    className="p-1 rounded-lg hover:bg-gray-700/50 transition-colors"
+                    className="p-1 rounded-lg hover:bg-slate-700/50 transition-colors"
                     title={isFavorite(playerId) ? 'Remove from favorites' : 'Add to favorites'}
                   >
                     <Star
                       size={20}
-                      className={isFavorite(playerId) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                      className={isFavorite(playerId) ? 'text-amber-400 fill-amber-400' : 'text-slate-500 hover:text-amber-400'}
                     />
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap mb-3">
+              <div className="flex items-center gap-2 text-sm text-slate-400 flex-wrap mb-3">
                 {(comparisonData?.position && comparisonData.position !== 'N/A') && (
-                  <span className="px-2 py-0.5 bg-slate-700/80 text-gray-300 rounded text-xs font-semibold border border-slate-600/50">{comparisonData.position}</span>
+                  <span className="px-2 py-0.5 bg-slate-700/80 text-slate-300 rounded text-xs font-semibold border border-slate-600/50">{comparisonData.position}</span>
                 )}
                 {comparisonData?.player_team && (
-                  <span className="text-gray-300 font-medium">{comparisonData.player_team}</span>
+                  <span className="text-slate-300 font-medium">{comparisonData.player_team}</span>
                 )}
                 {comparisonData?.next_game && (
                   <>
-                    <span className="text-gray-600">{comparisonData.next_game.isHome ? 'vs' : '@'}</span>
-                    <span className="text-gray-300 font-medium">{comparisonData.next_game.opponent || 'TBD'}</span>
+                    <span className="text-slate-600">{comparisonData.next_game.isHome ? 'vs' : '@'}</span>
+                    <span className="text-slate-300 font-medium">{comparisonData.next_game.opponent || 'TBD'}</span>
                   </>
                 )}
               </div>
@@ -784,17 +783,17 @@ function PlayerDetail() {
                   <div className="flex items-center gap-4">
                     <div className="text-center">
                       <span className="text-white text-base font-bold">{ppg}</span>
-                      <span className="text-gray-500 text-[10px] font-semibold uppercase ml-1">PPG</span>
+                      <span className="text-slate-500 text-[10px] font-semibold uppercase ml-1">PPG</span>
                     </div>
-                    <div className="w-px h-4 bg-gray-700" />
+                    <div className="w-px h-4 bg-slate-700" />
                     <div className="text-center">
                       <span className="text-white text-base font-bold">{rpg}</span>
-                      <span className="text-gray-500 text-[10px] font-semibold uppercase ml-1">RPG</span>
+                      <span className="text-slate-500 text-[10px] font-semibold uppercase ml-1">RPG</span>
                     </div>
-                    <div className="w-px h-4 bg-gray-700" />
+                    <div className="w-px h-4 bg-slate-700" />
                     <div className="text-center">
                       <span className="text-white text-base font-bold">{apg}</span>
-                      <span className="text-gray-500 text-[10px] font-semibold uppercase ml-1">APG</span>
+                      <span className="text-slate-500 text-[10px] font-semibold uppercase ml-1">APG</span>
                     </div>
                   </div>
                 );
@@ -803,7 +802,7 @@ function PlayerDetail() {
 
             {/* Divider */}
             {comparisonData?.next_game && (
-              <div className="hidden md:block w-px bg-gray-700/50 flex-shrink-0 my-6" />
+              <div className="hidden md:block w-px bg-slate-700/50 flex-shrink-0 my-6" />
             )}
 
             {/* Matchup */}
@@ -849,14 +848,14 @@ function PlayerDetail() {
                       <img src={comparisonData.player_team_logo} alt="" className="w-11 h-11 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
                     )}
                     <span className="text-xs font-bold text-white">{comparisonData.player_team_name || 'TBD'}</span>
-                    {comparisonData.player_team_record && <span className="text-xs text-gray-500">{comparisonData.player_team_record}</span>}
+                    {comparisonData.player_team_record && <span className="text-xs text-slate-500">{comparisonData.player_team_record}</span>}
                   </div>
 
                   {/* Date & Time */}
                   <div className="text-center px-2">
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{dateStr}</div>
+                    <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">{dateStr}</div>
                     {timeStr && timeStr !== 'TBD' && (
-                      <div className="text-xs text-gray-500 mt-0.5">{timeStr}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{timeStr}</div>
                     )}
                   </div>
 
@@ -867,7 +866,7 @@ function PlayerDetail() {
                         <img src={nextGame.opponent_logo} alt="" className="w-11 h-11 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
                       )}
                       <span className="text-xs font-bold text-white">{opponent}</span>
-                      {nextGame.opponent_record && <span className="text-xs text-gray-500">{nextGame.opponent_record}</span>}
+                      {nextGame.opponent_record && <span className="text-xs text-slate-500">{nextGame.opponent_record}</span>}
                     </div>
                   )}
                 </div>
@@ -910,8 +909,8 @@ function PlayerDetail() {
             />
           ) : (
             <div className="panel p-6 mb-6">
-              <p className="text-gray-400 text-center">No prop bets available for this player</p>
-              <p className="text-gray-500 text-center text-xs mt-2">Props object: {JSON.stringify(props)}</p>
+              <p className="text-slate-400 text-center">No prop bets available for this player</p>
+              <p className="text-slate-500 text-center text-xs mt-2">Props object: {JSON.stringify(props)}</p>
             </div>
           );
         })()}
@@ -1103,7 +1102,7 @@ function PlayerDetail() {
                           ? prediction.toFixed(1)
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
                         subtitle={prediction != null ? `${propLabel}${recommendation ? ` · leans ${recommendation.toLowerCase()}` : ''}` : null}
-                        color={recommendation === 'OVER' ? 'text-green-400' : recommendation === 'UNDER' ? 'text-red-400' : 'text-yellow-400'}
+                        color={recommendation === 'OVER' ? 'text-emerald-400' : recommendation === 'UNDER' ? 'text-rose-400' : 'text-amber-400'}
                         valueSize="text-2xl"
                         index={1}
                         locked={!user}
@@ -1116,7 +1115,7 @@ function PlayerDetail() {
                         value={hasPrediction && coverProbability != null
                           ? `${coverProbability.toFixed(0)}%`
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
-                        color={hasPrediction && coverProbability != null ? getCoverProbabilityColor(coverProbability) : 'text-gray-400'}
+                        color={hasPrediction && coverProbability != null ? getCoverProbabilityColor(coverProbability) : 'text-slate-400'}
                         progressBar={hasPrediction && coverProbability != null ? coverProbability : null}
                         infoTooltip="The probability that the bet will cover based on our model's prediction and historical performance."
                         infoTooltipLabel="Cover Probability"
@@ -1132,7 +1131,7 @@ function PlayerDetail() {
                         value={ev != null
                           ? `${ev > 0 ? '+' : ''}${ev.toFixed(1)}%`
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
-                        color={ev != null ? getEVColor(ev) : 'text-gray-400'}
+                        color={ev != null ? getEVColor(ev) : 'text-slate-400'}
                         infoTooltip="The expected value of the bet calculated from cover probability and current odds. Positive EV indicates a profitable bet over time."
                         infoTooltipLabel="Expected Value"
                         valueSize="text-2xl"
@@ -1150,7 +1149,7 @@ function PlayerDetail() {
                           </span>
                         ) : null}
                         value={betRating == null ? (loadingPredictions[selectedProp] ? 'Loading...' : 'N/A') : undefined}
-                        color={betRating != null ? getBetRatingColor(betRating) : 'text-gray-400'}
+                        color={betRating != null ? getBetRatingColor(betRating) : 'text-slate-400'}
                         infoTooltip="Overall bet rating (A+ to F) based on expected value, model confidence, and prediction edge over the betting line."
                         infoTooltipLabel="Bet Rating"
                         index={4}
@@ -1201,11 +1200,11 @@ function PlayerDetail() {
                     {/* Header */}
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                          <Users size={16} className="text-yellow-500" />
+                        <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                          <Users size={16} className="text-amber-400" />
                           Make Your Prediction
                         </h4>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-slate-500 mt-0.5">
                           {comparisonData.next_game.opponent ? `vs ${comparisonData.next_game.opponent} · ` : ''}{comparisonData.next_game.commence_time
                             ? new Date(comparisonData.next_game.commence_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                             : comparisonData.next_game.date}
@@ -1215,10 +1214,10 @@ function PlayerDetail() {
                         <motion.div
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-700/50 border border-gray-600/50"
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700/50 border border-slate-600/50"
                         >
-                          <Users size={12} className="text-gray-400" />
-                          <span className="text-xs font-medium text-gray-300">
+                          <Users size={12} className="text-slate-400" />
+                          <span className="text-xs font-medium text-slate-300">
                             {community.total} pick{community.total !== 1 ? 's' : ''}
                           </span>
                         </motion.div>
@@ -1229,7 +1228,7 @@ function PlayerDetail() {
                       {/* Line Display */}
                       <div className="text-center mb-4">
                         <span className="text-2xl font-bold text-white">{propLine}</span>
-                        <span className="text-sm text-gray-400 ml-2">{propDisplayLabels[selectedProp] || selectedProp.replace(/_/g, ' ')}</span>
+                        <span className="text-sm text-slate-400 ml-2">{propDisplayLabels[selectedProp] || selectedProp.replace(/_/g, ' ')}</span>
                       </div>
 
                       {/* OVER / UNDER Buttons */}
@@ -1244,15 +1243,15 @@ function PlayerDetail() {
                           whileTap={{ scale: 0.97 }}
                           className={`relative py-4 px-4 rounded-lg text-center font-bold transition-all overflow-hidden ${
                             userPick?.pick === 'over' || pendingPick === 'over'
-                              ? 'bg-green-500/20 border-2 border-green-500 text-green-400 shadow-lg shadow-green-500/20'
-                              : 'bg-gray-700/50 border-2 border-gray-600/50 text-gray-300 hover:border-green-500/50 hover:bg-green-500/10'
+                              ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 shadow-lg shadow-emerald-500/20'
+                              : 'bg-slate-700/50 border-2 border-slate-600/50 text-slate-300 hover:border-emerald-500/50 hover:bg-emerald-500/10'
                           } disabled:opacity-50`}
                         >
                           <div className="text-lg font-bold">OVER</div>
                           <div className="text-xs opacity-70 mt-0.5">{propLine}</div>
                           {userPick?.pick === 'over' && (
                             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="mt-1">
-                              <Check size={16} className="mx-auto text-green-400" />
+                              <Check size={16} className="mx-auto text-emerald-400" />
                             </motion.div>
                           )}
                         </motion.button>
@@ -1267,15 +1266,15 @@ function PlayerDetail() {
                           whileTap={{ scale: 0.97 }}
                           className={`relative py-4 px-4 rounded-lg text-center font-bold transition-all overflow-hidden ${
                             userPick?.pick === 'under' || pendingPick === 'under'
-                              ? 'bg-red-500/20 border-2 border-red-500 text-red-400 shadow-lg shadow-red-500/20'
-                              : 'bg-gray-700/50 border-2 border-gray-600/50 text-gray-300 hover:border-red-500/50 hover:bg-red-500/10'
+                              ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-lg shadow-rose-500/20'
+                              : 'bg-slate-700/50 border-2 border-slate-600/50 text-slate-300 hover:border-rose-500/50 hover:bg-rose-500/10'
                           } disabled:opacity-50`}
                         >
                           <div className="text-lg font-bold">UNDER</div>
                           <div className="text-xs opacity-70 mt-0.5">{propLine}</div>
                           {userPick?.pick === 'under' && (
                             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="mt-1">
-                              <Check size={16} className="mx-auto text-red-400" />
+                              <Check size={16} className="mx-auto text-rose-400" />
                             </motion.div>
                           )}
                         </motion.button>
@@ -1293,8 +1292,8 @@ function PlayerDetail() {
                             <div className="flex flex-col items-center gap-1.5 mb-3">
                               <div className="flex items-center justify-center gap-2.5">
                                 {tokens > 0 && (
-                                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-700/60 border border-gray-600/50">
-                                    <Coins size={13} className="text-yellow-500" />
+                                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-700/60 border border-slate-600/50">
+                                    <Coins size={13} className="text-amber-400" />
                                     <input
                                       type="text"
                                       inputMode="numeric"
@@ -1305,9 +1304,9 @@ function PlayerDetail() {
                                         setWagerAmount(Math.min(parseInt(raw, 10), tokens));
                                       }}
                                       placeholder="0"
-                                      className="w-12 bg-transparent text-yellow-400 text-sm font-bold text-center focus:outline-none"
+                                      className="w-12 bg-transparent text-amber-400 text-sm font-bold text-center focus:outline-none"
                                     />
-                                    <span className="text-[11px] text-gray-500 font-medium">/ {tokens}</span>
+                                    <span className="text-[11px] text-slate-500 font-medium">/ {tokens}</span>
                                   </div>
                                 )}
                                 {(() => {
@@ -1317,14 +1316,14 @@ function PlayerDetail() {
                                   if (wagerAmount > 0) {
                                     const profit = odds > 0 ? wagerAmount * (odds / 100) : wagerAmount * (100 / Math.abs(odds));
                                     return (
-                                      <span className="text-[11px] text-gray-500">
-                                        win <span className="text-green-400 font-semibold">+{Math.round(wagerAmount + profit)}</span>
+                                      <span className="text-[11px] text-slate-500">
+                                        win <span className="text-emerald-400 font-semibold">+{Math.round(wagerAmount + profit)}</span>
                                       </span>
                                     );
                                   }
                                   return (
-                                    <span className="text-[11px] text-gray-500">
-                                      win <span className="text-green-400 font-semibold">+10</span>
+                                    <span className="text-[11px] text-slate-500">
+                                      win <span className="text-emerald-400 font-semibold">+10</span>
                                     </span>
                                   );
                                 })()}
@@ -1334,15 +1333,15 @@ function PlayerDetail() {
                                   whileTap={{ scale: 0.95 }}
                                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 ${
                                     pendingPick === 'over'
-                                      ? 'bg-green-500 text-white hover:bg-green-600'
-                                      : 'bg-red-500 text-white hover:bg-red-600'
+                                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                      : 'bg-rose-500 text-white hover:bg-rose-600'
                                   }`}
                                 >
                                   Confirm
                                 </motion.button>
                               </div>
                               {tokens > 0 && wagerAmount === 0 && (
-                                <p className="text-[10px] text-gray-600">Wager is optional — leave empty to pick for free</p>
+                                <p className="text-[10px] text-slate-600">Wager is optional — leave empty to pick for free</p>
                               )}
                             </div>
                           </motion.div>
@@ -1364,9 +1363,9 @@ function PlayerDetail() {
                                   initial={{ width: '50%' }}
                                   animate={{ width: `${community.overPercent}%` }}
                                   transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                                  className="bg-green-500/30 flex items-center justify-start px-3"
+                                  className="bg-emerald-500/30 flex items-center justify-start px-3"
                                 >
-                                  <span className="text-xs font-bold text-green-400 whitespace-nowrap">
+                                  <span className="text-xs font-bold text-emerald-400 whitespace-nowrap">
                                     {community.overPercent}% Over
                                   </span>
                                 </motion.div>
@@ -1376,9 +1375,9 @@ function PlayerDetail() {
                                   initial={{ width: '50%' }}
                                   animate={{ width: `${community.underPercent}%` }}
                                   transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                                  className="bg-red-500/30 flex items-center justify-end px-3"
+                                  className="bg-rose-500/30 flex items-center justify-end px-3"
                                 >
-                                  <span className="text-xs font-bold text-red-400 whitespace-nowrap">
+                                  <span className="text-xs font-bold text-rose-400 whitespace-nowrap">
                                     {community.underPercent}% Under
                                   </span>
                                 </motion.div>
@@ -1389,11 +1388,11 @@ function PlayerDetail() {
                               <motion.p
                                 initial={{ opacity: 0, y: 5 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="text-xs text-gray-400 text-center"
+                                className="text-xs text-slate-400 text-center"
                               >
                                 {userAgreesWithMajority ? "You're with the majority" : "You're going against the crowd"}
                                 {' · '}
-                                <span className={userPick.pick === 'over' ? 'text-green-400' : 'text-red-400'}>
+                                <span className={userPick.pick === 'over' ? 'text-emerald-400' : 'text-rose-400'}>
                                   {userPick.pick === 'over' ? community.overCount - 1 : community.underCount - 1}
                                 </span>
                                 {' '}other{(userPick.pick === 'over' ? community.overCount - 1 : community.underCount - 1) !== 1 ? 's' : ''} picked {userPick.pick.toUpperCase()}
@@ -1410,12 +1409,12 @@ function PlayerDetail() {
                             initial={{ opacity: 0, y: -5 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -5 }}
-                            className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-700/50"
+                            className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-slate-700/50"
                           >
                             <button
                               onClick={handleDeletePrediction}
                               disabled={predictionSaving}
-                              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600 transition-colors disabled:opacity-50"
+                              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600 transition-colors disabled:opacity-50"
                             >
                               Undo Pick
                             </button>
@@ -1423,7 +1422,7 @@ function PlayerDetail() {
                               <motion.span
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="flex items-center gap-1 text-xs text-green-400"
+                                className="flex items-center gap-1 text-xs text-emerald-400"
                               >
                                 <Check size={14} /> Saved
                               </motion.span>
@@ -1433,7 +1432,7 @@ function PlayerDetail() {
                       </AnimatePresence>
 
                       {predictionError && (
-                        <p className="text-red-400 text-xs mt-2 text-center">{predictionError}</p>
+                        <p className="text-rose-400 text-xs mt-2 text-center">{predictionError}</p>
                       )}
                     </div>
                   </motion.div>

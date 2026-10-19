@@ -24,7 +24,7 @@ const GameDetail = lazy(() => import('./components/GameDetail'));
 function RouteLoader() {
   return (
     <div className="flex items-center justify-center py-20">
-      <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
@@ -219,28 +219,28 @@ function AppHeader() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-gray-900 text-white py-4 shadow-lg border-b border-gray-800 sticky top-0 z-50 backdrop-blur-sm bg-gray-900/95"
+        className="bg-slate-900 text-white py-4 shadow-lg border-b border-slate-800 sticky top-0 z-50 backdrop-blur-sm bg-slate-900/95"
       >
         <div className="container mx-auto px-4 flex items-center justify-between">
           {/* Left: Hamburger menu + Brand */}
           <div className="flex items-center gap-3" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none"
+              className="p-2 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none"
               aria-label="Menu"
             >
               <div className="w-5 flex flex-col gap-1">
                 <motion.span
                   animate={menuOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
-                  className="block h-0.5 w-5 bg-gray-300 rounded-full"
+                  className="block h-0.5 w-5 bg-slate-300 rounded-full"
                 />
                 <motion.span
                   animate={menuOpen ? { opacity: 0 } : { opacity: 1 }}
-                  className="block h-0.5 w-5 bg-gray-300 rounded-full"
+                  className="block h-0.5 w-5 bg-slate-300 rounded-full"
                 />
                 <motion.span
                   animate={menuOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
-                  className="block h-0.5 w-5 bg-gray-300 rounded-full"
+                  className="block h-0.5 w-5 bg-slate-300 rounded-full"
                 />
               </div>
             </button>
@@ -263,7 +263,7 @@ function AppHeader() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-4 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50"
+                  className="absolute top-full left-4 mt-1 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden z-50"
                 >
                   {navItems.map((item) => {
                     const isActive = location.pathname === item.path;
@@ -274,8 +274,8 @@ function AppHeader() {
                         onClick={() => navigate(item.path)}
                         className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
                           isActive
-                            ? 'bg-yellow-500/10 text-yellow-400 font-semibold'
-                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                            ? 'bg-amber-400/10 text-amber-400 font-semibold'
+                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                         }`}
                       >
                         <Icon size={16} />
@@ -291,34 +291,34 @@ function AppHeader() {
           {/* Right: Auth */}
           <div className="flex items-center">
             {loading ? (
-              <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-slate-700 animate-pulse" />
             ) : user ? (
                 /* Logged in: avatar + dropdown */
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5">
-                    <Coins size={14} className="text-yellow-500" />
-                    <span className="text-sm font-bold text-yellow-400">{tokens}</span>
+                    <Coins size={14} className="text-amber-400" />
+                    <span className="text-sm font-bold text-amber-400">{tokens}</span>
                   </div>
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
                   >
                     {user.photoURL ? (
                       <img
                         src={user.photoURL}
                         alt=""
-                        className="w-8 h-8 rounded-full border-2 border-gray-700"
+                        className="w-8 h-8 rounded-full border-2 border-slate-700"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-gray-900 font-bold text-sm">
+                      <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-slate-900 font-bold text-sm">
                         {userInitial}
                       </div>
                     )}
                     <ChevronDown
                       size={16}
-                      className={`text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+                      className={`text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
                     />
                   </button>
 
@@ -329,49 +329,49 @@ function AppHeader() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full right-0 mt-1 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50"
+                        className="absolute top-full right-0 mt-1 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden z-50"
                       >
                         {/* User info */}
-                        <div className="px-4 py-3 border-b border-gray-700">
+                        <div className="px-4 py-3 border-b border-slate-700">
                           <p className="text-sm font-semibold text-white truncate">
                             {user.displayName || 'User'}
                           </p>
-                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                          <p className="text-xs text-slate-400 truncate">{user.email}</p>
                         </div>
 
                         <button
                           onClick={() => navigate('/favorites')}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                         >
                           <Star size={16} />
                           My Favorites
                         </button>
                         <button
                           onClick={() => navigate('/predictions')}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                         >
                           <Target size={16} />
                           My Predictions
                         </button>
                         <button
                           onClick={() => navigate(`/profile/${user.uid}`)}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                         >
                           <User size={16} />
                           My Profile
                         </button>
                         <button
                           onClick={() => navigate('/friends')}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                         >
                           <Users size={16} />
                           Friends
                         </button>
 
-                        <div className="border-t border-gray-700">
+                        <div className="border-t border-slate-700">
                           <button
                             onClick={() => navigate('/settings')}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                           >
                             <Settings size={16} />
                             Settings
@@ -381,7 +381,7 @@ function AppHeader() {
                               logout();
                               setUserMenuOpen(false);
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-700 transition-colors"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-rose-400 hover:bg-slate-700 transition-colors"
                           >
                             <LogOut size={16} />
                             Sign Out
@@ -396,7 +396,7 @@ function AppHeader() {
                 /* Logged out: Sign In button */
                 <button
                   onClick={() => setAuthModalOpen(true)}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg font-semibold text-sm whitespace-nowrap flex-shrink-0 hover:bg-yellow-400 transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-amber-400 text-slate-900 rounded-lg font-semibold text-sm whitespace-nowrap flex-shrink-0 hover:bg-amber-300 transition-colors"
                 >
                   <LogIn size={16} />
                   Sign In
@@ -417,10 +417,10 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-gray-900">
+        <div className="min-h-screen bg-slate-900">
           <AppHeader />
 
-          <main className="container mx-auto px-4 py-8 bg-gray-900 min-h-screen">
+          <main className="container mx-auto px-4 py-8 bg-slate-900 min-h-screen">
             <AnimatedRoutes />
           </main>
 
@@ -428,24 +428,24 @@ function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-8 border-t border-gray-700 mt-12"
+            className="bg-gradient-to-br from-slate-900 to-slate-800 text-white py-8 border-t border-slate-700 mt-12"
           >
             <div className="container mx-auto px-4">
               <div className="text-center">
-                <p className="text-sm text-gray-400 mb-2">
-                  <span className="font-semibold text-gray-300">Powered by:</span> XGBoost ML Models, ESPN API, NBA.com Stats, The Odds API & RapidAPI
+                <p className="text-sm text-slate-400 mb-2">
+                  <span className="font-semibold text-slate-300">Powered by:</span> XGBoost ML Models, ESPN API, NBA.com Stats, The Odds API & RapidAPI
                 </p>
-                <p className="text-xs text-gray-500 mb-3">
+                <p className="text-xs text-slate-500 mb-3">
                   Advanced machine learning predictions using gradient boosting algorithms
                 </p>
-                <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+                <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
                   <span>Real-time data from multiple sources</span>
                   <span>|</span>
                   <span>Historical stats & injury tracking</span>
                   <span>|</span>
                   <span>AI-powered performance analysis</span>
                 </div>
-                <p className="mt-4 text-xs text-gray-600 font-medium">
+                <p className="mt-4 text-xs text-slate-600 font-medium">
                   For informational and entertainment purposes only.
                 </p>
               </div>

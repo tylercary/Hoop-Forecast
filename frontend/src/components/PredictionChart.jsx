@@ -217,17 +217,17 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
       >
         <div className="flex items-center justify-between mb-3">
           <h3 className="panel-title">Prop Analysis</h3>
-          <span className="text-xs text-gray-400">vs {nextGameOpponent}</span>
+          <span className="text-xs text-slate-400">vs {nextGameOpponent}</span>
         </div>
         <div className="flex flex-wrap gap-1.5 mb-6">
           {filterButtons.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                 filter === f
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-gray-800/80 text-gray-500 hover:text-gray-300'
+                  ? 'bg-amber-400 text-slate-900'
+                  : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700/80 hover:text-white'
               }`}
             >
               {f}
@@ -235,8 +235,8 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
           ))}
         </div>
         <div className="text-center py-10">
-          <p className="text-gray-500 mb-1">No games found vs {nextGameOpponent}</p>
-          <p className="text-gray-600 text-xs">Try a different filter</p>
+          <p className="text-slate-500 mb-1">No games found vs {nextGameOpponent}</p>
+          <p className="text-slate-600 text-xs">Try a different filter</p>
         </div>
       </motion.div>
     );
@@ -250,14 +250,14 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
         points: 0,
         date: '',
         opponent: 'N/A',
-        color: '#6b7280',
+        color: '#64748b',
         isOver: false
       };
     }
 
     const value = getChartValue(game);
 
-    let barColor = '#6b7280';
+    let barColor = '#64748b';
     if (line != null && typeof value === 'number' && !isNaN(value)) {
       barColor = value >= line ? '#10b981' : '#f43f5e';
     }
@@ -348,7 +348,7 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
     return (
       <div className="panel p-5">
         <h3 className="panel-title mb-4">Prop Analysis</h3>
-        <p className="text-gray-400 text-center py-8 text-sm">No game data available</p>
+        <p className="text-slate-400 text-center py-8 text-sm">No game data available</p>
       </div>
     );
   }
@@ -359,8 +359,8 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
       <div className="panel p-5">
         <h3 className="panel-title mb-4">Prop Analysis</h3>
         <div className="flex items-center justify-center py-10">
-          <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
-          <span className="ml-3 text-gray-400 text-sm">Loading...</span>
+          <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <span className="ml-3 text-slate-400 text-sm">Loading...</span>
         </div>
       </div>
     );
@@ -372,13 +372,13 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
     const value = payload[0].value;
     const isOver = line != null && value >= line;
     return (
-      <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-[11px] text-gray-400 mb-0.5">{label}</p>
+      <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 shadow-xl">
+        <p className="text-[11px] text-slate-400 mb-0.5">{label}</p>
         <p className={`text-sm font-bold ${line != null ? (isOver ? 'text-emerald-400' : 'text-rose-400') : 'text-white'}`}>
-          {value.toFixed(1)} <span className="text-gray-500 font-normal text-xs">{propLabel}</span>
+          {value.toFixed(1)} <span className="text-slate-500 font-normal text-xs">{propLabel}</span>
         </p>
         {line != null && (
-          <p className="text-[10px] text-gray-600 mt-0.5">
+          <p className="text-[10px] text-slate-600 mt-0.5">
             {isOver ? '+' : ''}{(value - line).toFixed(1)} vs line
           </p>
         )}
@@ -427,10 +427,10 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                 filter === f
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-gray-800/80 text-gray-500 hover:text-gray-300'
+                  ? 'bg-amber-400 text-slate-900'
+                  : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700/80 hover:text-white'
               }`}
             >
               {f}
@@ -439,8 +439,8 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
         </div>
         {line != null && (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-gray-800/60 rounded-full px-2.5 py-1 border border-gray-700/30">
-              <span className="text-[10px] text-gray-600 font-medium uppercase tracking-wide">Line</span>
+            <div className="flex items-center gap-1.5 bg-slate-800/60 rounded-full px-2.5 py-1 border border-slate-700/30">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">Line</span>
               <input
                 type="number"
                 step="0.1"
@@ -460,7 +460,7 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={() => setAdjustedLine(null)}
-                className="px-2 py-1 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors"
+                className="px-2 py-1 rounded-full text-[10px] font-semibold bg-amber-400/10 text-amber-300 border border-amber-400/30 hover:bg-amber-400/20 transition-colors"
               >
                 Reset
               </motion.button>
@@ -490,7 +490,7 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
             margin={{ top: 15, right: 50, left: 15, bottom: 55 }}
             barCategoryGap="15%"
           >
-          <CartesianGrid strokeDasharray="4 4" stroke="#374151" vertical={false} />
+          <CartesianGrid strokeDasharray="4 4" stroke="#334155" vertical={false} />
           <XAxis
             dataKey="name"
             angle={-45}
@@ -498,13 +498,13 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
             height={75}
             axisLine={false}
             tickLine={false}
-            tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }}
+            tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
           />
           <YAxis
             domain={[minPoints, maxPoints]}
             axisLine={false}
             tickLine={false}
-            tick={{ fill: '#d1d5db', fontSize: 11, fontWeight: 500 }}
+            tick={{ fill: '#cbd5e1', fontSize: 11, fontWeight: 500 }}
             width={35}
             ticks={yAxisTicks}
           />
@@ -536,7 +536,7 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
             <>
               <ReferenceLine
                 y={line}
-                stroke={isDragging ? "#60a5fa" : (isLineAdjusted ? "#3b82f6" : "rgba(255,255,255,0.7)")}
+                stroke={isDragging ? "#fbbf24" : (isLineAdjusted ? "#f59e0b" : "rgba(255,255,255,0.7)")}
                 strokeWidth={isDragging ? 2.5 : 1.5}
                 strokeDasharray={isLineAdjusted ? "6 3" : "0"}
                 style={{
@@ -553,9 +553,9 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
                         y={labelY - 10}
                         width={38}
                         height={20}
-                        fill={isDragging ? "#1e40af" : (isLineAdjusted ? "#1e3a5f" : "#1f2937")}
+                        fill="#1e293b"
                         rx={6}
-                        stroke={isDragging ? "#60a5fa" : (isLineAdjusted ? "#3b82f6" : "#374151")}
+                        stroke={isDragging ? "#fbbf24" : (isLineAdjusted ? "#f59e0b" : "#334155")}
                         strokeWidth={1}
                       />
                       <text

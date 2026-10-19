@@ -65,9 +65,9 @@ function TeamDetail() {
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-4">
-        <div className="bg-gray-800 rounded-lg p-8 animate-pulse h-32" />
-        <div className="h-10 bg-gray-800 rounded-lg animate-pulse" />
-        <div className="bg-gray-800 rounded-lg p-4 animate-pulse h-64" />
+        <div className="bg-slate-800 rounded-lg p-8 animate-pulse h-32" />
+        <div className="h-10 bg-slate-800 rounded-lg animate-pulse" />
+        <div className="bg-slate-800 rounded-lg p-4 animate-pulse h-64" />
       </div>
     );
   }
@@ -75,9 +75,9 @@ function TeamDetail() {
   if (error) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
           <h3 className="text-xl font-bold text-white mb-2">Error</h3>
-          <p className="text-gray-400">{error}</p>
+          <p className="text-slate-400">{error}</p>
         </div>
       </div>
     );
@@ -92,7 +92,7 @@ function TeamDetail() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gray-800 rounded-lg border border-gray-700 p-6"
+        className="bg-slate-800 rounded-lg border border-slate-700 p-6"
       >
         <div className="flex items-center gap-4">
           {teamLogo && (
@@ -102,13 +102,13 @@ function TeamDetail() {
             <h2 className="text-2xl font-bold text-white">{teamName}</h2>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
               {teamData?.record && (
-                <span className="text-lg font-semibold text-yellow-400">{teamData.record}</span>
+                <span className="text-lg font-semibold text-amber-400">{teamData.record}</span>
               )}
               {teamData?.standing && (
-                <span className="text-sm text-gray-400">{teamData.standing}</span>
+                <span className="text-sm text-slate-400">{teamData.standing}</span>
               )}
             </div>
-            <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+            <div className="flex items-center gap-4 mt-1 text-xs text-slate-500">
               {teamData?.homeRecord && <span>Home: {teamData.homeRecord}</span>}
               {teamData?.awayRecord && <span>Away: {teamData.awayRecord}</span>}
             </div>
@@ -116,11 +116,11 @@ function TeamDetail() {
           {user && (
             <button
               onClick={() => toggleFavoriteTeam(abbreviation, teamName)}
-              className="p-2.5 rounded-lg hover:bg-gray-700 transition-colors"
+              className="p-2.5 rounded-lg hover:bg-slate-700 transition-colors"
             >
               <Star
                 size={24}
-                className={isTeamFavorite(abbreviation) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                className={isTeamFavorite(abbreviation) ? 'text-amber-400 fill-amber-400' : 'text-slate-500 hover:text-amber-400'}
               />
             </button>
           )}
@@ -128,21 +128,21 @@ function TeamDetail() {
       </motion.div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-800 rounded-lg p-1 border border-gray-700 overflow-x-auto">
+      <div className="flex gap-1 bg-slate-800 rounded-lg p-1 border border-slate-700 overflow-x-auto">
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`flex-1 px-4 py-2.5 rounded-md text-sm font-semibold transition-colors whitespace-nowrap ${
               tab === t.key
-                ? 'bg-yellow-500 text-gray-900'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                ? 'bg-amber-400 text-slate-900'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700'
             }`}
           >
             {t.label}
             {t.key === 'injuries' && teamData?.injuries?.length > 0 && (
               <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
-                tab === 'injuries' ? 'bg-gray-900/30 text-gray-900' : 'bg-red-500/20 text-red-400'
+                tab === 'injuries' ? 'bg-slate-900/30 text-slate-900' : 'bg-rose-500/20 text-rose-400'
               }`}>
                 {teamData.injuries.length}
               </span>
@@ -178,28 +178,28 @@ function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
       {nextGame && (
         <div
           onClick={() => navigate(`/games/${nextGame.id}`)}
-          className="bg-gray-800 rounded-lg border border-gray-700 p-4 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
+          className="bg-slate-800 rounded-lg border border-slate-700 p-4 flex items-center justify-between cursor-pointer hover:border-amber-400/50 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-yellow-400" />
+            <Calendar className="w-5 h-5 text-amber-400" />
             <div>
               <p className="text-white font-semibold">{nextGame.name}</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-400">
                 {new Date(nextGame.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                 {' · '}
                 {new Date(nextGame.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
               </p>
             </div>
           </div>
-          <span className="text-xs text-gray-500 uppercase">Next Game</span>
+          <span className="text-xs text-slate-500 uppercase">Next Game</span>
         </div>
       )}
 
       {/* News */}
       {news?.length > 0 ? (
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-            <Newspaper className="w-4 h-4 text-yellow-400" />
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+            <Newspaper className="w-4 h-4 text-amber-400" />
             Latest News
           </h3>
           {news.map((article, i) => (
@@ -208,7 +208,7 @@ function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
               href={article.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden flex hover:border-gray-600 transition-colors group"
+              className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden flex hover:border-slate-600 transition-colors group"
             >
               {article.image && (
                 <img
@@ -219,21 +219,21 @@ function HomeTab({ news, nextGame, injuries, navigate, abbreviation }) {
                 />
               )}
               <div className="p-4 flex-1 min-w-0">
-                <h4 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-yellow-400 transition-colors">
+                <h4 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-amber-300 transition-colors">
                   {article.headline}
                 </h4>
-                <p className="text-gray-500 text-xs mt-1 line-clamp-2">{article.description}</p>
+                <p className="text-slate-500 text-xs mt-1 line-clamp-2">{article.description}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-gray-600">{timeAgo(article.published)}</span>
-                  <ExternalLink className="w-3 h-3 text-gray-600" />
+                  <span className="text-xs text-slate-600">{timeAgo(article.published)}</span>
+                  <ExternalLink className="w-3 h-3 text-slate-600" />
                 </div>
               </div>
             </a>
           ))}
         </div>
       ) : (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
-          <p className="text-gray-400">No recent news</p>
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
+          <p className="text-slate-400">No recent news</p>
         </div>
       )}
     </motion.div>
@@ -248,42 +248,42 @@ function StatsTab({ stats, nextGame, navigate }) {
       {nextGame && (
         <div
           onClick={() => navigate(`/games/${nextGame.id}`)}
-          className="bg-gray-800 rounded-lg border border-gray-700 p-4 flex items-center justify-between cursor-pointer hover:border-yellow-500/50 transition-colors"
+          className="bg-slate-800 rounded-lg border border-slate-700 p-4 flex items-center justify-between cursor-pointer hover:border-amber-400/50 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-yellow-400" />
+            <Calendar className="w-5 h-5 text-amber-400" />
             <div>
               <p className="text-white font-semibold">{nextGame.name}</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-400">
                 {new Date(nextGame.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                 {' · '}
                 {new Date(nextGame.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
               </p>
             </div>
           </div>
-          <span className="text-xs text-gray-500 uppercase">Next Game</span>
+          <span className="text-xs text-slate-500 uppercase">Next Game</span>
         </div>
       )}
 
       {hasStats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-5">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Target className="w-4 h-4 text-yellow-400" />
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Target className="w-4 h-4 text-amber-400" />
               Offense
             </h3>
             <div className="grid grid-cols-3 gap-4">
               {OFFENSIVE_STATS.map(({ key, label }) => (
                 <div key={key} className="text-center">
                   <p className="text-xl font-bold text-white tabular-nums">{stats[key] || '-'}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{label}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-5">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-blue-400" />
               Defense
             </h3>
@@ -291,7 +291,7 @@ function StatsTab({ stats, nextGame, navigate }) {
               {DEFENSIVE_STATS.map(({ key, label }) => (
                 <div key={key} className="text-center">
                   <p className="text-xl font-bold text-white tabular-nums">{stats[key] || '-'}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{label}</p>
                 </div>
               ))}
             </div>
@@ -300,8 +300,8 @@ function StatsTab({ stats, nextGame, navigate }) {
       )}
 
       {!hasStats && !nextGame && (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
-          <p className="text-gray-400">No stats available</p>
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
+          <p className="text-slate-400">No stats available</p>
         </div>
       )}
     </motion.div>
@@ -311,8 +311,8 @@ function StatsTab({ stats, nextGame, navigate }) {
 function ScheduleTab({ schedule, teamAbbrev, navigate }) {
   if (!schedule?.length) {
     return (
-      <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
-        <p className="text-gray-400">No schedule data available</p>
+      <div className="bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
+        <p className="text-slate-400">No schedule data available</p>
       </div>
     );
   }
@@ -323,11 +323,11 @@ function ScheduleTab({ schedule, teamAbbrev, navigate }) {
   const upcoming = schedule.filter(g => g.status !== 'final');
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-xs text-gray-500 uppercase border-b border-gray-700/50">
+            <tr className="text-xs text-slate-500 uppercase border-b border-slate-700/50">
               <th className="text-left px-4 py-3">Date</th>
               <th className="text-left px-3 py-3">Opponent</th>
               <th className="text-center px-3 py-3">Result</th>
@@ -336,7 +336,7 @@ function ScheduleTab({ schedule, teamAbbrev, navigate }) {
           <tbody>
             {upcoming.length > 0 && (
               <>
-                <tr><td colSpan={3} className="px-4 py-2 text-xs font-semibold text-yellow-400 bg-gray-800/50 uppercase tracking-wider">Upcoming</td></tr>
+                <tr><td colSpan={3} className="px-4 py-2 text-xs font-semibold text-amber-400 bg-slate-800/50 uppercase tracking-wider">Upcoming</td></tr>
                 {upcoming.slice(0, 10).map(game => (
                   <ScheduleRow key={game.id} game={game} teamAbbrev={teamAbbrev} navigate={navigate} />
                 ))}
@@ -344,7 +344,7 @@ function ScheduleTab({ schedule, teamAbbrev, navigate }) {
             )}
             {past.length > 0 && (
               <>
-                <tr><td colSpan={3} className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-800/50 uppercase tracking-wider">Recent Results</td></tr>
+                <tr><td colSpan={3} className="px-4 py-2 text-xs font-semibold text-slate-500 bg-slate-800/50 uppercase tracking-wider">Recent Results</td></tr>
                 {past.slice(0, 15).map(game => (
                   <ScheduleRow key={game.id} game={game} teamAbbrev={teamAbbrev} navigate={navigate} />
                 ))}
@@ -369,25 +369,25 @@ function ScheduleRow({ game, teamAbbrev, navigate }) {
   return (
     <tr
       onClick={() => navigate(`/games/${game.id}`)}
-      className="border-b border-gray-700/30 hover:bg-gray-700/30 cursor-pointer transition-colors"
+      className="border-b border-slate-700/30 hover:bg-slate-700/30 cursor-pointer transition-colors"
     >
-      <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+      <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
         {new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
       </td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-gray-500 text-xs w-3">{isHome ? 'vs' : '@'}</span>
+          <span className="text-slate-500 text-xs w-3">{isHome ? 'vs' : '@'}</span>
           <img src={getTeamLogo(opponent)} alt="" className="w-5 h-5 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
           <span className="text-white font-medium">{opponent}</span>
         </div>
       </td>
       <td className="px-3 py-3 text-center">
         {game.status === 'final' ? (
-          <span className={`font-semibold tabular-nums ${won ? 'text-green-400' : lost ? 'text-red-400' : 'text-gray-400'}`}>
+          <span className={`font-semibold tabular-nums ${won ? 'text-emerald-400' : lost ? 'text-rose-400' : 'text-slate-400'}`}>
             {won ? 'W' : lost ? 'L' : 'T'} {teamScore}-{oppScore}
           </span>
         ) : (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-slate-500">
             {new Date(game.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
           </span>
         )}
@@ -399,19 +399,19 @@ function ScheduleRow({ game, teamAbbrev, navigate }) {
 function RosterTab({ roster, abbreviation, navigate }) {
   if (!roster?.length) {
     return (
-      <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
-        <p className="text-gray-400">No roster data available</p>
+      <div className="bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
+        <p className="text-slate-400">No roster data available</p>
       </div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-xs text-gray-500 uppercase border-b border-gray-700/50">
-              <th className="text-left px-4 py-3 sticky left-0 bg-gray-800 min-w-[180px]">Name</th>
+            <tr className="text-xs text-slate-500 uppercase border-b border-slate-700/50">
+              <th className="text-left px-4 py-3 sticky left-0 bg-slate-800 min-w-[180px]">Name</th>
               <th className="text-center px-3 py-3">POS</th>
               <th className="text-center px-3 py-3">AGE</th>
               <th className="text-center px-3 py-3">HT</th>
@@ -430,29 +430,29 @@ function RosterTab({ roster, abbreviation, navigate }) {
                     state: { player: { id: player.id, first_name: player.firstName, last_name: player.lastName, position: player.position, team: { abbreviation } } },
                   });
                 }}
-                className="border-b border-gray-700/30 hover:bg-gray-700/30 cursor-pointer transition-colors"
+                className="border-b border-slate-700/30 hover:bg-slate-700/30 cursor-pointer transition-colors"
               >
-                <td className="px-4 py-3 sticky left-0 bg-gray-800">
+                <td className="px-4 py-3 sticky left-0 bg-slate-800">
                   <div className="flex items-center gap-3">
                     {player.headshot ? (
-                      <img src={player.headshot} alt="" className="w-9 h-9 rounded-full object-cover bg-gray-700" onError={(e) => { e.target.style.display = 'none'; }} />
+                      <img src={player.headshot} alt="" className="w-9 h-9 rounded-full object-cover bg-slate-700" onError={(e) => { e.target.style.display = 'none'; }} />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                      <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-400">
                         {player.displayName?.split(' ').map((n) => n[0]).join('')}
                       </div>
                     )}
                     <div>
                       <span className="text-white font-medium">{player.displayName}</span>
-                      {player.jersey && <span className="text-gray-500 text-xs ml-1.5">#{player.jersey}</span>}
+                      {player.jersey && <span className="text-slate-500 text-xs ml-1.5">#{player.jersey}</span>}
                     </div>
                   </div>
                 </td>
-                <td className="text-center px-3 py-3 text-gray-300">{player.position}</td>
-                <td className="text-center px-3 py-3 text-gray-300 tabular-nums">{player.age || '--'}</td>
-                <td className="text-center px-3 py-3 text-gray-300">{player.height || '--'}</td>
-                <td className="text-center px-3 py-3 text-gray-300">{player.weight || '--'}</td>
-                <td className="text-left px-3 py-3 text-gray-400">{player.college || '--'}</td>
-                <td className="text-right px-4 py-3 text-gray-300 tabular-nums">{player.salary || '--'}</td>
+                <td className="text-center px-3 py-3 text-slate-300">{player.position}</td>
+                <td className="text-center px-3 py-3 text-slate-300 tabular-nums">{player.age || '--'}</td>
+                <td className="text-center px-3 py-3 text-slate-300">{player.height || '--'}</td>
+                <td className="text-center px-3 py-3 text-slate-300">{player.weight || '--'}</td>
+                <td className="text-left px-3 py-3 text-slate-400">{player.college || '--'}</td>
+                <td className="text-right px-4 py-3 text-slate-300 tabular-nums">{player.salary || '--'}</td>
               </tr>
             ))}
           </tbody>
@@ -465,15 +465,15 @@ function RosterTab({ roster, abbreviation, navigate }) {
 function InjuriesTab({ injuries, abbreviation, navigate }) {
   if (!injuries?.length) {
     return (
-      <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center">
-        <AlertCircle className="w-8 h-8 text-gray-600 mx-auto mb-3" />
-        <p className="text-gray-400">No injuries reported</p>
+      <div className="bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
+        <AlertCircle className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+        <p className="text-slate-400">No injuries reported</p>
       </div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
       <div className="space-y-0">
         {injuries.map((inj, i) => (
           <div
@@ -484,25 +484,25 @@ function InjuriesTab({ injuries, abbreviation, navigate }) {
                 navigate(`/player/${inj.id}/${slug}`);
               }
             }}
-            className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 last:border-0 hover:bg-gray-700/30 cursor-pointer transition-colors"
+            className="flex items-center justify-between px-5 py-4 border-b border-slate-700/30 last:border-0 hover:bg-slate-700/30 cursor-pointer transition-colors"
           >
             <div className="flex items-center gap-3">
               {inj.headshot ? (
-                <img src={inj.headshot} alt="" className="w-10 h-10 rounded-full object-cover bg-gray-700" onError={(e) => { e.target.style.display = 'none'; }} />
+                <img src={inj.headshot} alt="" className="w-10 h-10 rounded-full object-cover bg-slate-700" onError={(e) => { e.target.style.display = 'none'; }} />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-400">
                   {(inj.name || '?')[0]}
                 </div>
               )}
               <div>
                 <p className="text-white font-medium">{inj.name}</p>
-                <p className="text-xs text-gray-500">{inj.position}</p>
+                <p className="text-xs text-slate-500">{inj.position}</p>
               </div>
             </div>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded ${
-              inj.status === 'Out' ? 'bg-red-500/20 text-red-400' :
-              inj.status === 'Day-To-Day' ? 'bg-yellow-500/20 text-yellow-400' :
-              'bg-gray-700 text-gray-400'
+              inj.status === 'Out' ? 'bg-rose-500/20 text-rose-400' :
+              inj.status === 'Day-To-Day' ? 'bg-amber-400/20 text-amber-400' :
+              'bg-slate-700 text-slate-400'
             }`}>
               {inj.status}
             </span>

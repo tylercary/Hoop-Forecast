@@ -86,7 +86,7 @@ function BookmakerHeader({ bookmakerKey, bookmakerName }) {
           className="w-full h-full object-cover"
           onError={(e) => {
             e.target.style.display = 'none';
-            e.target.parentElement.style.backgroundColor = '#2a3544';
+            e.target.parentElement.style.backgroundColor = '#1e293b';
             e.target.parentElement.style.border = '1px solid rgba(75,85,99,0.3)';
             if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
           }}
@@ -149,13 +149,13 @@ function GameOddsTable({ odds, homeTeam, awayTeam }) {
       {/* SPREAD */}
       {hasSpread && (
         <div>
-          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Spread</h4>
+          <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Spread</h4>
           <div className="overflow-x-auto pb-2">
             <div className="flex gap-2 min-w-min">
               {/* Consensus Column */}
               <div className="flex-shrink-0 w-40 flex flex-col gap-1.5">
-                <div className="h-12 flex items-center justify-center rounded-lg bg-[#2a3544] border border-gray-600/30">
-                  <span className="text-xs font-bold text-gray-300">CONSENSUS</span>
+                <div className="h-12 flex items-center justify-center rounded-lg bg-[#1e293b] border border-slate-600/30">
+                  <span className="text-xs font-bold text-slate-300">CONSENSUS</span>
                 </div>
                 <SpreadCell spread={spread.line} odds={spread.away_odds} />
                 <SpreadCell spread={spread.line ? -spread.line : null} odds={spread.home_odds} />
@@ -164,7 +164,7 @@ function GameOddsTable({ odds, homeTeam, awayTeam }) {
               {/* Best Odds Column */}
               <div className="flex-shrink-0 w-40 flex flex-col gap-1.5">
                 <div className="h-12 flex items-center justify-center rounded-lg bg-[#f9c744]">
-                  <span className="text-xs font-bold text-gray-900">BEST ODDS</span>
+                  <span className="text-xs font-bold text-slate-900">BEST ODDS</span>
                 </div>
                 <SpreadCell
                   spread={spread.all_bookmakers.find(b => b.away_odds === bestAwaySpreadOdds)?.away_spread}
@@ -199,12 +199,12 @@ function GameOddsTable({ odds, homeTeam, awayTeam }) {
               ) : null)}
             </div>
           </div>
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+          <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
             <div className="flex items-center gap-2">
               <img src={getTeamLogo(awayTeam.abbreviation)} alt="" className="w-4 h-4 object-contain" />
               <span>{awayTeam.abbreviation}</span>
             </div>
-            <span className="text-gray-600">|</span>
+            <span className="text-slate-600">|</span>
             <div className="flex items-center gap-2">
               <img src={getTeamLogo(homeTeam.abbreviation)} alt="" className="w-4 h-4 object-contain" />
               <span>{homeTeam.abbreviation}</span>
@@ -216,19 +216,19 @@ function GameOddsTable({ odds, homeTeam, awayTeam }) {
       {/* MONEYLINE */}
       {hasML && (
         <div>
-          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Moneyline</h4>
+          <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Moneyline</h4>
           <div className="overflow-x-auto pb-2">
             <div className="flex gap-2 min-w-min">
               <div className="flex-shrink-0 w-40 flex flex-col gap-1.5">
-                <div className="h-12 flex items-center justify-center rounded-lg bg-[#2a3544] border border-gray-600/30">
-                  <span className="text-xs font-bold text-gray-300">CONSENSUS</span>
+                <div className="h-12 flex items-center justify-center rounded-lg bg-[#1e293b] border border-slate-600/30">
+                  <span className="text-xs font-bold text-slate-300">CONSENSUS</span>
                 </div>
                 <OddsCell odds={moneyline.away_odds} />
                 <OddsCell odds={moneyline.home_odds} />
               </div>
               <div className="flex-shrink-0 w-40 flex flex-col gap-1.5">
                 <div className="h-12 flex items-center justify-center rounded-lg bg-[#f9c744]">
-                  <span className="text-xs font-bold text-gray-900">BEST ODDS</span>
+                  <span className="text-xs font-bold text-slate-900">BEST ODDS</span>
                 </div>
                 <OddsCell odds={bestAwayMLOdds} isBest={true} />
                 <OddsCell odds={bestHomeMLOdds} isBest={true} />
@@ -245,12 +245,12 @@ function GameOddsTable({ odds, homeTeam, awayTeam }) {
               })}
             </div>
           </div>
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+          <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
             <div className="flex items-center gap-2">
               <img src={getTeamLogo(awayTeam.abbreviation)} alt="" className="w-4 h-4 object-contain" />
               <span>{awayTeam.abbreviation}</span>
             </div>
-            <span className="text-gray-600">|</span>
+            <span className="text-slate-600">|</span>
             <div className="flex items-center gap-2">
               <img src={getTeamLogo(homeTeam.abbreviation)} alt="" className="w-4 h-4 object-contain" />
               <span>{homeTeam.abbreviation}</span>
@@ -262,19 +262,19 @@ function GameOddsTable({ odds, homeTeam, awayTeam }) {
       {/* TOTALS */}
       {hasTotals && (
         <div>
-          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Game Total (Over/Under)</h4>
+          <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Game Total (Over/Under)</h4>
           <div className="overflow-x-auto pb-2">
             <div className="flex gap-2 min-w-min">
               <div className="flex-shrink-0 w-40 flex flex-col gap-1.5">
-                <div className="h-12 flex items-center justify-center rounded-lg bg-[#2a3544] border border-gray-600/30">
-                  <span className="text-xs font-bold text-gray-300">CONSENSUS</span>
+                <div className="h-12 flex items-center justify-center rounded-lg bg-[#1e293b] border border-slate-600/30">
+                  <span className="text-xs font-bold text-slate-300">CONSENSUS</span>
                 </div>
                 <TotalCell type="over" line={totals.line} odds={totals.over_odds} />
                 <TotalCell type="under" line={totals.line} odds={totals.under_odds} />
               </div>
               <div className="flex-shrink-0 w-40 flex flex-col gap-1.5">
                 <div className="h-12 flex items-center justify-center rounded-lg bg-[#f9c744]">
-                  <span className="text-xs font-bold text-gray-900">BEST ODDS</span>
+                  <span className="text-xs font-bold text-slate-900">BEST ODDS</span>
                 </div>
                 <TotalCell type="over" line={totals.all_bookmakers.find(b => b.over_odds === bestOverOdds)?.line} odds={bestOverOdds} isBest={true} />
                 <TotalCell type="under" line={totals.all_bookmakers.find(b => b.under_odds === bestUnderOdds)?.line} odds={bestUnderOdds} isBest={true} />
@@ -306,10 +306,10 @@ function PredictionCard({ prediction, homeTeam, awayTeam }) {
   const { homeWinProb, awayWinProb, predictedSpread, predictedTotal, confidence, analysis, factors, vegasComparison, injuries } = prediction;
 
   const confidenceColor = {
-    high: 'bg-green-500/20 text-green-400 border-green-500/30',
-    medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    low: 'bg-red-500/20 text-red-400 border-red-500/30'
-  }[confidence] || 'bg-gray-700 text-gray-400';
+    high: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    medium: 'bg-amber-400/20 text-amber-400 border-amber-400/30',
+    low: 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+  }[confidence] || 'bg-slate-700 text-slate-400';
 
   const favored = predictedSpread < 0 ? awayTeam : homeTeam;
   const spreadAbs = Math.abs(predictedSpread);
@@ -317,10 +317,10 @@ function PredictionCard({ prediction, homeTeam, awayTeam }) {
   return (
     <div className="space-y-4">
       {/* Win Probability */}
-      <div className="bg-gray-800/50 rounded-lg p-5 border border-gray-700/50">
+      <div className="bg-slate-800/50 rounded-lg p-5 border border-slate-700/50">
         <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-            <Target className="w-4 h-4 text-yellow-400" />
+          <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+            <Target className="w-4 h-4 text-amber-400" />
             Win Probability
           </h4>
           <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${confidenceColor}`}>
@@ -338,11 +338,11 @@ function PredictionCard({ prediction, homeTeam, awayTeam }) {
             <img src={getTeamLogo(homeTeam.abbreviation)} alt="" className="w-8 h-8 object-contain" />
           </div>
         </div>
-        <div className="w-full h-4 rounded-full bg-gray-700 overflow-hidden flex">
+        <div className="w-full h-4 rounded-full bg-slate-700 overflow-hidden flex">
           <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-l-full transition-all" style={{ width: `${awayWinProb}%` }} />
-          <div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-r-full transition-all" style={{ width: `${homeWinProb}%` }} />
+          <div className="h-full bg-gradient-to-r from-rose-400 to-rose-500 rounded-r-full transition-all" style={{ width: `${homeWinProb}%` }} />
         </div>
-        <div className="flex justify-between mt-1 text-xs text-gray-500">
+        <div className="flex justify-between mt-1 text-xs text-slate-500">
           <span>{awayTeam.abbreviation}</span>
           <span>{homeTeam.abbreviation}</span>
         </div>
@@ -350,83 +350,83 @@ function PredictionCard({ prediction, homeTeam, awayTeam }) {
 
       {/* Predicted Lines */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Predicted Spread</p>
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50 text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Predicted Spread</p>
           <p className="text-2xl font-bold text-white">
             {favored.abbreviation} {spreadAbs > 0 ? `-${spreadAbs}` : 'PK'}
           </p>
           {vegasComparison && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Vegas: {vegasComparison.vegasSpread > 0 ? `${awayTeam.abbreviation} +${vegasComparison.vegasSpread}` : `${homeTeam.abbreviation} ${vegasComparison.vegasSpread}`}
             </p>
           )}
         </div>
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Predicted Total</p>
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50 text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Predicted Total</p>
           <p className="text-2xl font-bold text-white">{predictedTotal}</p>
           {vegasComparison?.vegasTotal && (
-            <p className="text-xs text-gray-500 mt-1">Vegas: {vegasComparison.vegasTotal}</p>
+            <p className="text-xs text-slate-500 mt-1">Vegas: {vegasComparison.vegasTotal}</p>
           )}
         </div>
       </div>
 
       {/* Factors */}
       {factors && (
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+          <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
             Model Factors
           </h4>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Team Rating</span>
+              <span className="text-sm text-slate-400">Team Rating</span>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-white font-medium">{awayTeam.abbreviation}: {factors.awayStrength}</span>
-                <span className="text-gray-600">vs</span>
+                <span className="text-slate-600">vs</span>
                 <span className="text-sm text-white font-medium">{homeTeam.abbreviation}: {factors.homeStrength}</span>
               </div>
             </div>
             {(factors.homeNetRating != null || factors.awayNetRating != null) && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Net Rating</span>
+                <span className="text-sm text-slate-400">Net Rating</span>
                 <div className="flex items-center gap-3">
-                  <span className={`text-sm font-medium ${factors.awayNetRating > 0 ? 'text-green-400' : factors.awayNetRating < 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                  <span className={`text-sm font-medium ${factors.awayNetRating > 0 ? 'text-emerald-400' : factors.awayNetRating < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
                     {awayTeam.abbreviation}: {factors.awayNetRating > 0 ? '+' : ''}{factors.awayNetRating}
                   </span>
-                  <span className="text-gray-600">vs</span>
-                  <span className={`text-sm font-medium ${factors.homeNetRating > 0 ? 'text-green-400' : factors.homeNetRating < 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                  <span className="text-slate-600">vs</span>
+                  <span className={`text-sm font-medium ${factors.homeNetRating > 0 ? 'text-emerald-400' : factors.homeNetRating < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
                     {homeTeam.abbreviation}: {factors.homeNetRating > 0 ? '+' : ''}{factors.homeNetRating}
                   </span>
                 </div>
               </div>
             )}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Home Court</span>
-              <span className="text-sm text-green-400 font-medium">+{factors.homeCourt} pts ({homeTeam.abbreviation})</span>
+              <span className="text-sm text-slate-400">Home Court</span>
+              <span className="text-sm text-emerald-400 font-medium">+{factors.homeCourt} pts ({homeTeam.abbreviation})</span>
             </div>
             {factors.streakAdj != null && factors.streakAdj !== 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Momentum</span>
-                <span className={`text-sm font-medium ${factors.streakAdj > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <span className="text-sm text-slate-400">Momentum</span>
+                <span className={`text-sm font-medium ${factors.streakAdj > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {factors.streakAdj > 0 ? '+' : ''}{factors.streakAdj} pts ({factors.streakAdj > 0 ? homeTeam.abbreviation : awayTeam.abbreviation})
                 </span>
               </div>
             )}
             {factors.homeInjuryPenalty > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">{homeTeam.abbreviation} Injury Impact</span>
-                <span className="text-sm text-red-400 font-medium">-{factors.homeInjuryPenalty} pts</span>
+                <span className="text-sm text-slate-400">{homeTeam.abbreviation} Injury Impact</span>
+                <span className="text-sm text-rose-400 font-medium">-{factors.homeInjuryPenalty} pts</span>
               </div>
             )}
             {factors.awayInjuryPenalty > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">{awayTeam.abbreviation} Injury Impact</span>
-                <span className="text-sm text-red-400 font-medium">-{factors.awayInjuryPenalty} pts</span>
+                <span className="text-sm text-slate-400">{awayTeam.abbreviation} Injury Impact</span>
+                <span className="text-sm text-rose-400 font-medium">-{factors.awayInjuryPenalty} pts</span>
               </div>
             )}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Vegas Calibrated</span>
-              <span className={`text-sm font-medium ${factors.vegasCalibrated ? 'text-green-400' : 'text-gray-500'}`}>
+              <span className="text-sm text-slate-400">Vegas Calibrated</span>
+              <span className={`text-sm font-medium ${factors.vegasCalibrated ? 'text-emerald-400' : 'text-slate-500'}`}>
                 {factors.vegasCalibrated ? 'Yes (55/45 blend)' : 'No (model only)'}
               </span>
             </div>
@@ -436,9 +436,9 @@ function PredictionCard({ prediction, homeTeam, awayTeam }) {
 
       {/* Injury Impact */}
       {injuries && (injuries.home?.length > 0 || injuries.away?.length > 0) && (
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400" />
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+          <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400" />
             Key Injuries Factored
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -452,10 +452,10 @@ function PredictionCard({ prediction, homeTeam, awayTeam }) {
                   <div className="space-y-1">
                     {list.map((inj, i) => (
                       <div key={i} className="flex items-center justify-between text-xs">
-                        <span className="text-gray-300">{inj.name}</span>
+                        <span className="text-slate-300">{inj.name}</span>
                         <div className="flex items-center gap-2">
-                          <span className={`font-semibold ${inj.status === 'Out' ? 'text-red-400' : 'text-yellow-400'}`}>{inj.status}</span>
-                          <span className="text-gray-500">Impact: {inj.impact}</span>
+                          <span className={`font-semibold ${inj.status === 'Out' ? 'text-rose-400' : 'text-amber-400'}`}>{inj.status}</span>
+                          <span className="text-slate-500">Impact: {inj.impact}</span>
                         </div>
                       </div>
                     ))}
@@ -469,12 +469,12 @@ function PredictionCard({ prediction, homeTeam, awayTeam }) {
 
       {/* Analysis */}
       {analysis && (
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-yellow-400" />
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+          <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-amber-400" />
             Analysis
           </h4>
-          <p className="text-sm text-gray-300 leading-relaxed">{analysis}</p>
+          <p className="text-sm text-slate-300 leading-relaxed">{analysis}</p>
         </div>
       )}
     </div>
@@ -513,9 +513,9 @@ export default function MatchupAnalyzer({ gameId, homeTeam, awayTeam }) {
     return (
       <div className="space-y-4">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-800 rounded w-48 mb-4" />
-          <div className="h-48 bg-gray-800 rounded-lg mb-4" />
-          <div className="h-48 bg-gray-800 rounded-lg" />
+          <div className="h-8 bg-slate-800 rounded w-48 mb-4" />
+          <div className="h-48 bg-slate-800 rounded-lg mb-4" />
+          <div className="h-48 bg-slate-800 rounded-lg" />
         </div>
       </div>
     );
@@ -524,7 +524,7 @@ export default function MatchupAnalyzer({ gameId, homeTeam, awayTeam }) {
   if (error || !data) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-400">{error || 'No matchup data available'}</p>
+        <p className="text-slate-400">{error || 'No matchup data available'}</p>
       </div>
     );
   }
@@ -544,8 +544,8 @@ export default function MatchupAnalyzer({ gameId, homeTeam, awayTeam }) {
           onClick={() => setActiveSection('odds')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
             activeSection === 'odds'
-              ? 'bg-yellow-500 text-gray-900'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              ? 'bg-amber-400 text-slate-900'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
         >
           All Odds
@@ -554,8 +554,8 @@ export default function MatchupAnalyzer({ gameId, homeTeam, awayTeam }) {
           onClick={() => setActiveSection('prediction')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
             activeSection === 'prediction'
-              ? 'bg-yellow-500 text-gray-900'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              ? 'bg-amber-400 text-slate-900'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
         >
           Game Prediction
@@ -563,14 +563,14 @@ export default function MatchupAnalyzer({ gameId, homeTeam, awayTeam }) {
       </div>
 
       {/* Content */}
-      <div className="bg-[#1a2332] rounded-lg p-5 border border-gray-700/50">
+      <div className="bg-[#1a2332] rounded-lg p-5 border border-slate-700/50">
         {activeSection === 'odds' ? (
           <>
             <h3 className="text-xl font-bold text-white mb-5">Sportsbook Odds Comparison</h3>
             {data.odds ? (
               <GameOddsTable odds={data.odds} homeTeam={home} awayTeam={away} />
             ) : (
-              <p className="text-gray-400 text-center py-8">No odds available for this game</p>
+              <p className="text-slate-400 text-center py-8">No odds available for this game</p>
             )}
           </>
         ) : (
@@ -579,7 +579,7 @@ export default function MatchupAnalyzer({ gameId, homeTeam, awayTeam }) {
             {data.prediction ? (
               <PredictionCard prediction={data.prediction} homeTeam={home} awayTeam={away} />
             ) : (
-              <p className="text-gray-400 text-center py-8">Prediction not available for this game</p>
+              <p className="text-slate-400 text-center py-8">Prediction not available for this game</p>
             )}
           </>
         )}

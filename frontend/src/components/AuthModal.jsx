@@ -76,15 +76,15 @@ function AuthModal({ isOpen, onClose }) {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 flex items-center justify-center z-[70] p-4"
           >
-            <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between p-5 border-b border-gray-700">
+              <div className="flex items-center justify-between p-5 border-b border-slate-700">
                 <h2 className="text-xl font-bold text-white">
                   {tab === 'signin' ? 'Sign In' : 'Create Account'}
                 </h2>
                 <button
                   onClick={handleClose}
-                  className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+                  className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors text-slate-400 hover:text-white"
                 >
                   <X size={20} />
                 </button>
@@ -92,13 +92,13 @@ function AuthModal({ isOpen, onClose }) {
 
               <div className="p-5">
                 {/* Tab Switcher */}
-                <div className="flex bg-gray-900 rounded-lg p-1 mb-5">
+                <div className="flex bg-slate-900 rounded-lg p-1 mb-5">
                   <button
                     onClick={() => { setTab('signin'); setError(''); }}
                     className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                       tab === 'signin'
-                        ? 'bg-yellow-500 text-gray-900'
-                        : 'text-gray-400 hover:text-white'
+                        ? 'bg-amber-400 text-slate-900'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     Sign In
@@ -107,8 +107,8 @@ function AuthModal({ isOpen, onClose }) {
                     onClick={() => { setTab('signup'); setError(''); }}
                     className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                       tab === 'signup'
-                        ? 'bg-yellow-500 text-gray-900'
-                        : 'text-gray-400 hover:text-white'
+                        ? 'bg-amber-400 text-slate-900'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     Sign Up
@@ -119,7 +119,7 @@ function AuthModal({ isOpen, onClose }) {
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white text-slate-900 rounded-lg font-medium hover:bg-slate-100 transition-colors disabled:opacity-50"
                 >
                   <svg width="18" height="18" viewBox="0 0 18 18">
                     <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -132,38 +132,38 @@ function AuthModal({ isOpen, onClose }) {
 
                 {/* Divider */}
                 <div className="flex items-center gap-3 my-5">
-                  <div className="flex-1 h-px bg-gray-700" />
-                  <span className="text-xs text-gray-500 uppercase">or</span>
-                  <div className="flex-1 h-px bg-gray-700" />
+                  <div className="flex-1 h-px bg-slate-700" />
+                  <span className="text-xs text-slate-500 uppercase">or</span>
+                  <div className="flex-1 h-px bg-slate-700" />
                 </div>
 
                 {/* Email/Password Form */}
                 <form onSubmit={handleEmailSubmit} className="space-y-3">
                   {tab === 'signup' && (
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                       <input
                         type="text"
                         placeholder="Display name"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
                       />
                     </div>
                   )}
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                     <input
                       type="email"
                       placeholder="Email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
                     />
                   </div>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                     <input
                       type="password"
                       placeholder="Password"
@@ -171,7 +171,7 @@ function AuthModal({ isOpen, onClose }) {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
                     />
                   </div>
 
@@ -180,7 +180,7 @@ function AuthModal({ isOpen, onClose }) {
                     <motion.p
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="text-red-400 text-sm"
+                      className="text-rose-400 text-sm"
                     >
                       {error}
                     </motion.p>
@@ -189,7 +189,7 @@ function AuthModal({ isOpen, onClose }) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 bg-yellow-500 text-gray-900 rounded-lg font-semibold hover:bg-yellow-400 transition-colors disabled:opacity-50"
+                    className="w-full py-3 bg-amber-400 text-slate-900 rounded-lg font-semibold hover:bg-amber-300 transition-colors disabled:opacity-50"
                   >
                     {loading ? 'Loading...' : tab === 'signin' ? 'Sign In' : 'Create Account'}
                   </button>

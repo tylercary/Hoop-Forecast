@@ -20,7 +20,7 @@ function InfoTooltip({ text, label, id }) {
       >
         <svg
           className={`w-[14px] h-[14px] transition-colors duration-200 ${
-            isHovered ? 'text-gray-300' : 'text-gray-500'
+            isHovered ? 'text-slate-300' : 'text-slate-500'
           }`}
           fill="none"
           stroke="currentColor"
@@ -51,9 +51,9 @@ function InfoTooltip({ text, label, id }) {
             }}
           >
             <div
-              className="text-white text-sm rounded-lg px-4 py-3 shadow-2xl border border-gray-600 relative"
+              className="text-white text-sm rounded-lg px-4 py-3 shadow-2xl border border-slate-600 relative"
               style={{
-                backgroundColor: '#1f2937',
+                backgroundColor: '#1e293b',
               }}
             >
               {label && (
@@ -61,7 +61,7 @@ function InfoTooltip({ text, label, id }) {
                   {label}
                 </div>
               )}
-              <div className="text-gray-300 leading-relaxed text-xs">
+              <div className="text-slate-300 leading-relaxed text-xs">
                 {text}
               </div>
             </div>

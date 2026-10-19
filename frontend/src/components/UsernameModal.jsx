@@ -56,19 +56,19 @@ function UsernameModal() {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 flex items-center justify-center z-[90] p-4"
           >
-            <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden">
               <div className="p-6">
                 <div className="text-center mb-5">
-                  <div className="w-14 h-14 rounded-full bg-yellow-500 flex items-center justify-center mx-auto mb-3">
-                    <User className="text-gray-900" size={28} />
+                  <div className="w-14 h-14 rounded-full bg-amber-400 flex items-center justify-center mx-auto mb-3">
+                    <User className="text-slate-900" size={28} />
                   </div>
                   <h2 className="text-xl font-bold text-white">Choose a Username</h2>
-                  <p className="text-sm text-gray-400 mt-1">This is how other users will see you</p>
+                  <p className="text-sm text-slate-400 mt-1">This is how other users will see you</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                     <input
                       type="text"
                       value={name}
@@ -76,7 +76,7 @@ function UsernameModal() {
                       placeholder="Enter username"
                       autoFocus
                       maxLength={20}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
                     />
                   </div>
 
@@ -84,7 +84,7 @@ function UsernameModal() {
                     <motion.p
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="text-red-400 text-sm"
+                      className="text-rose-400 text-sm"
                     >
                       {error}
                     </motion.p>
@@ -93,7 +93,7 @@ function UsernameModal() {
                   <button
                     type="submit"
                     disabled={saving || !name.trim()}
-                    className="w-full py-3 bg-yellow-500 text-gray-900 rounded-lg font-semibold hover:bg-yellow-400 transition-colors disabled:opacity-50"
+                    className="w-full py-3 bg-amber-400 text-slate-900 rounded-lg font-semibold hover:bg-amber-300 transition-colors disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Continue'}
                   </button>

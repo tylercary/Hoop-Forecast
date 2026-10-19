@@ -28,18 +28,18 @@ function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, in
       {unified && index > 0 && (
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-[60%] bg-slate-700/60"></div>
       )}
-      <div className="flex items-center gap-1.5 mb-2 min-h-[24px]">
+      <div className="flex items-start gap-1.5 mb-2 min-h-[32px]">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 leading-tight">{title}</span>
         {infoTooltip && !locked && (
           <InfoTooltip text={infoTooltip} label={infoTooltipLabel} id={`tooltip-${title}`} />
         )}
-        {locked && <Lock size={12} className="text-gray-500" />}
+        {locked && <Lock size={12} className="text-slate-500" />}
       </div>
 
       {locked ? (
         <div className="relative h-10 flex items-center justify-center">
           <div className="absolute inset-0 select-none blur-md opacity-40 pointer-events-none flex items-center justify-center">
-            <div className={`${valueSize} font-bold text-gray-400`}>
+            <div className={`${valueSize} font-bold text-slate-400`}>
               {customValue ? '—' : '88.8%'}
             </div>
           </div>
@@ -58,9 +58,9 @@ function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, in
                   animate={{ width: `${Math.min(100, Math.max(0, progressBar))}%` }}
                   transition={{ delay: index * 0.03 + 0.05, duration: 0.3, ease: "easeOut" }}
                   className={`h-1.5 rounded-full ${
-                    progressBar > 60 ? 'bg-green-500' :
-                    progressBar >= 50 ? 'bg-yellow-500' :
-                    'bg-red-500'
+                    progressBar > 60 ? 'bg-emerald-500' :
+                    progressBar >= 50 ? 'bg-amber-400' :
+                    'bg-rose-500'
                   }`}
                 />
               </div>

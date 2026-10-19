@@ -49,10 +49,10 @@ export default function Games() {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-800 rounded w-48" />
+          <div className="h-8 bg-slate-800 rounded w-48" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-36 bg-gray-800 rounded-lg" />
+              <div key={i} className="h-36 bg-slate-800 rounded-lg" />
             ))}
           </div>
         </div>
@@ -69,8 +69,8 @@ export default function Games() {
             onClick={() => setTab('all')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
               tab === 'all'
-                ? 'bg-yellow-500 text-gray-900'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ? 'bg-amber-400 text-slate-900'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             All Games
@@ -79,14 +79,14 @@ export default function Games() {
             onClick={() => setTab('live')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
               tab === 'live'
-                ? 'bg-yellow-500 text-gray-900'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ? 'bg-amber-400 text-slate-900'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             Live
             {liveCount > 0 && (
               <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold ${
-                tab === 'live' ? 'bg-gray-900 text-yellow-500' : 'bg-red-500 text-white'
+                tab === 'live' ? 'bg-slate-900 text-amber-400' : 'bg-rose-500 text-white'
               }`}>
                 {liveCount}
               </span>
@@ -97,7 +97,7 @@ export default function Games() {
 
       {filtered.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-gray-400 text-lg">
+          <p className="text-slate-400 text-lg">
             {tab === 'live' ? 'No games currently in progress' : 'No NBA games scheduled today'}
           </p>
         </div>
@@ -116,14 +116,14 @@ function GameCard({ game, index, onClick }) {
   const statusBadge = () => {
     if (game.status === 'in_progress') {
       return (
-        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
           LIVE
         </span>
       );
     }
     if (game.status === 'final') {
-      return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-gray-700 text-gray-400">FINAL</span>;
+      return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-slate-400">FINAL</span>;
     }
     // Scheduled
     const time = new Date(game.startTime).toLocaleTimeString('en-US', {
@@ -131,7 +131,7 @@ function GameCard({ game, index, onClick }) {
       minute: '2-digit',
       hour12: true,
     });
-    return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-yellow-500/15 text-yellow-400">{time}</span>;
+    return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-400/15 text-amber-400">{time}</span>;
   };
 
   const TeamRow = ({ team, isWinner }) => (
@@ -144,16 +144,16 @@ function GameCard({ game, index, onClick }) {
           onError={(e) => { e.target.style.display = 'none'; }}
         />
         <div>
-          <span className={`font-semibold text-sm ${isWinner ? 'text-white' : 'text-gray-300'}`}>
+          <span className={`font-semibold text-sm ${isWinner ? 'text-white' : 'text-slate-300'}`}>
             {team.abbreviation}
           </span>
           {team.record && (
-            <span className="text-xs text-gray-500 ml-2">{team.record}</span>
+            <span className="text-xs text-slate-500 ml-2">{team.record}</span>
           )}
         </div>
       </div>
       {game.status !== 'scheduled' && (
-        <span className={`text-xl font-bold tabular-nums ${isWinner ? 'text-white' : 'text-gray-400'}`}>
+        <span className={`text-xl font-bold tabular-nums ${isWinner ? 'text-white' : 'text-slate-400'}`}>
           {team.score}
         </span>
       )}
@@ -170,14 +170,14 @@ function GameCard({ game, index, onClick }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
       onClick={onClick}
-      className={`bg-gray-800 border rounded-lg p-4 cursor-pointer hover:border-gray-600 transition-colors ${
-        game.status === 'in_progress' ? 'border-red-500/30' : 'border-gray-700'
+      className={`bg-slate-800 border rounded-lg p-4 cursor-pointer hover:border-slate-600 transition-colors ${
+        game.status === 'in_progress' ? 'border-rose-500/30' : 'border-slate-700'
       }`}
     >
       <div className="flex items-center justify-between mb-4">
         {statusBadge()}
         {game.broadcasts.length > 0 && (
-          <span className="text-xs text-gray-500">{game.broadcasts[0]}</span>
+          <span className="text-xs text-slate-500">{game.broadcasts[0]}</span>
         )}
       </div>
 
@@ -193,8 +193,8 @@ function GameCard({ game, index, onClick }) {
       </div>
 
       {game.status === 'in_progress' && game.statusDetail && (
-        <div className="mt-3 pt-3 border-t border-gray-700/50 text-center">
-          <span className="text-xs text-gray-400">{game.statusDetail}</span>
+        <div className="mt-3 pt-3 border-t border-slate-700/50 text-center">
+          <span className="text-xs text-slate-400">{game.statusDetail}</span>
         </div>
       )}
     </motion.div>

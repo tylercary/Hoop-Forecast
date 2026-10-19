@@ -63,7 +63,7 @@ function PropCards({ props, selectedProp, onSelectProp }) {
             transition={{ delay: index * 0.02, duration: 0.2, ease: "easeOut" }}
             onClick={() => onSelectProp(propType)}
             aria-pressed={isSelected}
-            className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
+            className={`rounded-xl border px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
               isSelected
                 ? 'border-amber-400 bg-amber-400/10'
                 : 'border-slate-700/60 bg-slate-800/40 hover:border-slate-500 hover:bg-slate-800/70'

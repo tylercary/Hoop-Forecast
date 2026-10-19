@@ -13,7 +13,7 @@ function LoadingAnimation({ message = "Loading player prediction..." }) {
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        className="w-16 h-16 border-4 border-gray-700 border-t-yellow-500 rounded-full"
+        className="w-16 h-16 border-4 border-slate-700 border-t-amber-400 rounded-full"
         />
         <motion.div
           animate={{ 
@@ -24,7 +24,7 @@ function LoadingAnimation({ message = "Loading player prediction..." }) {
             rotate: { duration: 1, repeat: Infinity, ease: "linear" },
             scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
           }}
-          className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-yellow-500/30 rounded-full"
+          className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-amber-400/30 rounded-full"
         />
       </div>
       
@@ -33,7 +33,7 @@ function LoadingAnimation({ message = "Loading player prediction..." }) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="text-lg font-medium text-gray-300"
+        className="text-lg font-medium text-slate-300"
       >
         {message.split('').map((char, i) => (
           <motion.span
@@ -56,7 +56,7 @@ function LoadingAnimation({ message = "Loading player prediction..." }) {
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
-            className="w-3 h-3 bg-yellow-500 rounded-full"
+            className="w-3 h-3 bg-amber-400 rounded-full"
             animate={{
               y: [0, -12, 0],
               scale: [1, 1.2, 1],

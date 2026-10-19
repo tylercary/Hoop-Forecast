@@ -69,10 +69,10 @@ export default function GameDetail() {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-6 bg-gray-800 rounded w-20" />
-          <div className="h-48 bg-gray-800 rounded-lg" />
+          <div className="h-6 bg-slate-800 rounded w-20" />
+          <div className="h-48 bg-slate-800 rounded-lg" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-48 bg-gray-800 rounded-lg" />)}
+            {[...Array(3)].map((_, i) => <div key={i} className="h-48 bg-slate-800 rounded-lg" />)}
           </div>
         </div>
       </div>
@@ -82,7 +82,7 @@ export default function GameDetail() {
   if (!game) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
-        <p className="text-gray-400">Game not found</p>
+        <p className="text-slate-400">Game not found</p>
       </div>
     );
   }
@@ -101,7 +101,7 @@ export default function GameDetail() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <button
         onClick={() => navigate('/games')}
-        className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-6 transition-colors"
+        className="flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Games
@@ -111,8 +111,8 @@ export default function GameDetail() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-gray-800 rounded-lg border p-6 mb-6 ${
-          game.status === 'in_progress' ? 'border-red-500/30' : 'border-gray-700'
+        className={`bg-slate-800 rounded-lg border p-6 mb-6 ${
+          game.status === 'in_progress' ? 'border-rose-500/30' : 'border-slate-700'
         }`}
       >
         <div className="flex items-center justify-between">
@@ -120,41 +120,41 @@ export default function GameDetail() {
             <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-white">{awayTeam?.displayName}</h2>
-              <p className="text-sm text-gray-400">{awayTeam?.record}</p>
-              {awayStats['Last Ten Games'] && <p className="text-xs text-gray-500">L10: {awayStats['Last Ten Games'].value}</p>}
+              <p className="text-sm text-slate-400">{awayTeam?.record}</p>
+              {awayStats['Last Ten Games'] && <p className="text-xs text-slate-500">L10: {awayStats['Last Ten Games'].value}</p>}
             </div>
           </div>
 
           <div className="text-center px-4 sm:px-8">
             {game.status !== 'scheduled' ? (
               <div className="flex items-center gap-4 sm:gap-6">
-                <span className={`text-3xl sm:text-4xl font-bold tabular-nums ${game.status === 'final' && parseInt(awayTeam?.score) > parseInt(homeTeam?.score) ? 'text-white' : game.status === 'final' ? 'text-gray-500' : 'text-white'}`}>
+                <span className={`text-3xl sm:text-4xl font-bold tabular-nums ${game.status === 'final' && parseInt(awayTeam?.score) > parseInt(homeTeam?.score) ? 'text-white' : game.status === 'final' ? 'text-slate-500' : 'text-white'}`}>
                   {awayTeam?.score}
                 </span>
-                <span className="text-gray-600 text-lg">-</span>
-                <span className={`text-3xl sm:text-4xl font-bold tabular-nums ${game.status === 'final' && parseInt(homeTeam?.score) > parseInt(awayTeam?.score) ? 'text-white' : game.status === 'final' ? 'text-gray-500' : 'text-white'}`}>
+                <span className="text-slate-600 text-lg">-</span>
+                <span className={`text-3xl sm:text-4xl font-bold tabular-nums ${game.status === 'final' && parseInt(homeTeam?.score) > parseInt(awayTeam?.score) ? 'text-white' : game.status === 'final' ? 'text-slate-500' : 'text-white'}`}>
                   {homeTeam?.score}
                 </span>
               </div>
             ) : (
-              <span className="text-2xl font-bold text-yellow-400">
+              <span className="text-2xl font-bold text-amber-400">
                 {new Date(game.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
               </span>
             )}
             <div className="mt-1">
               {game.status === 'in_progress' ? (
-                <span className="text-sm font-semibold text-red-400 flex items-center justify-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                <span className="text-sm font-semibold text-rose-400 flex items-center justify-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
                   {game.statusDetail}
                 </span>
               ) : game.status === 'final' ? (
-                <span className="text-sm text-gray-500">Final</span>
+                <span className="text-sm text-slate-500">Final</span>
               ) : odds ? (
-                <span className="text-xs text-gray-500">{odds.details}</span>
+                <span className="text-xs text-slate-500">{odds.details}</span>
               ) : null}
             </div>
             {game.broadcasts?.length > 0 && (
-              <div className="flex items-center justify-center gap-1 mt-2 text-xs text-gray-500">
+              <div className="flex items-center justify-center gap-1 mt-2 text-xs text-slate-500">
                 <Tv className="w-3 h-3" />
                 {game.broadcasts.join(', ')}
               </div>
@@ -164,14 +164,14 @@ export default function GameDetail() {
           <div className="flex items-center gap-4 flex-1 justify-end cursor-pointer" onClick={() => navigate(`/team/${homeTeam?.abbreviation}`)}>
             <div className="text-right">
               <h2 className="text-lg sm:text-xl font-bold text-white">{homeTeam?.displayName}</h2>
-              <p className="text-sm text-gray-400">{homeTeam?.record}</p>
-              {homeStats['Last Ten Games'] && <p className="text-xs text-gray-500">L10: {homeStats['Last Ten Games'].value}</p>}
+              <p className="text-sm text-slate-400">{homeTeam?.record}</p>
+              {homeStats['Last Ten Games'] && <p className="text-xs text-slate-500">L10: {homeStats['Last Ten Games'].value}</p>}
             </div>
             <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
         </div>
 
-        {game.venue && <p className="text-center text-xs text-gray-500 mt-4">{game.venue}</p>}
+        {game.venue && <p className="text-center text-xs text-slate-500 mt-4">{game.venue}</p>}
       </motion.div>
 
       {/* Tab Switcher */}
@@ -180,8 +180,8 @@ export default function GameDetail() {
           onClick={() => setActiveTab('game')}
           className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
             activeTab === 'game'
-              ? 'bg-yellow-500 text-gray-900'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              ? 'bg-amber-400 text-slate-900'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
         >
           Game Info
@@ -190,8 +190,8 @@ export default function GameDetail() {
           onClick={() => setActiveTab('matchup')}
           className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
             activeTab === 'matchup'
-              ? 'bg-yellow-500 text-gray-900'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              ? 'bg-amber-400 text-slate-900'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
         >
           Matchup Analyzer
@@ -205,8 +205,8 @@ export default function GameDetail() {
       {/* Info Cards Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {predictor && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Matchup Predictor</h3>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Matchup Predictor</h3>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-6 h-6 object-contain" />
@@ -217,23 +217,23 @@ export default function GameDetail() {
                 <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-6 h-6 object-contain" />
               </div>
             </div>
-            <div className="w-full h-3 rounded-full bg-gray-700 overflow-hidden flex">
+            <div className="w-full h-3 rounded-full bg-slate-700 overflow-hidden flex">
               <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-l-full" style={{ width: `${predictor.awayWinPct}%` }} />
-              <div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-r-full" style={{ width: `${predictor.homeWinPct}%` }} />
+              <div className="h-full bg-gradient-to-r from-rose-400 to-rose-500 rounded-r-full" style={{ width: `${predictor.homeWinPct}%` }} />
             </div>
-            <p className="text-xs text-gray-500 text-center mt-2">Win Probability</p>
+            <p className="text-xs text-slate-500 text-center mt-2">Win Probability</p>
           </motion.div>
         )}
 
         {odds && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
               Game Odds
-              {odds.provider && <span className="text-gray-600 normal-case font-normal ml-1">({odds.provider})</span>}
+              {odds.provider && <span className="text-slate-600 normal-case font-normal ml-1">({odds.provider})</span>}
             </h3>
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-gray-500">
+                <tr className="text-xs text-slate-500">
                   <th className="text-left pb-2"></th>
                   <th className="text-center pb-2">Spread</th>
                   <th className="text-center pb-2">O/U</th>
@@ -241,17 +241,17 @@ export default function GameDetail() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-t border-gray-700/50">
-                  <td className="py-2 text-gray-300 font-medium">{awayTeam?.abbreviation}</td>
-                  <td className="py-2 text-center text-gray-300 tabular-nums">{odds.spread > 0 ? `+${(-odds.spread).toFixed(1)}` : `+${Math.abs(odds.spread).toFixed(1)}`}</td>
-                  <td className="py-2 text-center text-gray-300 tabular-nums">o{odds.overUnder}</td>
-                  <td className="py-2 text-center text-gray-300 tabular-nums">{odds.awayMoneyLine > 0 ? `+${odds.awayMoneyLine}` : odds.awayMoneyLine}</td>
+                <tr className="border-t border-slate-700/50">
+                  <td className="py-2 text-slate-300 font-medium">{awayTeam?.abbreviation}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">{odds.spread > 0 ? `+${(-odds.spread).toFixed(1)}` : `+${Math.abs(odds.spread).toFixed(1)}`}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">o{odds.overUnder}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">{odds.awayMoneyLine > 0 ? `+${odds.awayMoneyLine}` : odds.awayMoneyLine}</td>
                 </tr>
-                <tr className="border-t border-gray-700/50">
-                  <td className="py-2 text-gray-300 font-medium">{homeTeam?.abbreviation}</td>
-                  <td className="py-2 text-center text-gray-300 tabular-nums">{odds.spread < 0 ? odds.spread.toFixed(1) : `+${odds.spread.toFixed(1)}`}</td>
-                  <td className="py-2 text-center text-gray-300 tabular-nums">u{odds.overUnder}</td>
-                  <td className="py-2 text-center text-gray-300 tabular-nums">{odds.homeMoneyLine > 0 ? `+${odds.homeMoneyLine}` : odds.homeMoneyLine}</td>
+                <tr className="border-t border-slate-700/50">
+                  <td className="py-2 text-slate-300 font-medium">{homeTeam?.abbreviation}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">{odds.spread < 0 ? odds.spread.toFixed(1) : `+${odds.spread.toFixed(1)}`}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">u{odds.overUnder}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">{odds.homeMoneyLine > 0 ? `+${odds.homeMoneyLine}` : odds.homeMoneyLine}</td>
                 </tr>
               </tbody>
             </table>
@@ -259,18 +259,18 @@ export default function GameDetail() {
         )}
 
         {article && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Preview</h3>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Preview</h3>
             <p className="text-white font-semibold text-sm mb-2">{article.headline}</p>
-            <p className="text-gray-400 text-xs leading-relaxed line-clamp-4">{article.description}</p>
+            <p className="text-slate-400 text-xs leading-relaxed line-clamp-4">{article.description}</p>
           </motion.div>
         )}
       </div>
 
       {/* Team Stats Comparison */}
       {Object.keys(awayStats).length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 rounded-lg border border-slate-700 p-5 mb-6">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
             {game.status === 'scheduled' ? 'Season Averages' : 'Team Stats'}
           </h3>
           <div className="space-y-3">
@@ -284,24 +284,24 @@ export default function GameDetail() {
               return (
                 <div key={key}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-sm font-semibold tabular-nums ${awayBetter ? 'text-white' : 'text-gray-500'}`}>
+                    <span className={`text-sm font-semibold tabular-nums ${awayBetter ? 'text-white' : 'text-slate-500'}`}>
                       {awayStats[key]?.value || '-'}
                     </span>
-                    <span className="text-xs text-gray-500">{label}</span>
-                    <span className={`text-sm font-semibold tabular-nums ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
+                    <span className="text-xs text-slate-500">{label}</span>
+                    <span className={`text-sm font-semibold tabular-nums ${homeBetter ? 'text-white' : 'text-slate-500'}`}>
                       {homeStats[key]?.value || '-'}
                     </span>
                   </div>
                   <div className="flex gap-1 h-1.5">
                     <div className="flex-1 flex justify-end">
                       <div
-                        className={`h-full rounded-l-full ${awayBetter ? 'bg-blue-500' : 'bg-gray-600'}`}
+                        className={`h-full rounded-l-full ${awayBetter ? 'bg-blue-500' : 'bg-slate-600'}`}
                         style={{ width: `${(awayVal / total) * 100}%` }}
                       />
                     </div>
                     <div className="flex-1">
                       <div
-                        className={`h-full rounded-r-full ${homeBetter ? 'bg-red-500' : 'bg-gray-600'}`}
+                        className={`h-full rounded-r-full ${homeBetter ? 'bg-rose-500' : 'bg-slate-600'}`}
                         style={{ width: `${(homeVal / total) * 100}%` }}
                       />
                     </div>
@@ -310,13 +310,13 @@ export default function GameDetail() {
               );
             })}
           </div>
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700/50">
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-700/50">
             <div className="flex items-center gap-2">
               <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-4 h-4 object-contain" />
-              <span className="text-xs text-gray-400">{awayStats.streak?.value}</span>
+              <span className="text-xs text-slate-400">{awayStats.streak?.value}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">{homeStats.streak?.value}</span>
+              <span className="text-xs text-slate-400">{homeStats.streak?.value}</span>
               <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-4 h-4 object-contain" />
             </div>
           </div>
@@ -325,8 +325,8 @@ export default function GameDetail() {
 
       {/* Team Leaders */}
       {leaders && Object.keys(leaders).length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Team Leaders</h3>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-slate-800 rounded-lg border border-slate-700 p-5 mb-6">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Team Leaders</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { team: awayTeam, data: leaders[awayTeam?.abbreviation] },
@@ -341,7 +341,7 @@ export default function GameDetail() {
                   {teamLeaders.map((cat) => (
                     <div
                       key={cat.category}
-                      className="flex items-center gap-3 cursor-pointer hover:bg-gray-700/30 rounded-lg p-1.5 -mx-1.5 transition-colors"
+                      className="flex items-center gap-3 cursor-pointer hover:bg-slate-700/30 rounded-lg p-1.5 -mx-1.5 transition-colors"
                       onClick={() => {
                         if (cat.leader.id) {
                           const slug = encodeURIComponent(cat.leader.name.replace(/\s+/g, '_'));
@@ -350,17 +350,17 @@ export default function GameDetail() {
                       }}
                     >
                       {cat.leader.headshot ? (
-                        <img src={cat.leader.headshot} alt="" className="w-9 h-9 rounded-full object-cover bg-gray-700" />
+                        <img src={cat.leader.headshot} alt="" className="w-9 h-9 rounded-full object-cover bg-slate-700" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                        <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-400">
                           {(cat.leader.name || '?')[0]}
                         </div>
                       )}
                       <div className="flex-1">
                         <p className="text-white text-sm font-medium">{cat.leader.shortName || cat.leader.name}</p>
-                        <p className="text-gray-500 text-xs">{cat.category}</p>
+                        <p className="text-slate-500 text-xs">{cat.category}</p>
                       </div>
-                      <span className="text-yellow-400 font-bold text-sm tabular-nums">{cat.leader.value}</span>
+                      <span className="text-amber-400 font-bold text-sm tabular-nums">{cat.leader.value}</span>
                     </div>
                   ))}
                 </div>
@@ -372,9 +372,9 @@ export default function GameDetail() {
 
       {/* Injuries */}
       {hasInjuries && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400" />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-slate-800 rounded-lg border border-slate-700 p-5 mb-6">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400" />
             Injuries
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -392,7 +392,7 @@ export default function GameDetail() {
                     {list.map((inj, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between cursor-pointer hover:bg-gray-700/30 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                        className="flex items-center justify-between cursor-pointer hover:bg-slate-700/30 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
                         onClick={() => {
                           if (inj.id) {
                             const slug = encodeURIComponent(inj.name.replace(/\s+/g, '_'));
@@ -402,13 +402,13 @@ export default function GameDetail() {
                       >
                         <div>
                           <span className="text-white text-sm">{inj.name}</span>
-                          {inj.position && <span className="text-gray-500 text-xs ml-1">{inj.position}</span>}
-                          {inj.detail && <p className="text-gray-500 text-xs">{inj.detail}</p>}
+                          {inj.position && <span className="text-slate-500 text-xs ml-1">{inj.position}</span>}
+                          {inj.detail && <p className="text-slate-500 text-xs">{inj.detail}</p>}
                         </div>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                          inj.status === 'Out' ? 'bg-red-500/20 text-red-400' :
-                          inj.status === 'Day-To-Day' ? 'bg-yellow-500/20 text-yellow-400' :
-                          'bg-gray-700 text-gray-400'
+                          inj.status === 'Out' ? 'bg-rose-500/20 text-rose-400' :
+                          inj.status === 'Day-To-Day' ? 'bg-amber-400/20 text-amber-400' :
+                          'bg-slate-700 text-slate-400'
                         }`}>
                           {inj.status}
                         </span>
@@ -416,7 +416,7 @@ export default function GameDetail() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-600 text-sm">No injuries reported</p>
+                  <p className="text-slate-600 text-sm">No injuries reported</p>
                 )}
               </div>
             ))}
@@ -426,12 +426,12 @@ export default function GameDetail() {
 
       {/* Box Score (live/final games) */}
       {hasBoxScore && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="bg-gray-800 rounded-lg border border-gray-700 mb-6 overflow-hidden">
-          <div className="flex border-b border-gray-700">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="bg-slate-800 rounded-lg border border-slate-700 mb-6 overflow-hidden">
+          <div className="flex border-b border-slate-700">
             <button
               onClick={() => setBoxTab('away')}
               className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                boxTab === 'away' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
+                boxTab === 'away' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'
               }`}
             >
               <img src={getTeamLogo(awayTeam?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
@@ -440,7 +440,7 @@ export default function GameDetail() {
             <button
               onClick={() => setBoxTab('home')}
               className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                boxTab === 'home' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
+                boxTab === 'home' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'
               }`}
             >
               <img src={getTeamLogo(homeTeam?.abbreviation)} alt="" className="w-5 h-5 object-contain" />
@@ -451,8 +451,8 @@ export default function GameDetail() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-gray-500 uppercase border-b border-gray-700/50">
-                    <th className="text-left px-3 py-2 sticky left-0 bg-gray-800 min-w-[120px]">Player</th>
+                  <tr className="text-xs text-slate-500 uppercase border-b border-slate-700/50">
+                    <th className="text-left px-3 py-2 sticky left-0 bg-slate-800 min-w-[120px]">Player</th>
                     {STAT_COLS.map(col => (
                       <th key={col} className="px-2 py-2 text-center min-w-[40px]">{col}</th>
                     ))}
@@ -462,7 +462,7 @@ export default function GameDetail() {
                   {activeBox.players.map((player, i) => (
                     <tr
                       key={player.id || i}
-                      className="border-b border-gray-700/30 hover:bg-gray-700/30 cursor-pointer transition-colors"
+                      className="border-b border-slate-700/30 hover:bg-slate-700/30 cursor-pointer transition-colors"
                       onClick={() => {
                         if (player.id) {
                           const slug = encodeURIComponent(player.name.replace(/\s+/g, '_'));
@@ -470,18 +470,18 @@ export default function GameDetail() {
                         }
                       }}
                     >
-                      <td className="px-3 py-2 sticky left-0 bg-gray-800">
+                      <td className="px-3 py-2 sticky left-0 bg-slate-800">
                         <span className="text-white font-medium">{player.shortName || player.name}</span>
-                        {player.position && <span className="text-gray-500 text-xs ml-1">{player.position}</span>}
+                        {player.position && <span className="text-slate-500 text-xs ml-1">{player.position}</span>}
                       </td>
                       {STAT_COLS.map(col => (
-                        <td key={col} className="px-2 py-2 text-center text-gray-300 tabular-nums">{player[col] ?? '-'}</td>
+                        <td key={col} className="px-2 py-2 text-center text-slate-300 tabular-nums">{player[col] ?? '-'}</td>
                       ))}
                     </tr>
                   ))}
                   {activeBox.totals && (
-                    <tr className="bg-gray-700/30 font-semibold">
-                      <td className="px-3 py-2 sticky left-0 bg-gray-700/30 text-white">Totals</td>
+                    <tr className="bg-slate-700/30 font-semibold">
+                      <td className="px-3 py-2 sticky left-0 bg-slate-700/30 text-white">Totals</td>
                       {STAT_COLS.map(col => (
                         <td key={col} className="px-2 py-2 text-center text-white tabular-nums">{activeBox.totals[col] ?? '-'}</td>
                       ))}
@@ -498,7 +498,7 @@ export default function GameDetail() {
       )}
 
       {/* Comments */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-gray-800 rounded-lg border border-gray-700 p-5 mt-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-slate-800 rounded-lg border border-slate-700 p-5 mt-6">
         <Comments type="game" targetId={gameId} title="Game Discussion" />
       </motion.div>
     </div>

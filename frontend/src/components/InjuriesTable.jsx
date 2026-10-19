@@ -29,12 +29,12 @@ function PlayerImageWithFallback({ playerName, playerId, headshot }) {
         <img
           src={currentImageUrl}
           alt={playerName}
-          className="w-10 h-10 rounded-full object-cover border border-gray-600"
+          className="w-10 h-10 rounded-full object-cover border border-slate-600"
           onError={handleImageError}
         />
       ) : null}
       <div 
-        className={`w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-gray-400 text-xs font-medium border border-gray-600 ${!imageError ? 'absolute inset-0 hidden' : ''}`}
+        className={`w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs font-medium border border-slate-600 ${!imageError ? 'absolute inset-0 hidden' : ''}`}
         style={{ display: imageError ? 'flex' : 'none' }}
       >
         {initials}
@@ -59,7 +59,7 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
           <h3 className="panel-title mb-1">Injuries</h3>
           <p className="panel-subtitle">Key injury updates for both teams</p>
         </div>
-        <p className="text-gray-400 text-center py-8">No injuries reported</p>
+        <p className="text-slate-400 text-center py-8">No injuries reported</p>
       </motion.div>
     );
   }
@@ -88,13 +88,13 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
   const getStatusBadge = (status) => {
     const statusLower = (status || '').toLowerCase();
     if (statusLower.includes('out') || statusLower.includes('doubtful')) {
-      return { text: 'OUT', color: 'bg-red-500/20 text-red-400 border-red-500/50' };
+      return { text: 'OUT', color: 'bg-rose-500/20 text-rose-400 border-rose-500/50' };
     } else if (statusLower.includes('questionable') || statusLower.includes('day-to-day') || statusLower.includes('dtd')) {
       return { text: 'DTD', color: 'bg-amber-500/20 text-amber-400 border-amber-500/50' };
     } else if (statusLower.includes('probable')) {
-      return { text: 'PROBABLE', color: 'bg-green-500/20 text-green-400 border-green-500/50' };
+      return { text: 'PROBABLE', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' };
     }
-    return { text: status || 'UNKNOWN', color: 'bg-gray-500/20 text-gray-400 border-gray-500/50' };
+    return { text: status || 'UNKNOWN', color: 'bg-slate-500/20 text-slate-400 border-slate-500/50' };
   };
 
   return (
@@ -112,7 +112,7 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
         {allInjuries.length > 5 && (
           <button
             onClick={() => setShowAll(!showAll)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
           >
             {showAll ? 'Show less' : 'Show all'}
             <svg
@@ -128,16 +128,16 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
       </div>
 
       {displayedInjuries.length === 0 ? (
-        <p className="text-gray-400 text-center py-8">No injuries reported</p>
+        <p className="text-slate-400 text-center py-8">No injuries reported</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400 uppercase">Player</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400 uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400 uppercase">Team</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400 uppercase">Injury</th>
+              <tr className="border-b border-slate-700">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400 uppercase">Player</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400 uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400 uppercase">Team</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400 uppercase">Injury</th>
               </tr>
             </thead>
             <tbody>
@@ -150,7 +150,7 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.05 }}
-                    className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
+                    className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors"
                   >
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
@@ -161,7 +161,7 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
                         />
                         <div className="flex items-center gap-2">
                           <span className="text-white font-medium">{injury.playerName}</span>
-                          <svg className="w-4 h-4 text-gray-500 hover:text-gray-400 cursor-pointer" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-4 h-4 text-slate-500 hover:text-slate-400 cursor-pointer" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
                           </svg>
                         </div>
@@ -173,10 +173,10 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <span className="text-gray-300 font-medium">{injury.team || injury.teamName}</span>
+                      <span className="text-slate-300 font-medium">{injury.team || injury.teamName}</span>
                     </td>
                     <td className="py-4 px-4">
-                      <span className="text-gray-300">
+                      <span className="text-slate-300">
                         {injury.injury || injury.comment || injury.description || 'Not specified'}
                       </span>
                     </td>

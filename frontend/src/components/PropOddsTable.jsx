@@ -312,7 +312,7 @@ function PropOddsTable({ props, selectedProp }) {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
-                        e.target.parentElement.style.backgroundColor = '#2a3544';
+                        e.target.parentElement.style.backgroundColor = '#1e293b';
                         e.target.parentElement.style.border = '1px solid rgba(75,85,99,0.3)';
                         e.target.nextElementSibling.style.display = 'flex';
                       }}

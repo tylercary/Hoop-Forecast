@@ -15,7 +15,7 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
         className="panel p-6"
       >
         <h3 className="panel-title mb-4">Player Game Log</h3>
-        <p className="text-gray-400 text-center py-8">No game data available</p>
+        <p className="text-slate-400 text-center py-8">No game data available</p>
       </motion.div>
     );
   }
@@ -119,9 +119,9 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
     if (isNaN(lineValue)) return null;
 
     if (value >= lineValue) {
-      return { status: 'O', bgColor: 'bg-green-600', textColor: 'text-white' };
+      return { status: 'O', bgColor: 'bg-emerald-600', textColor: 'text-white' };
     } else {
-      return { status: 'U', bgColor: 'bg-red-600', textColor: 'text-white' };
+      return { status: 'U', bgColor: 'bg-rose-600', textColor: 'text-white' };
     }
   };
 
@@ -222,10 +222,10 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
           </div>
         </div>
         <div className="text-center py-12">
-          <p className="text-gray-400 text-lg mb-2">
+          <p className="text-slate-400 text-lg mb-2">
             No previous games found against {nextGameOpponent}
           </p>
-          <p className="text-gray-500 text-sm">
+          <p className="text-slate-500 text-sm">
             This player has never played against this team in their career.
           </p>
         </div>
@@ -241,24 +241,24 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
       transition={{ duration: 0.2, ease: "easeOut" }}
       className="panel p-6"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
         <div>
           <h3 className="panel-title mb-1">
             {seasonFilter === 'H2H' && nextGameOpponent
               ? `Head-to-Head vs ${nextGameOpponent}`
               : 'Player Game Log'}
           </h3>
-          <div className="flex items-center gap-4">
-            <p className="text-sm text-gray-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <p className="text-sm text-slate-400 whitespace-nowrap">
               <span className="text-white font-semibold">{filteredStats.length}</span> games displayed
             </p>
             {overUnderRecord.over + overUnderRecord.under > 0 && line && (
               <div className="text-sm">
-                <p className="text-gray-400">
-                  Over/Under: <span className="text-green-400 font-semibold">{overUnderRecord.over}W</span> - <span className="text-red-400 font-semibold">{overUnderRecord.under}L</span>
+                <p className="text-slate-400">
+                  Over/Under: <span className="text-emerald-400 font-semibold">{overUnderRecord.over}W</span> - <span className="text-rose-400 font-semibold">{overUnderRecord.under}L</span>
                   {' '}({((overUnderRecord.over / (overUnderRecord.over + overUnderRecord.under)) * 100).toFixed(0)}%)
                 </p>
-                <p className="text-gray-500 text-xs mt-0.5">
+                <p className="text-slate-500 text-xs mt-0.5">
                   Based on current line: {parseFloat(line).toFixed(1)}
                 </p>
               </div>
@@ -280,11 +280,11 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b-2 border-gray-600 bg-gray-700/20">
-              <th className="text-left py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Date</th>
-              <th className="text-left py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Matchup</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">Result</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">MIN</th>
+            <tr className="border-b-2 border-slate-600 bg-slate-700/20">
+              <th className="text-left py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">Date</th>
+              <th className="text-left py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">Matchup</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">Result</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">MIN</th>
               <th className="text-center py-3 px-4 text-amber-400 font-bold uppercase text-xs tracking-wider bg-amber-400/5">
                 {selectedProp === 'pr' || selectedProp === 'points_rebounds' ? 'PTS+REB' :
                  selectedProp === 'pa' || selectedProp === 'points_assists' ? 'PTS+AST' :
@@ -298,14 +298,14 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
                  selectedProp === 'rebounds' ? 'REB' :
                  'PTS'}
               </th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">REB</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">AST</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">3PM</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">STL</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">BLK</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">FG%</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">FT%</th>
-              <th className="text-center py-3 px-4 text-gray-300 font-bold uppercase text-xs tracking-wider">3P%</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">REB</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">AST</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">3PM</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">STL</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">BLK</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">FG%</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">FT%</th>
+              <th className="text-center py-3 px-4 text-slate-300 font-bold uppercase text-xs tracking-wider">3P%</th>
             </tr>
           </thead>
           <tbody>
@@ -334,20 +334,20 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.01, duration: 0.15 }}
                   whileHover={{ backgroundColor: 'rgba(55, 65, 81, 0.5)' }}
-                  className="border-b border-gray-700/50 transition-colors"
+                  className="border-b border-slate-700/50 transition-colors"
                 >
-                  <td className="py-3 px-4 text-gray-300 font-medium">{formatDate(game.date)}</td>
+                  <td className="py-3 px-4 text-slate-300 font-medium">{formatDate(game.date)}</td>
                   <td className="py-3 px-4 text-white font-medium">{opponentLabel || 'N/A'}</td>
                   <td className="py-3 px-4 text-center">
                     <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                      formatScore(game) === 'W' ? 'bg-green-500/20 text-green-400' :
-                      formatScore(game) === 'L' ? 'bg-red-500/20 text-red-400' :
-                      'text-gray-400'
+                      formatScore(game) === 'W' ? 'bg-emerald-500/20 text-emerald-400' :
+                      formatScore(game) === 'L' ? 'bg-rose-500/20 text-rose-400' :
+                      'text-slate-400'
                     }`}>
                       {formatScore(game)}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-center text-gray-300 font-medium">{game.minutes || 0}</td>
+                  <td className="py-3 px-4 text-center text-slate-300 font-medium">{game.minutes || 0}</td>
                   <td className="py-3 px-4 text-center bg-amber-400/5">
                     <div className="flex items-center justify-center gap-2">
                       <span className="font-bold text-lg text-white">{propValue}</span>
@@ -358,14 +358,14 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-center text-gray-300">{game.rebounds || 0}</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{game.assists || 0}</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{game.threes_made || game.threes || 0}</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{game.steals || 0}</td>
-                  <td className="py-3 px-4 text-center text-gray-300">{game.blocks || 0}</td>
-                  <td className="py-3 px-4 text-center text-gray-400 text-xs">{fgm}-{fga} ({fgPct}%)</td>
-                  <td className="py-3 px-4 text-center text-gray-400 text-xs">{ftm}-{fta} ({ftPct}%)</td>
-                  <td className="py-3 px-4 text-center text-gray-400 text-xs">{tpm}-{tpa} ({tpPct}%)</td>
+                  <td className="py-3 px-4 text-center text-slate-300">{game.rebounds || 0}</td>
+                  <td className="py-3 px-4 text-center text-slate-300">{game.assists || 0}</td>
+                  <td className="py-3 px-4 text-center text-slate-300">{game.threes_made || game.threes || 0}</td>
+                  <td className="py-3 px-4 text-center text-slate-300">{game.steals || 0}</td>
+                  <td className="py-3 px-4 text-center text-slate-300">{game.blocks || 0}</td>
+                  <td className="py-3 px-4 text-center text-slate-400 text-xs">{fgm}-{fga} ({fgPct}%)</td>
+                  <td className="py-3 px-4 text-center text-slate-400 text-xs">{ftm}-{fta} ({ftPct}%)</td>
+                  <td className="py-3 px-4 text-center text-slate-400 text-xs">{tpm}-{tpa} ({tpPct}%)</td>
                 </motion.tr>
               );
             })}
@@ -387,9 +387,9 @@ function GameLogTable({ stats, selectedProp, prediction, bettingLine, nextGameOp
                 <td className="py-4 px-4 text-center text-white font-semibold">{averages.threes}</td>
                 <td className="py-4 px-4 text-center text-white font-semibold">{averages.steals}</td>
                 <td className="py-4 px-4 text-center text-white font-semibold">{averages.blocks}</td>
-                <td className="py-4 px-4 text-center text-gray-300 text-xs font-semibold">{averages.fgPct}%</td>
-                <td className="py-4 px-4 text-center text-gray-300 text-xs font-semibold">{averages.ftPct}%</td>
-                <td className="py-4 px-4 text-center text-gray-300 text-xs font-semibold">{averages.tpPct}%</td>
+                <td className="py-4 px-4 text-center text-slate-300 text-xs font-semibold">{averages.fgPct}%</td>
+                <td className="py-4 px-4 text-center text-slate-300 text-xs font-semibold">{averages.ftPct}%</td>
+                <td className="py-4 px-4 text-center text-slate-300 text-xs font-semibold">{averages.tpPct}%</td>
               </motion.tr>
             )}
           </tbody>

@@ -42,10 +42,10 @@ function sortUsers(users, sortBy) {
 }
 
 function getRankStyle(rank) {
-  if (rank === 1) return 'text-yellow-400';
-  if (rank === 2) return 'text-gray-300';
+  if (rank === 1) return 'text-amber-400';
+  if (rank === 2) return 'text-slate-300';
   if (rank === 3) return 'text-amber-600';
-  return 'text-gray-500';
+  return 'text-slate-500';
 }
 
 function Leaderboard() {
@@ -82,7 +82,7 @@ function Leaderboard() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-        <Trophy className="text-yellow-500" size={24} />
+        <Trophy className="text-amber-400" size={24} />
         Leaderboard
       </h2>
 
@@ -94,8 +94,8 @@ function Leaderboard() {
             onClick={() => setSortBy(opt.key)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
               sortBy === opt.key
-                ? 'bg-yellow-500 text-gray-900'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ? 'bg-amber-400 text-slate-900'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             {opt.label}
@@ -105,8 +105,8 @@ function Leaderboard() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="bg-rose-900/30 border border-rose-500/50 rounded-lg p-4">
+          <p className="text-rose-400 text-sm">{error}</p>
         </div>
       )}
 
@@ -114,14 +114,14 @@ function Leaderboard() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse h-16" />
+            <div key={i} className="bg-slate-800 rounded-lg p-4 animate-pulse h-16" />
           ))}
         </div>
       ) : sorted.length === 0 ? (
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg shadow-2xl p-8 border border-gray-700 text-center">
-          <Trophy className="mx-auto mb-4 text-gray-600" size={48} />
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700 text-center">
+          <Trophy className="mx-auto mb-4 text-slate-600" size={48} />
           <h3 className="text-xl font-bold text-white mb-2">No predictions yet</h3>
-          <p className="text-gray-400">Be the first to make predictions and claim the top spot!</p>
+          <p className="text-slate-400">Be the first to make predictions and claim the top spot!</p>
         </div>
       ) : (
         <>
@@ -145,13 +145,13 @@ function Leaderboard() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: i * 0.1 }}
                     onClick={() => navigate(`/profile/${u.uid}`)}
-                    className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border p-4 text-center cursor-pointer transition-all hover:scale-[1.02] ${
+                    className={`bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border p-4 text-center cursor-pointer transition-all hover:scale-[1.02] ${
                       rank === 1
-                        ? 'border-yellow-500/50 ring-1 ring-yellow-500/20 order-2'
+                        ? 'border-amber-400/50 ring-1 ring-amber-400/20 order-2'
                         : rank === 2
-                        ? 'border-gray-600 order-1'
-                        : 'border-gray-600 order-3'
-                    } ${isCurrentUser ? 'ring-2 ring-yellow-500/40' : ''}`}
+                        ? 'border-slate-600 order-1'
+                        : 'border-slate-600 order-3'
+                    } ${isCurrentUser ? 'ring-2 ring-amber-400/40' : ''}`}
                   >
                     <div className={`text-2xl font-bold mb-1 ${getRankStyle(rank)}`}>
                       {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
@@ -162,8 +162,8 @@ function Leaderboard() {
                       ) : (
                         <div className={`w-full h-full flex items-center justify-center text-sm font-bold ${
                           isCurrentUser
-                            ? 'bg-yellow-500 text-gray-900'
-                            : 'bg-gray-700 text-white'
+                            ? 'bg-amber-400 text-slate-900'
+                            : 'bg-slate-700 text-white'
                         }`}>
                           {u.displayName?.[0]?.toUpperCase() || '?'}
                         </div>
@@ -172,19 +172,19 @@ function Leaderboard() {
                     <p className="text-white font-semibold text-sm truncate">
                       {u.displayName || 'Unknown'}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-slate-400 mt-1">
                       {rec.wins}-{rec.losses}-{rec.pushes}
                     </p>
                     <p className={`text-lg font-bold mt-1 ${
-                      parseFloat(winPct) >= 60 ? 'text-green-400' :
-                      parseFloat(winPct) >= 50 ? 'text-yellow-400' : 'text-red-400'
+                      parseFloat(winPct) >= 60 ? 'text-emerald-400' :
+                      parseFloat(winPct) >= 50 ? 'text-amber-400' : 'text-rose-400'
                     }`}>
                       {winPct}%
                     </p>
                     {(u.tokens || 0) > 0 && (
                       <div className="flex items-center justify-center gap-1 mt-1">
-                        <Coins size={12} className="text-yellow-500" />
-                        <span className="text-xs font-bold text-yellow-400">{u.tokens}</span>
+                        <Coins size={12} className="text-amber-400" />
+                        <span className="text-xs font-bold text-amber-400">{u.tokens}</span>
                       </div>
                     )}
                   </motion.div>
@@ -194,9 +194,9 @@ function Leaderboard() {
           )}
 
           {/* Full Rankings Table */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-700 text-xs text-gray-400 font-semibold uppercase">
+            <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-700 text-xs text-slate-400 font-semibold uppercase">
               <div className="col-span-1">#</div>
               <div className="col-span-4">Player</div>
               <div className="col-span-2 text-center">Record</div>
@@ -221,10 +221,10 @@ function Leaderboard() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.03 }}
                   onClick={() => navigate(`/profile/${u.uid}`)}
-                  className={`grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer transition-colors hover:bg-gray-700/50 ${
+                  className={`grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer transition-colors hover:bg-slate-700/50 ${
                     isCurrentUser
-                      ? 'bg-yellow-500/5 border-l-2 border-yellow-500'
-                      : 'border-b border-gray-700/50'
+                      ? 'bg-amber-400/5 border-l-2 border-amber-400'
+                      : 'border-b border-slate-700/50'
                   }`}
                 >
                   {/* Rank */}
@@ -240,52 +240,52 @@ function Leaderboard() {
                       ) : (
                         <div className={`w-full h-full flex items-center justify-center text-xs font-bold ${
                           isCurrentUser
-                            ? 'bg-yellow-500 text-gray-900'
-                            : 'bg-gray-700 text-white'
+                            ? 'bg-amber-400 text-slate-900'
+                            : 'bg-slate-700 text-white'
                         }`}>
                           {u.displayName?.[0]?.toUpperCase() || '?'}
                         </div>
                       )}
                     </div>
                     <span className={`text-sm font-semibold truncate ${
-                      isCurrentUser ? 'text-yellow-400' : 'text-white'
+                      isCurrentUser ? 'text-amber-400' : 'text-white'
                     }`}>
                       {u.displayName || 'Unknown'}
-                      {isCurrentUser && <span className="text-xs text-gray-400 ml-1">(you)</span>}
+                      {isCurrentUser && <span className="text-xs text-slate-400 ml-1">(you)</span>}
                     </span>
                   </div>
 
                   {/* Record */}
                   <div className="col-span-2 text-center">
                     <span className="text-sm text-white font-medium">
-                      <span className="text-green-400">{rec.wins}</span>
-                      <span className="text-gray-500">-</span>
-                      <span className="text-red-400">{rec.losses}</span>
-                      <span className="text-gray-500">-</span>
-                      <span className="text-gray-400">{rec.pushes}</span>
+                      <span className="text-emerald-400">{rec.wins}</span>
+                      <span className="text-slate-500">-</span>
+                      <span className="text-rose-400">{rec.losses}</span>
+                      <span className="text-slate-500">-</span>
+                      <span className="text-slate-400">{rec.pushes}</span>
                     </span>
                   </div>
 
                   {/* Win % */}
                   <div className="col-span-2 text-center">
                     <span className={`text-sm font-bold ${
-                      parseFloat(winPct) >= 60 ? 'text-green-400' :
-                      parseFloat(winPct) >= 50 ? 'text-yellow-400' : 'text-red-400'
+                      parseFloat(winPct) >= 60 ? 'text-emerald-400' :
+                      parseFloat(winPct) >= 50 ? 'text-amber-400' : 'text-rose-400'
                     }`}>
                       {winPct}%
                     </span>
                   </div>
 
                   {/* Total Picks */}
-                  <div className="col-span-1 text-center text-sm text-gray-400">
+                  <div className="col-span-1 text-center text-sm text-slate-400">
                     {totalPicks}
                   </div>
 
                   {/* Tokens */}
                   <div className="col-span-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <Coins size={12} className="text-yellow-500" />
-                      <span className="text-sm font-bold text-yellow-400">{u.tokens || 0}</span>
+                      <Coins size={12} className="text-amber-400" />
+                      <span className="text-sm font-bold text-amber-400">{u.tokens || 0}</span>
                     </div>
                   </div>
                 </motion.div>

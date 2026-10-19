@@ -134,10 +134,10 @@ function Friends() {
 
   if (!user) {
     return (
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg shadow-2xl p-8 border border-gray-700 text-center">
-        <Users className="mx-auto mb-4 text-gray-600" size={48} />
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700 text-center">
+        <Users className="mx-auto mb-4 text-slate-600" size={48} />
         <h3 className="text-xl font-bold text-white mb-2">Sign in to see friends</h3>
-        <p className="text-gray-400">Add friends and compare your predictions.</p>
+        <p className="text-slate-400">Add friends and compare your predictions.</p>
       </div>
     );
   }
@@ -145,23 +145,23 @@ function Friends() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-        <Users className="text-yellow-500" size={24} />
+        <Users className="text-amber-400" size={24} />
         Friends
       </h2>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search users by name..."
-          className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+          className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
         />
         {/* Search Results Dropdown */}
         {searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden z-20 shadow-2xl">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-20 shadow-2xl">
             {searchResults.map((result) => (
               <button
                 key={result.uid}
@@ -170,23 +170,23 @@ function Friends() {
                   setSearchTerm('');
                   setSearchResults([]);
                 }}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-700 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
                     <span className="text-white text-sm font-bold">
                       {(result.displayName || '?')[0].toUpperCase()}
                     </span>
                   </div>
                   <span className="text-white font-medium">{result.displayName || 'User'}</span>
                 </div>
-                <ChevronRight className="text-gray-500" size={16} />
+                <ChevronRight className="text-slate-500" size={16} />
               </button>
             ))}
           </div>
         )}
         {searching && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-4 text-center text-gray-400 text-sm z-20">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg p-4 text-center text-slate-400 text-sm z-20">
             Searching...
           </div>
         )}
@@ -196,7 +196,7 @@ function Friends() {
       {pendingRequests.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <UserPlus className="text-yellow-500" size={18} />
+            <UserPlus className="text-amber-400" size={18} />
             Friend Requests ({pendingRequests.length})
           </h3>
           {pendingRequests.map((req) => (
@@ -204,30 +204,30 @@ function Friends() {
               key={req.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-yellow-500/30 p-4"
+              className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-amber-400/30 p-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
                     <span className="text-white text-sm font-bold">
                       {(req.fromUserName || '?')[0].toUpperCase()}
                     </span>
                   </div>
                   <div>
                     <p className="text-white font-semibold">{req.fromUserName || 'User'}</p>
-                    <p className="text-xs text-gray-400">wants to be your friend</p>
+                    <p className="text-xs text-slate-400">wants to be your friend</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleAccept(req.id)}
-                    className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors"
+                    className="p-2 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 transition-colors"
                   >
                     <Check size={18} />
                   </button>
                   <button
                     onClick={() => handleDecline(req.id)}
-                    className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors"
+                    className="p-2 rounded-lg bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 transition-colors"
                   >
                     <X size={18} />
                   </button>
@@ -246,13 +246,13 @@ function Friends() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(2)].map((_, i) => (
-              <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse h-16" />
+              <div key={i} className="bg-slate-800 rounded-lg p-4 animate-pulse h-16" />
             ))}
           </div>
         ) : friends.length === 0 ? (
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-6 border border-gray-700 text-center">
-            <Users className="mx-auto mb-3 text-gray-600" size={36} />
-            <p className="text-gray-400">No friends yet. Search for users above to add them!</p>
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg p-6 border border-slate-700 text-center">
+            <Users className="mx-auto mb-3 text-slate-600" size={36} />
+            <p className="text-slate-400">No friends yet. Search for users above to add them!</p>
           </div>
         ) : (
           friends.map((friend, index) => (
@@ -261,19 +261,19 @@ function Friends() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+              className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 overflow-hidden"
             >
               <div className="flex items-center justify-between p-4">
                 <div
                   className="flex items-center gap-3 cursor-pointer group flex-1"
                   onClick={() => navigate(`/profile/${friend.uid}`)}
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
                     <span className="text-white text-sm font-bold">
                       {(friend.name || '?')[0].toUpperCase()}
                     </span>
                   </div>
-                  <span className="text-white font-semibold group-hover:text-yellow-400 transition-colors">
+                  <span className="text-white font-semibold group-hover:text-amber-300 transition-colors">
                     {friend.name || 'User'}
                   </span>
                 </div>
@@ -282,8 +282,8 @@ function Friends() {
                     onClick={() => handleCompareFriend(friend)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                       selectedFriend?.uid === friend.uid
-                        ? 'bg-yellow-500 text-gray-900'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        ? 'bg-amber-400 text-slate-900'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
                     <Trophy size={14} className="inline mr-1" />
@@ -291,7 +291,7 @@ function Friends() {
                   </button>
                   <button
                     onClick={() => navigate(`/profile/${friend.uid}`)}
-                    className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-gray-400"
+                    className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors text-slate-400"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -304,13 +304,13 @@ function Friends() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-t border-gray-700 p-4 bg-gray-800/50"
+                  className="border-t border-slate-700 p-4 bg-slate-800/50"
                 >
                   {loadingComparison ? (
-                    <p className="text-gray-400 text-sm text-center">Loading comparison...</p>
+                    <p className="text-slate-400 text-sm text-center">Loading comparison...</p>
                   ) : comparisonData ? (
                     <div>
-                      <p className="text-sm text-gray-400 mb-3">
+                      <p className="text-sm text-slate-400 mb-3">
                         {comparisonData.matches.length > 0
                           ? `${comparisonData.matches.length} matching predictions found`
                           : 'No matching predictions yet — make picks on the same games!'}
@@ -320,30 +320,30 @@ function Friends() {
                           {comparisonData.matches.slice(0, 5).map((match, i) => (
                             <div
                               key={i}
-                              className="flex items-center justify-between bg-gray-800 rounded-lg p-3 text-sm"
+                              className="flex items-center justify-between bg-slate-800 rounded-lg p-3 text-sm"
                             >
                               <div className="flex-1">
                                 <p className="text-white font-medium">{match.mine.playerName}</p>
-                                <p className="text-xs text-gray-400">{match.mine.gameDate}</p>
+                                <p className="text-xs text-slate-400">{match.mine.gameDate}</p>
                               </div>
                               <div className="flex items-center gap-3">
                                 <div className="text-center">
-                                  <p className="text-[10px] text-gray-500 mb-0.5">You</p>
+                                  <p className="text-[10px] text-slate-500 mb-0.5">You</p>
                                   <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                                     match.mine.pick === 'over'
-                                      ? 'bg-green-500/20 text-green-400'
-                                      : 'bg-red-500/20 text-red-400'
+                                      ? 'bg-emerald-500/20 text-emerald-400'
+                                      : 'bg-rose-500/20 text-rose-400'
                                   }`}>
                                     {match.mine.pick === 'over' ? 'O' : 'U'}
                                   </span>
                                 </div>
-                                <span className="text-gray-600">vs</span>
+                                <span className="text-slate-600">vs</span>
                                 <div className="text-center">
-                                  <p className="text-[10px] text-gray-500 mb-0.5">{friend.name?.split(' ')[0]}</p>
+                                  <p className="text-[10px] text-slate-500 mb-0.5">{friend.name?.split(' ')[0]}</p>
                                   <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                                     match.theirs.pick === 'over'
-                                      ? 'bg-green-500/20 text-green-400'
-                                      : 'bg-red-500/20 text-red-400'
+                                      ? 'bg-emerald-500/20 text-emerald-400'
+                                      : 'bg-rose-500/20 text-rose-400'
                                   }`}>
                                     {match.theirs.pick === 'over' ? 'O' : 'U'}
                                   </span>
@@ -351,10 +351,10 @@ function Friends() {
                                 {match.mine.result && (
                                   <span className={`ml-2 px-2 py-0.5 rounded text-xs font-bold ${
                                     match.mine.result === 'win'
-                                      ? 'bg-green-600/30 text-green-300'
+                                      ? 'bg-emerald-600/30 text-emerald-300'
                                       : match.mine.result === 'loss'
-                                      ? 'bg-red-600/30 text-red-300'
-                                      : 'bg-yellow-600/30 text-yellow-300'
+                                      ? 'bg-rose-600/30 text-rose-300'
+                                      : 'bg-amber-500/30 text-amber-300'
                                   }`}>
                                     {match.mine.pick === match.theirs.pick ? 'SAME' : match.mine.result === 'win' ? 'YOU' : friend.name?.split(' ')[0]?.toUpperCase()}
                                   </span>

@@ -260,9 +260,9 @@ function Home() {
             className="text-center mb-8"
           >
             <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3 leading-tight">
-              NBA Player Prop <span className="text-yellow-500">Analyzer</span>
+              NBA Player Prop <span className="text-amber-400">Analyzer</span>
             </h1>
-            <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+            <p className="text-slate-400 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
               AI-powered predictions for NBA player performance
             </p>
           </motion.div>
@@ -277,7 +277,7 @@ function Home() {
             <div className="bg-slate-800/80 backdrop-blur-xl rounded-lg shadow-2xl p-5 border border-white/5">
           <div className="relative">
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -286,11 +286,11 @@ function Home() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search any NBA player or team..."
-                  className="w-full pl-12 pr-12 py-3.5 text-base bg-slate-700/50 text-white border border-slate-600/50 rounded-lg focus:outline-none focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 placeholder-gray-400 transition-all duration-200"
+                  className="w-full pl-12 pr-12 py-3.5 text-base bg-slate-700/50 text-white border border-slate-600/50 rounded-lg focus:outline-none focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20 placeholder-slate-400 transition-all duration-200"
             />
             {isSearching && (
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-600 border-t-yellow-500"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-600 border-t-amber-400"></div>
               </div>
             )}
           </div>
@@ -299,7 +299,7 @@ function Home() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg backdrop-blur-sm"
+                  className="mt-4 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-lg backdrop-blur-sm"
             >
               {error}
             </motion.div>
@@ -312,7 +312,7 @@ function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="mt-4"
             >
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Teams</h4>
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Teams</h4>
               <div className="space-y-1.5">
                 {teamSearchResults.map((team, index) => (
                   <motion.div
@@ -321,15 +321,15 @@ function Home() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.01, duration: 0.1 }}
                     onClick={() => navigate(`/team/${team.abbreviation}`)}
-                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-yellow-500/30 group"
+                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-amber-400/30 group"
                   >
                     <div className="flex items-center gap-3">
                       {team.logo && (
                         <img src={team.logo} alt={team.displayName} className="w-8 h-8 object-contain flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-white text-sm group-hover:text-yellow-400 transition-colors">{team.displayName}</h4>
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <h4 className="font-semibold text-white text-sm group-hover:text-amber-300 transition-colors">{team.displayName}</h4>
+                        <p className="text-xs text-slate-400 mt-0.5">
                           {team.abbreviation}{team.record ? ` · ${team.record}` : ''}
                         </p>
                       </div>
@@ -344,12 +344,12 @@ function Home() {
                           >
                             <Star
                               size={16}
-                              className={isTeamFavorite(team.abbreviation) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                              className={isTeamFavorite(team.abbreviation) ? 'text-amber-400 fill-amber-400' : 'text-slate-500 hover:text-amber-400'}
                             />
                           </button>
                         )}
                         <svg
-                          className="w-5 h-5 text-gray-400 group-hover:text-yellow-400 transition-colors"
+                          className="w-5 h-5 text-slate-400 group-hover:text-amber-300 transition-colors"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -371,7 +371,7 @@ function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="mt-4"
             >
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Players</h4>
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Players</h4>
               <div className="max-h-96 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50">
                 {searchResults.map((player, index) => (
                   <motion.div
@@ -383,14 +383,14 @@ function Home() {
                       duration: 0.1
                     }}
                     onClick={() => handleSelectPlayer(player)}
-                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-yellow-500/30 group"
+                    className="p-3 bg-slate-700/50 rounded-lg cursor-pointer transition-all duration-150 hover:bg-slate-600/70 border border-transparent hover:border-amber-400/30 group"
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
                         <h4 className="font-semibold text-white text-sm">
                           {player.first_name} {player.last_name}
                         </h4>
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-slate-400 mt-0.5">
                           {player.position} • {player.team?.abbreviation || 'Free Agent'}
                         </p>
                       </div>
@@ -405,12 +405,12 @@ function Home() {
                           >
                             <Star
                               size={16}
-                              className={isFavorite(String(player.id)) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                              className={isFavorite(String(player.id)) ? 'text-amber-400 fill-amber-400' : 'text-slate-500 hover:text-amber-400'}
                             />
                           </button>
                         )}
                         <svg
-                          className="w-5 h-5 text-gray-400 group-hover:text-yellow-400 transition-colors"
+                          className="w-5 h-5 text-slate-400 group-hover:text-amber-300 transition-colors"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -429,9 +429,9 @@ function Home() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="mt-6 text-center text-gray-400 py-8"
+              className="mt-6 text-center text-slate-400 py-8"
             >
-              <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p>No players or teams found. Try a different search term.</p>
@@ -503,7 +503,7 @@ function Home() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="mt-4 text-gray-300 text-sm font-medium"
+                className="mt-4 text-slate-300 text-sm font-medium"
               >
                 Loading trending props...
               </motion.p>
@@ -543,10 +543,10 @@ function Home() {
               <svg className="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              <p className="text-gray-300 mb-2 text-lg font-semibold">
+              <p className="text-slate-300 mb-2 text-lg font-semibold">
                 No trending props available
               </p>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-slate-400">
                 Check back soon for market activity
               </p>
             </motion.div>
@@ -566,7 +566,7 @@ function Home() {
             <h2 className="text-2xl font-bold text-white mb-1 leading-tight">
             Featured Players
           </h2>
-            <p className="text-gray-400 text-sm font-medium">
+            <p className="text-slate-400 text-sm font-medium">
             Players with active betting lines
           </p>
         </div>
@@ -575,9 +575,9 @@ function Home() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex-shrink-0"
+              className="px-3 py-1.5 bg-amber-400/10 border border-amber-400/30 rounded-lg flex-shrink-0"
             >
-              <span className="text-yellow-400 font-bold text-xs whitespace-nowrap">
+              <span className="text-amber-400 font-bold text-xs whitespace-nowrap">
               {filteredPlayers.length} Available
             </span>
             </motion.div>
@@ -587,11 +587,11 @@ function Home() {
       {/* Filters */}
       {playersWithLines.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <Filter size={16} className="text-gray-400" />
+          <Filter size={16} className="text-slate-400" />
           <select
             value={filterTeam}
             onChange={(e) => { setFilterTeam(e.target.value); setVisibleCount(12); }}
-            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-yellow-500/50 focus:outline-none cursor-pointer"
+            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-amber-400/50 focus:outline-none cursor-pointer"
           >
             <option value="all">All Teams</option>
             {uniqueTeams.map(team => (
@@ -601,7 +601,7 @@ function Home() {
           <select
             value={filterProp}
             onChange={(e) => { setFilterProp(e.target.value); setVisibleCount(12); }}
-            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-yellow-500/50 focus:outline-none cursor-pointer"
+            className="bg-slate-800/80 text-white text-sm rounded-lg px-3 py-2 border border-slate-700/50 focus:border-amber-400/50 focus:outline-none cursor-pointer"
           >
             <option value="all">All Props</option>
             {uniqueProps.map(prop => (
@@ -611,7 +611,7 @@ function Home() {
           {hasActiveFilters && (
             <button
               onClick={() => { setFilterTeam('all'); setFilterProp('points'); setVisibleCount(12); }}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-800/60"
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-800/60"
             >
               <X size={14} />
               Clear filters
@@ -631,13 +631,13 @@ function Home() {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="rounded-full h-16 w-16 border-4 border-slate-700 border-t-yellow-500 mx-auto"
+              className="rounded-full h-16 w-16 border-4 border-slate-700 border-t-amber-400 mx-auto"
             />
             <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="mt-6 text-gray-300 text-lg font-medium"
+              className="mt-6 text-slate-300 text-lg font-medium"
             >
               Loading players with betting lines...
             </motion.p>
@@ -645,7 +645,7 @@ function Home() {
               {[0, 1, 2].map((i) => (
                 <motion.div
                   key={i}
-                  className="w-2 h-2 bg-yellow-500 rounded-full"
+                  className="w-2 h-2 bg-amber-400 rounded-full"
                   animate={{
                     y: [0, -8, 0],
                     opacity: [0.5, 1, 0.5]
@@ -689,7 +689,7 @@ function Home() {
                   away_team: player.away_team
                 });
               }}
-                className="relative bg-slate-800/60 backdrop-blur-sm rounded-lg shadow-xl hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 cursor-pointer overflow-hidden border border-slate-700/50 hover:border-yellow-500/50 group"
+                className="relative bg-slate-800/60 backdrop-blur-sm rounded-lg shadow-xl hover:shadow-2xl hover:shadow-amber-400/20 transition-all duration-300 cursor-pointer overflow-hidden border border-slate-700/50 hover:border-amber-400/50 group"
             >
                 {/* Favorite Star */}
                 {user && (
@@ -702,7 +702,7 @@ function Home() {
                   >
                     <Star
                       size={16}
-                      className={isFavorite(String(player.player_id || player.name)) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-500'}
+                      className={isFavorite(String(player.player_id || player.name)) ? 'text-amber-400 fill-amber-400' : 'text-slate-500 hover:text-amber-400'}
                     />
                   </button>
                 )}
@@ -714,7 +714,7 @@ function Home() {
                     src={resolveImageUrl(player.player_image)}
                     alt={player.name}
                     loading="lazy"
-                      className="w-24 h-24 rounded-full object-cover ring-2 ring-gray-500/40 group-hover:ring-yellow-500 shadow-xl transition-all duration-300"
+                      className="w-24 h-24 rounded-full object-cover ring-2 ring-slate-500/40 group-hover:ring-amber-400 shadow-xl transition-all duration-300"
                     onError={(e) => {
                       e.target.style.display = 'none';
                       const fallback = e.target.nextElementSibling;
@@ -723,7 +723,7 @@ function Home() {
                   />
                 ) : null}
                 <div 
-                    className={`${player.player_image ? 'hidden' : 'flex'} w-24 h-24 rounded-full bg-gradient-to-br from-gray-500 via-gray-400 to-gray-500 items-center justify-center ring-2 ring-gray-500/40 group-hover:ring-yellow-500 shadow-xl transition-all duration-300`}
+                    className={`${player.player_image ? 'hidden' : 'flex'} w-24 h-24 rounded-full bg-gradient-to-br from-slate-500 via-slate-400 to-slate-500 items-center justify-center ring-2 ring-slate-500/40 group-hover:ring-amber-400 shadow-xl transition-all duration-300`}
                 >
                     <span className="text-white text-3xl font-bold">
                     {player.name.split(' ').map(n => n[0]).join('')}
@@ -733,16 +733,16 @@ function Home() {
 
               {/* Player Info */}
                 <div className="px-4 pb-4 text-center">
-                  <h3 className="font-bold text-base text-white mb-0.5 truncate group-hover:text-yellow-400 transition-colors">
+                  <h3 className="font-bold text-base text-white mb-0.5 truncate group-hover:text-amber-300 transition-colors">
                   {player.name}
                 </h3>
-                  <div className="text-xs text-gray-400 mb-4">
+                  <div className="text-xs text-slate-400 mb-4">
                     {player.home_team} vs {player.away_team}
                   </div>
 
                 {/* Prop Line Box */}
                   <div className="rounded-lg border border-slate-600/40 bg-slate-700/30 p-2.5 mb-4">
-                    <div className="text-xs font-semibold text-yellow-400 mb-0.5">
+                    <div className="text-xs font-semibold text-amber-400 mb-0.5">
                       {(() => {
                         const propLabels = {
                           points: 'PTS',
@@ -763,14 +763,14 @@ function Home() {
                         return propLabels[player.prop_type] || player.prop_type?.toUpperCase() || 'PTS';
                       })()}
                     </div>
-                    <div className="text-2xl font-extrabold text-yellow-400">
+                    <div className="text-2xl font-extrabold text-amber-400">
                       {player.betting_line}
                     </div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">{player.bookmaker}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">{player.bookmaker}</div>
                   </div>
 
                   {/* View Button */}
-                  <button className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 hover:shadow-yellow-500/20 transition-all font-bold shadow-lg border border-gray-700 hover:border-yellow-500/50">
+                  <button className="w-full px-4 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 hover:shadow-amber-400/20 transition-all font-bold shadow-lg border border-slate-700 hover:border-amber-400/50">
                     View Analysis
                   </button>
               </div>
@@ -785,11 +785,11 @@ function Home() {
             >
               <button
                 onClick={() => setVisibleCount(prev => prev + 12)}
-                className="flex items-center gap-2 px-6 py-3 bg-slate-800/60 backdrop-blur-sm text-white rounded-lg hover:bg-slate-700/60 transition-all font-semibold border border-slate-700/50 hover:border-yellow-500/50"
+                className="flex items-center gap-2 px-6 py-3 bg-slate-800/60 backdrop-blur-sm text-white rounded-lg hover:bg-slate-700/60 transition-all font-semibold border border-slate-700/50 hover:border-amber-400/50"
               >
                 <span>Show More</span>
                 <ChevronDown size={18} />
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-slate-400">
                   ({filteredPlayers.length - visibleCount} remaining)
                 </span>
               </button>
@@ -802,12 +802,12 @@ function Home() {
           animate={{ opacity: 1, y: 0 }}
             className="bg-slate-800/40 backdrop-blur-sm rounded-lg shadow-xl p-12 text-center border border-slate-700/50"
         >
-          <p className="text-gray-300 mb-2 text-lg font-semibold">
+          <p className="text-slate-300 mb-2 text-lg font-semibold">
             No players match your filters
           </p>
           <button
             onClick={() => { setFilterTeam('all'); setFilterProp('all'); }}
-            className="mt-3 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
+            className="mt-3 text-sm text-amber-400 hover:text-amber-300 transition-colors"
           >
             Clear all filters
           </button>
@@ -821,10 +821,10 @@ function Home() {
             <svg className="w-20 h-20 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <p className="text-gray-300 mb-2 text-lg font-semibold">
+          <p className="text-slate-300 mb-2 text-lg font-semibold">
             No players with betting lines available
           </p>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-slate-400">
             Use the search above to find any player and see their prediction
           </p>
         </motion.div>

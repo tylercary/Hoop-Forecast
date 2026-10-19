@@ -155,31 +155,31 @@ export function calculateBetRating(ev, coverProbability, predictionDiff, confide
  * Get color for cover probability
  */
 export function getCoverProbabilityColor(probability) {
-  if (probability == null) return 'text-gray-400';
-  if (probability > 60) return 'text-green-400';
-  if (probability >= 50) return 'text-yellow-400';
-  return 'text-red-400';
+  if (probability == null) return 'text-slate-400';
+  if (probability > 60) return 'text-emerald-400';
+  if (probability >= 50) return 'text-amber-400';
+  return 'text-rose-400';
 }
 
 /**
  * Get color for EV
  */
 export function getEVColor(ev) {
-  if (ev == null) return 'text-gray-400';
-  if (ev > 0) return 'text-green-400';
-  return 'text-red-400';
+  if (ev == null) return 'text-slate-400';
+  if (ev > 0) return 'text-emerald-400';
+  return 'text-rose-400';
 }
 
 /**
  * Get color for bet rating
  */
 export function getBetRatingColor(rating) {
-  if (!rating) return 'text-gray-400';
-  if (rating.startsWith('A')) return 'text-green-400';
-  if (rating.startsWith('B')) return 'text-green-300';
-  if (rating.startsWith('C')) return 'text-yellow-400';
+  if (!rating) return 'text-slate-400';
+  if (rating.startsWith('A')) return 'text-emerald-400';
+  if (rating.startsWith('B')) return 'text-emerald-300';
+  if (rating.startsWith('C')) return 'text-amber-400';
   if (rating.startsWith('D')) return 'text-orange-400';
-  return 'text-red-400';
+  return 'text-rose-400';
 }
 
 

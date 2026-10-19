@@ -40,10 +40,10 @@ function ProfileSettings() {
 
   if (!user) {
     return (
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg shadow-2xl p-8 border border-gray-700 text-center">
-        <Settings className="mx-auto mb-4 text-gray-600" size={48} />
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700 text-center">
+        <Settings className="mx-auto mb-4 text-slate-600" size={48} />
         <h3 className="text-xl font-bold text-white mb-2">Sign in to access settings</h3>
-        <p className="text-gray-400">You need to be logged in to manage your profile.</p>
+        <p className="text-slate-400">You need to be logged in to manage your profile.</p>
       </div>
     );
   }
@@ -173,7 +173,7 @@ function ProfileSettings() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-        <Settings className="text-yellow-500" size={24} />
+        <Settings className="text-amber-400" size={24} />
         Profile Settings
       </h2>
 
@@ -181,21 +181,21 @@ function ProfileSettings() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 p-6"
+        className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 p-6"
       >
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Camera size={18} className="text-gray-400" />
+          <Camera size={18} className="text-slate-400" />
           Profile Picture
         </h3>
         <div className="flex items-center gap-4">
           <div className="relative">
             {photoPreview ? (
-              <img src={photoPreview} alt="Preview" className="w-20 h-20 rounded-full object-cover ring-2 ring-yellow-500" />
+              <img src={photoPreview} alt="Preview" className="w-20 h-20 rounded-full object-cover ring-2 ring-amber-400" />
             ) : user.photoURL ? (
-              <img src={user.photoURL} alt="" className="w-20 h-20 rounded-full object-cover ring-2 ring-gray-600" referrerPolicy="no-referrer" />
+              <img src={user.photoURL} alt="" className="w-20 h-20 rounded-full object-cover ring-2 ring-slate-600" referrerPolicy="no-referrer" />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-yellow-500 flex items-center justify-center ring-2 ring-gray-600">
-                <span className="text-gray-900 text-2xl font-bold">{userInitial}</span>
+              <div className="w-20 h-20 rounded-full bg-amber-400 flex items-center justify-center ring-2 ring-slate-600">
+                <span className="text-slate-900 text-2xl font-bold">{userInitial}</span>
               </div>
             )}
           </div>
@@ -205,13 +205,13 @@ function ProfileSettings() {
                 <button
                   onClick={handlePhotoUpload}
                   disabled={uploading}
-                  className="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm font-semibold hover:bg-yellow-400 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-amber-400 text-slate-900 rounded-lg text-sm font-semibold hover:bg-amber-300 transition-colors disabled:opacity-50"
                 >
                   {uploading ? 'Uploading...' : 'Save Photo'}
                 </button>
                 <button
                   onClick={cancelPhotoPreview}
-                  className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-600 transition-colors"
                 >
                   Cancel
                 </button>
@@ -219,7 +219,7 @@ function ProfileSettings() {
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-600 transition-colors"
               >
                 Upload Photo
               </button>
@@ -231,12 +231,12 @@ function ProfileSettings() {
               onChange={handlePhotoSelect}
               className="hidden"
             />
-            <p className="text-xs text-gray-500">JPG, PNG or GIF. Max 2MB.</p>
+            <p className="text-xs text-slate-500">JPG, PNG or GIF. Max 2MB.</p>
           </div>
         </div>
-        {photoError && <p className="text-red-400 text-sm mt-2">{photoError}</p>}
+        {photoError && <p className="text-rose-400 text-sm mt-2">{photoError}</p>}
         {photoSuccess && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-green-400 text-sm mt-2 flex items-center gap-1">
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-emerald-400 text-sm mt-2 flex items-center gap-1">
             <Check size={14} /> {photoSuccess}
           </motion.p>
         )}
@@ -247,10 +247,10 @@ function ProfileSettings() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 p-6"
+        className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 p-6"
       >
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <User size={18} className="text-gray-400" />
+          <User size={18} className="text-slate-400" />
           Username
         </h3>
         {editingUsername ? (
@@ -262,41 +262,41 @@ function ProfileSettings() {
               placeholder="New username"
               maxLength={20}
               autoFocus
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
             />
             <div className="flex items-center gap-2">
               <button
                 onClick={handleUsernameSave}
                 disabled={usernameSaving || !newUsername.trim()}
-                className="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm font-semibold hover:bg-yellow-400 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-amber-400 text-slate-900 rounded-lg text-sm font-semibold hover:bg-amber-300 transition-colors disabled:opacity-50"
               >
                 {usernameSaving ? 'Saving...' : 'Save'}
               </button>
               <button
                 onClick={() => { setEditingUsername(false); setNewUsername(''); setUsernameError(''); }}
-                className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-600 transition-colors"
               >
                 Cancel
               </button>
             </div>
-            {usernameError && <p className="text-red-400 text-sm">{usernameError}</p>}
+            {usernameError && <p className="text-rose-400 text-sm">{usernameError}</p>}
           </div>
         ) : (
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white font-medium">{user.displayName || 'Not set'}</p>
-              <p className="text-xs text-gray-500">{user.email}</p>
+              <p className="text-xs text-slate-500">{user.email}</p>
             </div>
             <button
               onClick={() => { setEditingUsername(true); setNewUsername(user.displayName || ''); }}
-              className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-600 transition-colors"
+              className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-600 transition-colors"
             >
               Change
             </button>
           </div>
         )}
         {usernameSuccess && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-green-400 text-sm mt-2 flex items-center gap-1">
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-emerald-400 text-sm mt-2 flex items-center gap-1">
             <Check size={14} /> {usernameSuccess}
           </motion.p>
         )}
@@ -308,10 +308,10 @@ function ProfileSettings() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 p-6"
+          className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 p-6"
         >
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Key size={18} className="text-gray-400" />
+            <Key size={18} className="text-slate-400" />
             Change Password
           </h3>
           <form onSubmit={handlePasswordChange} className="space-y-3">
@@ -320,32 +320,32 @@ function ProfileSettings() {
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
               placeholder="Current password"
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
             />
             <input
               type="password"
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
               placeholder="New password"
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
             />
             <input
               type="password"
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
               placeholder="Confirm new password"
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 transition-colors"
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
             />
             <button
               type="submit"
               disabled={pwSaving || !currentPw || !newPw || !confirmPw}
-              className="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm font-semibold hover:bg-yellow-400 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-amber-400 text-slate-900 rounded-lg text-sm font-semibold hover:bg-amber-300 transition-colors disabled:opacity-50"
             >
               {pwSaving ? 'Changing...' : 'Update Password'}
             </button>
-            {pwError && <p className="text-red-400 text-sm">{pwError}</p>}
+            {pwError && <p className="text-rose-400 text-sm">{pwError}</p>}
             {pwSuccess && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-green-400 text-sm flex items-center gap-1">
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-emerald-400 text-sm flex items-center gap-1">
                 <Check size={14} /> {pwSuccess}
               </motion.p>
             )}
@@ -358,18 +358,18 @@ function ProfileSettings() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-red-500/30 p-6"
+        className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-rose-500/30 p-6"
       >
-        <h3 className="text-lg font-semibold text-red-400 mb-2 flex items-center gap-2">
+        <h3 className="text-lg font-semibold text-rose-400 mb-2 flex items-center gap-2">
           <AlertTriangle size={18} />
           Danger Zone
         </h3>
-        <p className="text-sm text-gray-400 mb-4">
+        <p className="text-sm text-slate-400 mb-4">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
         <button
           onClick={() => setShowDeleteModal(true)}
-          className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-sm font-semibold hover:bg-red-500/30 transition-colors"
+          className="px-4 py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg text-sm font-semibold hover:bg-rose-500/30 transition-colors"
         >
           <Trash2 size={14} className="inline mr-1.5" />
           Delete Account
@@ -393,55 +393,55 @@ function ProfileSettings() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 flex items-center justify-center z-[90] p-4"
             >
-              <div className="bg-gray-800 border border-red-500/50 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden">
+              <div className="bg-slate-800 border border-rose-500/50 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden">
                 <div className="p-6 space-y-4">
                   <div className="text-center">
-                    <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-3">
-                      <AlertTriangle className="text-red-400" size={28} />
+                    <div className="w-14 h-14 rounded-full bg-rose-500/20 flex items-center justify-center mx-auto mb-3">
+                      <AlertTriangle className="text-rose-400" size={28} />
                     </div>
                     <h2 className="text-xl font-bold text-white">Delete Account</h2>
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p className="text-sm text-slate-400 mt-1">
                       This will permanently delete your account, predictions, and friend connections.
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-sm text-gray-400 block mb-1">Type DELETE to confirm</label>
+                    <label className="text-sm text-slate-400 block mb-1">Type DELETE to confirm</label>
                     <input
                       type="text"
                       value={deleteConfirmText}
                       onChange={(e) => setDeleteConfirmText(e.target.value)}
                       placeholder="DELETE"
-                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
                     />
                   </div>
 
                   {isEmailUser && (
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">Enter your password</label>
+                      <label className="text-sm text-slate-400 block mb-1">Enter your password</label>
                       <input
                         type="password"
                         value={deletePw}
                         onChange={(e) => setDeletePw(e.target.value)}
                         placeholder="Password"
-                        className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+                        className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
                       />
                     </div>
                   )}
 
-                  {deleteError && <p className="text-red-400 text-sm">{deleteError}</p>}
+                  {deleteError && <p className="text-rose-400 text-sm">{deleteError}</p>}
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setShowDeleteModal(false); setDeleteError(''); setDeleteConfirmText(''); setDeletePw(''); }}
-                      className="flex-1 py-3 bg-gray-700 text-gray-300 rounded-lg font-semibold hover:bg-gray-600 transition-colors"
+                      className="flex-1 py-3 bg-slate-700 text-slate-300 rounded-lg font-semibold hover:bg-slate-600 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleDeleteAccount}
                       disabled={deleting || deleteConfirmText !== 'DELETE' || (isEmailUser && !deletePw)}
-                      className="flex-1 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-400 transition-colors disabled:opacity-50"
+                      className="flex-1 py-3 bg-rose-500 text-white rounded-lg font-semibold hover:bg-rose-400 transition-colors disabled:opacity-50"
                     >
                       {deleting ? 'Deleting...' : 'Delete Forever'}
                     </button>

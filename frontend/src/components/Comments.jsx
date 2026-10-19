@@ -66,18 +66,18 @@ export default function Comments({ type, targetId, title = 'Comments' }) {
         <MessageCircle className="w-5 h-5 text-amber-400" />
         {title}
         {comments.length > 0 && (
-          <span className="text-sm text-gray-400 font-normal">({comments.length})</span>
+          <span className="text-sm text-slate-400 font-normal">({comments.length})</span>
         )}
       </h3>
 
       {/* Input */}
       {user ? (
         <form onSubmit={handleSubmit} className="flex gap-3 mb-5">
-          <div className="w-9 h-9 rounded-full bg-gray-700 flex-shrink-0 overflow-hidden flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden flex items-center justify-center">
             {user.photoURL ? (
               <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-sm font-bold text-gray-300">
+              <span className="text-sm font-bold text-slate-300">
                 {(user.displayName || 'A')[0].toUpperCase()}
               </span>
             )}
@@ -89,12 +89,12 @@ export default function Comments({ type, targetId, title = 'Comments' }) {
               onChange={(e) => setText(e.target.value)}
               placeholder="Add a comment..."
               maxLength={500}
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500/50 transition-colors"
+              className="flex-1 rounded-lg border border-slate-700/60 bg-slate-800/80 px-4 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-400/60 focus:outline-none transition-colors"
             />
             <button
               type="submit"
               disabled={!text.trim() || submitting}
-              className="px-3 py-2 bg-yellow-500 text-gray-900 rounded-lg hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-2 bg-amber-400 text-slate-900 rounded-lg hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -103,7 +103,7 @@ export default function Comments({ type, targetId, title = 'Comments' }) {
       ) : (
         <button
           onClick={openAuthModal}
-          className="w-full mb-5 py-3 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
+          className="w-full mb-5 py-3 rounded-lg border border-slate-700/60 bg-slate-800/80 text-sm text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
         >
           Sign in to comment
         </button>
@@ -111,7 +111,7 @@ export default function Comments({ type, targetId, title = 'Comments' }) {
 
       {/* Comments List */}
       {comments.length === 0 ? (
-        <p className="text-center text-gray-500 text-sm py-6">No comments yet. Be the first!</p>
+        <p className="text-center text-slate-500 text-sm py-6">No comments yet. Be the first!</p>
       ) : (
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
@@ -124,11 +124,11 @@ export default function Comments({ type, targetId, title = 'Comments' }) {
                 transition={{ duration: 0.15 }}
                 className="flex gap-3 group"
               >
-                <div className="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0 overflow-hidden flex items-center justify-center mt-0.5">
+                <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden flex items-center justify-center mt-0.5">
                   {comment.userPhoto ? (
                     <img src={comment.userPhoto} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs font-bold text-gray-300">
+                    <span className="text-xs font-bold text-slate-300">
                       {(comment.userName || 'A')[0].toUpperCase()}
                     </span>
                   )}
@@ -136,17 +136,17 @@ export default function Comments({ type, targetId, title = 'Comments' }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-white">{comment.userName}</span>
-                    <span className="text-xs text-gray-500">{timeAgo(comment.createdAt)}</span>
+                    <span className="text-xs text-slate-500">{timeAgo(comment.createdAt)}</span>
                     {user?.uid === comment.userId && (
                       <button
                         onClick={() => handleDelete(comment.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all ml-auto"
+                        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 transition-all ml-auto"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-gray-300 mt-0.5 break-words">{comment.text}</p>
+                  <p className="text-sm text-slate-300 mt-0.5 break-words">{comment.text}</p>
                 </div>
               </motion.div>
             ))}

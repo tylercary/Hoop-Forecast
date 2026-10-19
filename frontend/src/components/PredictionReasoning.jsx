@@ -4,8 +4,8 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
   if (!predictionData) {
     return (
       <div className="panel p-6">
-        <h3 className="text-xl font-bold text-white mb-4">Prediction Reasoning</h3>
-        <p className="text-gray-400 text-center py-8">No prediction data available</p>
+        <h3 className="panel-title mb-4">Prediction Reasoning</h3>
+        <p className="text-slate-400 text-center py-8">No prediction data available</p>
       </div>
     );
   }
@@ -41,8 +41,8 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
   if (!propPrediction) {
     return (
       <div className="panel p-6">
-        <h3 className="text-xl font-bold text-white mb-4">Prediction Reasoning</h3>
-        <p className="text-gray-400 text-center py-8">Prediction reasoning not available for this prop. The prediction may still be loading.</p>
+        <h3 className="panel-title mb-4">Prediction Reasoning</h3>
+        <p className="text-slate-400 text-center py-8">Prediction reasoning not available for this prop. The prediction may still be loading.</p>
       </div>
     );
   }
@@ -80,24 +80,24 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
       transition={{ duration: 0.2 }}
       className="panel p-6"
     >
-      <h3 className="text-xl font-bold text-white mb-6">
+      <h3 className="panel-title mb-6">
         Prediction Reasoning: {propLabels[selectedProp] || selectedProp.replace(/_/g, ' ')}
       </h3>
 
       {/* Prediction Summary */}
-      <div className="mb-6 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+      <div className="mb-6 p-4 rounded-lg bg-slate-800/60 border border-slate-700/60">
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <div className="text-sm text-gray-400 mb-1">Predicted Value</div>
-            <div className="text-2xl font-bold text-yellow-400">
+            <div className="text-sm text-slate-400 mb-1">Predicted Value</div>
+            <div className="text-2xl font-bold text-amber-400 tabular-nums">
               {typeof predictedValue === 'number' ? predictedValue.toFixed(1) : predictedValue}
             </div>
           </div>
           <div>
-            <div className="text-sm text-gray-400 mb-1">Confidence</div>
+            <div className="text-sm text-slate-400 mb-1">Confidence</div>
             <div className={`text-2xl font-bold ${
-              confidenceLevel === 'High' ? 'text-green-400' :
-              confidenceLevel === 'Medium' ? 'text-yellow-400' :
+              confidenceLevel === 'High' ? 'text-emerald-400' :
+              confidenceLevel === 'Medium' ? 'text-amber-400' :
               confidenceLevel === 'Low' ? 'text-orange-400' :
               'text-white'
             }`}>
@@ -105,8 +105,8 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
             </div>
           </div>
           <div>
-            <div className="text-sm text-gray-400 mb-1">Error Margin</div>
-            <div className="text-2xl font-bold text-gray-300">
+            <div className="text-sm text-slate-400 mb-1">Error Margin</div>
+            <div className="text-2xl font-bold text-slate-300">
               {typeof errorMargin === 'number' ? `±${errorMargin.toFixed(1)}` : errorMargin}
             </div>
           </div>
@@ -115,84 +115,84 @@ function PredictionReasoning({ predictionData, selectedProp, playerName }) {
 
       {/* AI Analysis */}
       <div className="mb-6">
-        <h4 className="text-lg font-semibold text-white mb-3">
+        <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">
           AI Analysis
           {confidenceLevel && (
             <span className={`ml-3 text-sm font-normal ${
-              confidenceLevel === 'High' ? 'text-green-400' :
-              confidenceLevel === 'Medium' ? 'text-yellow-400' :
+              confidenceLevel === 'High' ? 'text-emerald-400' :
+              confidenceLevel === 'Medium' ? 'text-amber-400' :
               'text-orange-400'
             }`}>
               ({confidenceLevel} Confidence)
             </span>
           )}
         </h4>
-        <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
-          <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{analysis}</p>
+        <div className="rounded-lg p-4 bg-slate-900/60 border border-slate-700/60">
+          <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{analysis}</p>
         </div>
       </div>
 
       {/* Statistical Breakdown */}
       {stats && Object.keys(stats).length > 0 && (
         <div>
-          <h4 className="text-lg font-semibold text-white mb-3">Statistical Factors</h4>
+          <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">Statistical Factors</h4>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {stats.overall_avg != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Overall Average</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Overall Average</div>
                 <div className="text-lg font-semibold text-white">{stats.overall_avg.toFixed(1)}</div>
               </div>
             )}
             {stats.recent_3_avg != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Last 3 Games Avg</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Last 3 Games Avg</div>
                 <div className="text-lg font-semibold text-white">{stats.recent_3_avg.toFixed(1)}</div>
               </div>
             )}
             {stats.recent_5_avg != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Last 5 Games Avg</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Last 5 Games Avg</div>
                 <div className="text-lg font-semibold text-white">{stats.recent_5_avg.toFixed(1)}</div>
               </div>
             )}
             {stats.momentum != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Momentum</div>
-                <div className={`text-lg font-semibold ${stats.momentum > 0 ? 'text-green-400' : stats.momentum < 0 ? 'text-red-400' : 'text-white'}`}>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Momentum</div>
+                <div className={`text-lg font-semibold ${stats.momentum > 0 ? 'text-emerald-400' : stats.momentum < 0 ? 'text-rose-400' : 'text-white'}`}>
                   {stats.momentum > 0 ? '+' : ''}{stats.momentum.toFixed(1)}
                 </div>
               </div>
             )}
             {stats.std_dev != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Std Deviation</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Std Deviation</div>
                 <div className="text-lg font-semibold text-white">{stats.std_dev.toFixed(1)}</div>
               </div>
             )}
             {stats.consistency_factor != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Consistency</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Consistency</div>
                 <div className="text-lg font-semibold text-white">{(stats.consistency_factor * 100).toFixed(0)}%</div>
               </div>
             )}
             {stats.home_avg != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Home Average</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Home Average</div>
                 <div className="text-lg font-semibold text-white">{stats.home_avg.toFixed(1)}</div>
               </div>
             )}
             {stats.away_avg != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Away Average</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Away Average</div>
                 <div className="text-lg font-semibold text-white">{stats.away_avg.toFixed(1)}</div>
               </div>
             )}
             {stats.trend != null && (
-              <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600">
-                <div className="text-xs text-gray-400 mb-1">Trend</div>
+              <div className="rounded-lg p-3 bg-slate-800/60 border border-slate-700/60">
+                <div className="text-xs text-slate-400 mb-1">Trend</div>
                 <div className={`text-lg font-semibold ${
-                  stats.trend === 'increasing' ? 'text-green-400' : 
-                  stats.trend === 'decreasing' ? 'text-red-400' : 
+                  stats.trend === 'increasing' ? 'text-emerald-400' : 
+                  stats.trend === 'decreasing' ? 'text-rose-400' : 
                   'text-white'
                 }`}>
                   {stats.trend}

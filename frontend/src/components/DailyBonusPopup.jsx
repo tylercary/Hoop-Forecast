@@ -23,11 +23,11 @@ function DailyBonusPopup() {
           onClick={dismissDailyBonus}
           className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] cursor-pointer"
         >
-          <div className="flex items-center gap-3 px-5 py-3 rounded-lg bg-gradient-to-r from-yellow-500/90 to-amber-500/90 shadow-lg shadow-yellow-500/25 border border-yellow-400/50 backdrop-blur-sm">
-            <Coins size={22} className="text-gray-900" />
+          <div className="flex items-center gap-3 px-5 py-3 rounded-lg bg-gradient-to-r from-amber-400/90 to-amber-500/90 shadow-lg shadow-amber-400/25 border border-amber-400/50 backdrop-blur-sm">
+            <Coins size={22} className="text-slate-900" />
             <div>
-              <p className="text-sm font-bold text-gray-900">+50 Tokens</p>
-              <p className="text-xs text-gray-800/80">Daily bonus claimed!</p>
+              <p className="text-sm font-bold text-slate-900">+50 Tokens</p>
+              <p className="text-xs text-slate-800/80">Daily bonus claimed!</p>
             </div>
           </div>
         </motion.div>
