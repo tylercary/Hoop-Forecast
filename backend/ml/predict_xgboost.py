@@ -3,7 +3,11 @@ XGBoost Prediction Script
 Called by Node.js to make predictions using trained XGBoost models.
 
 Usage:
-  python3 predict_xgboost.py <features_json> <PROP|PROP,PROP,...> <models_dir>
+  python3 predict_xgboost.py <features_json> <PROP|PROP,PROP,...> <models_dir> [edge_rows_json]
+
+edge_rows_json is an optional JSON list of feature rows for the pooled edge
+model (see train_edge_model.py); the result then carries "edge": [residual,...]
+in the same order (null where a row could not be scored).
 
 One process can score several prop types from the same feature dict, so a
 player page costs one spawn instead of eight. Output:
@@ -60,14 +64,56 @@ def predict_one(features, prop_type):
     return max(0.0, value), None
 
 
+_edge_cache = None
+
+
+def load_edge_model():
+    """The pooled edge model and its metadata; None when not trained."""
+    global _edge_cache
+    if _edge_cache is not None:
+        return _edge_cache or None
+    model_path = os.path.join(MODELS_DIR, 'edge_xgb_model.json')
+    meta_path = os.path.join(MODELS_DIR, 'edge_xgb_metadata.json')
+    if not os.path.exists(model_path) or not os.path.exists(meta_path):
+        _edge_cache = False
+        return None
+    model = xgb.Booster()
+    model.load_model(model_path)
+    with open(meta_path, 'r') as f:
+        meta = json.load(f)
+    _edge_cache = (model, meta)
+    return _edge_cache
+
+
+def predict_edge(rows):
+    """Residual (actual - line) for each row; None where features are missing."""
+    loaded = load_edge_model()
+    if loaded is None:
+        return [None] * len(rows), 'Edge model not found'
+    model, meta = loaded
+    names = meta['feature_names']
+    out = [None] * len(rows)
+    valid, matrix = [], []
+    for i, row in enumerate(rows):
+        if all(name in row and row[name] is not None for name in names):
+            valid.append(i)
+            matrix.append([float(row[name]) for name in names])
+    if matrix:
+        preds = model.predict(xgb.DMatrix(np.array(matrix), feature_names=names))
+        for i, value in zip(valid, preds):
+            out[i] = float(value)
+    return out, None if len(valid) == len(rows) else f'{len(rows) - len(valid)} edge rows missing features'
+
+
 def main():
-    if len(sys.argv) != 4:
-        print(json.dumps({'success': False, 'error': 'Usage: predict_xgboost.py <features_json> <prop_types> <models_dir>'}))
+    if len(sys.argv) not in (4, 5):
+        print(json.dumps({'success': False, 'error': 'Usage: predict_xgboost.py <features_json> <prop_types> <models_dir> [edge_rows_json]'}))
         sys.exit(1)
 
     try:
         features = json.loads(sys.argv[1])
         prop_types = [p.strip().upper() for p in sys.argv[2].split(',') if p.strip()]
+        edge_rows = json.loads(sys.argv[4]) if len(sys.argv) == 5 and sys.argv[4] else None
     except Exception as e:
         print(json.dumps({'success': False, 'error': f'Bad arguments: {e}'}))
         sys.exit(1)
@@ -84,6 +130,14 @@ def main():
             predictions[prop_type] = value
 
     result = {'success': len(predictions) > 0, 'predictions': predictions, 'errors': errors}
+    if edge_rows:
+        try:
+            edge_values, edge_error = predict_edge(edge_rows)
+        except Exception as e:
+            edge_values, edge_error = [None] * len(edge_rows), str(e)
+        result['edge'] = edge_values
+        if edge_error:
+            errors['EDGE'] = edge_error
     if len(prop_types) == 1:
         # Single-prop callers read these fields
         if predictions:

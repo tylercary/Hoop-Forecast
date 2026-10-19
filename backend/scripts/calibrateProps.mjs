@@ -37,6 +37,11 @@ const IN = opt('--in', fs.existsSync(path.join(__dirname, '../data/predictions_e
   : path.join(__dirname, '../data/predictions.json'));
 const CAL_FILE = path.join(__dirname, '../ml/calibration.json');
 const LEGACY_ANCHOR = 0.15;
+// The fitted values describe the OLD model's track record; the fallback path
+// keeps a small floor so a freshly retrained model is not silenced entirely
+// before it has its own evaluated history.
+const ANCHOR_FLOOR = 0.05;
+const SHRINK_FLOOR = 0.2;
 const PROPS = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
 
 const raw = JSON.parse(fs.readFileSync(IN, 'utf8'));
@@ -121,9 +126,9 @@ for (const prop of PROPS) {
 
   const enough = rows.length >= MIN_N;
   const current = calibration[prop] || calibration._default || { anchor_weight: LEGACY_ANCHOR, prob_shrink: 1 };
-  const anchorWeight = enough && anchorFit != null ? Math.round(anchorFit * 100) / 100 : current.anchor_weight;
+  const anchorWeight = enough && anchorFit != null ? Math.round(Math.max(ANCHOR_FLOOR, anchorFit) * 100) / 100 : current.anchor_weight;
   // Shrink so stated probabilities match observed frequencies, never amplifying
-  const probShrink = probSlope != null ? Math.round(Math.max(0.1, Math.min(1, probSlope)) * 100) / 100 : current.prob_shrink;
+  const probShrink = probSlope != null ? Math.round(Math.max(SHRINK_FLOOR, Math.min(1, probSlope)) * 100) / 100 : current.prob_shrink;
 
   report[prop] = { n: rows.length, pickHit, recN: recs.length, recHit, overRate, anchorFit, probSlope, anchorWeight, probShrink };
   console.log(`\n${prop.toUpperCase()}  n=${rows.length}  line-over rate ${pct(overRate)}`);

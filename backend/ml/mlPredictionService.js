@@ -276,7 +276,7 @@ function calculateUsage(avgPoints, avgMinutes) {
  * @param {string} propType - Prop type (PTS, REB, AST, etc.)
  * @returns {Promise<number>} - Predicted value
  */
-function callXGBoostPredictor(features, propTypes) {
+function callXGBoostPredictor(features, propTypes, edgeRows = null) {
   const list = Array.isArray(propTypes) ? propTypes : [propTypes];
   return new Promise((resolve, reject) => {
     const args = [
@@ -285,6 +285,7 @@ function callXGBoostPredictor(features, propTypes) {
       list.map(p => p.toUpperCase()).join(','),
       MODELS_DIR
     ];
+    if (edgeRows && edgeRows.length > 0) args.push(JSON.stringify(edgeRows));
 
     const python = spawn('python3', args);
 
@@ -336,20 +337,83 @@ async function predictProp(gameLogs, propType, options = {}) {
   return { prediction: predictions[propType.toUpperCase()], features };
 }
 
+// Pooled edge model (actual - line). Keep in step with train_edge_model.py.
+const EDGE_PROPS = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
+const EDGE_STAT_PARTS = {
+  points: ['pts'], rebounds: ['reb'], assists: ['ast'], threes: ['threes'],
+  pra: ['pts', 'reb', 'ast'], pr: ['pts', 'reb'], pa: ['pts', 'ast'], ra: ['reb', 'ast']
+};
+const EDGE_METADATA_FILE = path.join(MODELS_DIR, 'edge_xgb_metadata.json');
+let _edgeMetadata;
+function getEdgeMetadata() {
+  if (_edgeMetadata === undefined) {
+    try {
+      _edgeMetadata = JSON.parse(fs.readFileSync(EDGE_METADATA_FILE, 'utf8'));
+    } catch {
+      _edgeMetadata = null;
+    }
+  }
+  return _edgeMetadata;
+}
+
+/**
+ * One row for the edge model: the base features plus the line and how it sits
+ * against the player's averages for that prop.
+ * @param {Object} features  output of buildMLFeatures
+ * @param {string} prop      lower-case prop key (points, rebounds, ...)
+ * @param {number} line      sportsbook line
+ */
+function buildEdgeRow(features, prop, line) {
+  const parts = EDGE_STAT_PARTS[prop];
+  if (!parts || !(line > 0)) return null;
+  const row = { ...features };
+  for (const win of ['3', '5', '10', 'season']) {
+    row[`stat_avg_${win}`] = parts.reduce((sum, part) => sum + (Number(features[`${part}_avg_${win}`]) || 0), 0);
+  }
+  row.line = line;
+  row.line_minus_avg10 = line - row.stat_avg_10;
+  row.line_minus_avg5 = line - row.stat_avg_5;
+  row.line_minus_season = line - row.stat_avg_season;
+  row.line_over_avg10 = line / Math.max(row.stat_avg_10, 0.5);
+  for (const p of EDGE_PROPS) row[`prop_${p}`] = p === prop ? 1 : 0;
+  return row;
+}
+
 /**
  * Predict several prop types with one feature build and one Python process.
- * @returns {Promise<{predictions: Object, errors: Object, features: Object}>}
+ * When `lines` ({ prop: line }) is given and the edge model is trained, the
+ * same process also scores the pooled edge model for every lined prop.
+ * @returns {Promise<{predictions: Object, errors: Object, features: Object, edge: Object}>}
+ *   edge: { prop: { residual, probabilityMap } } for props the edge model scored
  */
-async function predictProps(gameLogs, propTypes, context = {}) {
+async function predictProps(gameLogs, propTypes, context = {}, lines = null) {
   const features = buildMLFeatures(gameLogs, propTypes[0], context);
-  const result = await callXGBoostPredictor(features, propTypes);
+  const edgeMeta = lines ? getEdgeMetadata() : null;
+  const edgeProps = [];
+  const edgeRows = [];
+  if (edgeMeta) {
+    for (const [prop, line] of Object.entries(lines)) {
+      const row = buildEdgeRow(features, prop, Number(line));
+      if (row) { edgeProps.push(prop); edgeRows.push(row); }
+    }
+  }
+  const result = await callXGBoostPredictor(features, propTypes, edgeRows);
   const predictions = {};
   for (const [prop, value] of Object.entries(result.predictions || {})) {
     predictions[prop] = Math.max(0, value);
   }
+  const edge = {};
+  if (Array.isArray(result.edge)) {
+    result.edge.forEach((residual, i) => {
+      if (residual != null && Number.isFinite(residual)) {
+        edge[edgeProps[i]] = { residual, probabilityMap: edgeMeta.probability_map };
+      }
+    });
+  }
   const summary = Object.entries(predictions).map(([p, v]) => `${p} ${v.toFixed(1)}`).join(', ');
-  console.log(`✅ [XGBoost] ${summary}`);
-  return { predictions, errors: result.errors || {}, features };
+  const edgeSummary = Object.entries(edge).map(([p, e]) => `${p} ${e.residual >= 0 ? '+' : ''}${e.residual.toFixed(1)}`).join(', ');
+  console.log(`✅ [XGBoost] ${summary}${edgeSummary ? ` | edge vs line: ${edgeSummary}` : ''}`);
+  return { predictions, errors: result.errors || {}, features, edge };
 }
 
 /**
@@ -395,6 +459,7 @@ function areModelsAvailable() {
 export {
   predictProp,
   predictProps,
+  buildEdgeRow,
   predictAllProps,
   buildMLFeatures,
   areModelsAvailable

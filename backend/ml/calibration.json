@@ -2,38 +2,54 @@
   "_comment": "Per-prop calibration applied in finalizePrediction. anchor_weight: share of the model's deviation from the line that survives (0 = always the line). prob_shrink: multiplier on the distance of the over probability from 50. Regenerate with: node backend/scripts/calibrateProps.mjs --write",
   "_default": {
     "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "prob_shrink": 1
   },
   "points": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.2,
+    "fitted_on": 4152,
+    "fitted_at": "2026-10-19"
   },
   "rebounds": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.2,
+    "fitted_on": 3976,
+    "fitted_at": "2026-10-19"
   },
   "assists": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.28,
+    "fitted_on": 3202,
+    "fitted_at": "2026-10-19"
   },
   "threes": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.2,
+    "fitted_on": 3439,
+    "fitted_at": "2026-10-19"
   },
   "pra": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.2,
+    "fitted_on": 4190,
+    "fitted_at": "2026-10-19"
   },
   "pr": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.2,
+    "fitted_on": 3874,
+    "fitted_at": "2026-10-19"
   },
   "pa": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.2,
+    "fitted_on": 3450,
+    "fitted_at": "2026-10-19"
   },
   "ra": {
-    "anchor_weight": 0.15,
-    "prob_shrink": 1.0
+    "anchor_weight": 0.05,
+    "prob_shrink": 0.2,
+    "fitted_on": 3387,
+    "fitted_at": "2026-10-19"
   }
 }

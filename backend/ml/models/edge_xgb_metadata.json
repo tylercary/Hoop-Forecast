@@ -1,0 +1,292 @@
+{
+  "model": "edge",
+  "target": "actual - line",
+  "trained_at": "2026-10-19",
+  "rows": 29697,
+  "date_range": [
+    "2026-03-11",
+    "2026-06-13"
+  ],
+  "feature_names": [
+    "ast_avg_10",
+    "ast_avg_3",
+    "ast_avg_5",
+    "ast_avg_season",
+    "ast_hot_streak",
+    "ast_momentum",
+    "ast_std_10",
+    "ast_volatility",
+    "days_rest",
+    "fg3a_avg_10",
+    "fga_avg_10",
+    "fga_trend",
+    "ft_rate_avg_10",
+    "games_in_last_week",
+    "is_back_to_back",
+    "line",
+    "line_minus_avg10",
+    "line_minus_avg5",
+    "line_minus_season",
+    "line_over_avg10",
+    "min_avg_10",
+    "min_avg_3",
+    "min_avg_5",
+    "min_std_10",
+    "min_trend",
+    "pa_avg_10",
+    "pa_avg_3",
+    "pa_avg_5",
+    "pr_avg_10",
+    "pr_avg_3",
+    "pr_avg_5",
+    "pra_avg_10",
+    "pra_avg_3",
+    "pra_avg_5",
+    "prop_assists",
+    "prop_pa",
+    "prop_points",
+    "prop_pr",
+    "prop_pra",
+    "prop_ra",
+    "prop_rebounds",
+    "prop_threes",
+    "pts_avg_10",
+    "pts_avg_3",
+    "pts_avg_5",
+    "pts_avg_season",
+    "pts_hit_rate",
+    "pts_hot_streak",
+    "pts_momentum",
+    "pts_over_streak",
+    "pts_per_min_10",
+    "pts_std_10",
+    "pts_volatility",
+    "ra_avg_10",
+    "ra_avg_3",
+    "ra_avg_5",
+    "reb_avg_10",
+    "reb_avg_3",
+    "reb_avg_5",
+    "reb_avg_season",
+    "reb_hit_rate",
+    "reb_hot_streak",
+    "reb_momentum",
+    "reb_per_min_10",
+    "reb_std_10",
+    "reb_volatility",
+    "stat_avg_10",
+    "stat_avg_3",
+    "stat_avg_5",
+    "stat_avg_season",
+    "threes_avg_10",
+    "threes_avg_3",
+    "threes_avg_5",
+    "threes_avg_season",
+    "threes_hot_streak",
+    "threes_std_10",
+    "threes_volatility",
+    "usage"
+  ],
+  "props": [
+    "points",
+    "rebounds",
+    "assists",
+    "threes",
+    "pra",
+    "pr",
+    "pa",
+    "ra"
+  ],
+  "excluded_features": [
+    "fg_pct_avg_10",
+    "fg_pct_trend",
+    "is_home",
+    "loss_streak",
+    "plus_minus_avg_10",
+    "recent_win_pct",
+    "win_streak"
+  ],
+  "xgb_params": {
+    "objective": "reg:squarederror",
+    "max_depth": 4,
+    "eta": 0.03,
+    "subsample": 0.8,
+    "colsample_bytree": 0.7,
+    "min_child_weight": 20,
+    "reg_lambda": 5.0,
+    "seed": 42
+  },
+  "n_rounds": 400,
+  "probability_map": {
+    "intercept": -0.09836562045866237,
+    "coef_residual": 0.22057086185809097,
+    "coef_residual_over_line": -0.08609938046758893
+  },
+  "metrics": {
+    "test_rows": 6229,
+    "test_from": "2026-04-26",
+    "mae_line": 3.73535077861615,
+    "mae_model": 3.703480735347919,
+    "sign_accuracy": 0.5275325092310162,
+    "by_min_abs_residual": {
+      "0.0": {
+        "n": 6229,
+        "sign_accuracy": 0.5275325092310162
+      },
+      "0.5": {
+        "n": 3180,
+        "sign_accuracy": 0.5512578616352202
+      },
+      "1.0": {
+        "n": 1429,
+        "sign_accuracy": 0.5857242827151854
+      },
+      "1.5": {
+        "n": 616,
+        "sign_accuracy": 0.5974025974025974
+      },
+      "2.0": {
+        "n": 340,
+        "sign_accuracy": 0.6794117647058824
+      },
+      "3.0": {
+        "n": 94,
+        "sign_accuracy": 0.776595744680851
+      }
+    },
+    "by_prop": {
+      "points": {
+        "n": 857,
+        "sign_accuracy": 0.5204200700116686,
+        "under_rate": 0.5309218203033839
+      },
+      "rebounds": {
+        "n": 815,
+        "sign_accuracy": 0.5202453987730061,
+        "under_rate": 0.5165644171779141
+      },
+      "assists": {
+        "n": 747,
+        "sign_accuracy": 0.5194109772423026,
+        "under_rate": 0.5247657295850067
+      },
+      "threes": {
+        "n": 721,
+        "sign_accuracy": 0.5381414701803051,
+        "under_rate": 0.5270457697642164
+      },
+      "pra": {
+        "n": 887,
+        "sign_accuracy": 0.5501691093573844,
+        "under_rate": 0.5174746335963923
+      },
+      "pr": {
+        "n": 791,
+        "sign_accuracy": 0.5347661188369153,
+        "under_rate": 0.5284450063211126
+      },
+      "pa": {
+        "n": 709,
+        "sign_accuracy": 0.5190409026798307,
+        "under_rate": 0.5190409026798308
+      },
+      "ra": {
+        "n": 702,
+        "sign_accuracy": 0.5142450142450142,
+        "under_rate": 0.5113960113960114
+      }
+    },
+    "prob_bins": {
+      "30-35": {
+        "n": 73,
+        "actual_over": 0.2465753424657534
+      },
+      "35-40": {
+        "n": 205,
+        "actual_over": 0.3804878048780488
+      },
+      "40-45": {
+        "n": 1016,
+        "actual_over": 0.4242125984251969
+      },
+      "45-50": {
+        "n": 3161,
+        "actual_over": 0.49319835495096487
+      },
+      "50-55": {
+        "n": 1372,
+        "actual_over": 0.5167638483965015
+      },
+      "55-60": {
+        "n": 261,
+        "actual_over": 0.4444444444444444
+      },
+      "60-65": {
+        "n": 76,
+        "actual_over": 0.6578947368421053
+      }
+    }
+  },
+  "top_features": [
+    {
+      "name": "threes_avg_10",
+      "gain": 837.46
+    },
+    {
+      "name": "reb_volatility",
+      "gain": 832.56
+    },
+    {
+      "name": "pa_avg_5",
+      "gain": 818.24
+    },
+    {
+      "name": "reb_avg_5",
+      "gain": 810.76
+    },
+    {
+      "name": "pra_avg_3",
+      "gain": 799.41
+    },
+    {
+      "name": "ft_rate_avg_10",
+      "gain": 795.69
+    },
+    {
+      "name": "pra_avg_10",
+      "gain": 774.97
+    },
+    {
+      "name": "threes_avg_5",
+      "gain": 765.52
+    },
+    {
+      "name": "reb_hot_streak",
+      "gain": 762.99
+    },
+    {
+      "name": "fga_trend",
+      "gain": 749.81
+    },
+    {
+      "name": "fga_avg_10",
+      "gain": 744.6
+    },
+    {
+      "name": "pts_over_streak",
+      "gain": 739.59
+    },
+    {
+      "name": "stat_avg_3",
+      "gain": 738.64
+    },
+    {
+      "name": "min_avg_10",
+      "gain": 734.79
+    },
+    {
+      "name": "stat_avg_5",
+      "gain": 729.15
+    }
+  ]
+}

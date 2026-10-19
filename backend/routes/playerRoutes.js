@@ -641,20 +641,9 @@ router.get('/:id/compare', async (req, res) => {
     const predictedPoints = prediction?.predicted_points || prediction?.predictedPoints || null;
     const bettingLine = odds?.line || (allProps?.points?.line) || null;
     
-    // Use recommendation from prediction service (if available)
-    // Fallback to manual calculation for backward compatibility
-    let recommendation = prediction?.recommendation || 'N/A';
-    if (recommendation === 'N/A' || !recommendation) {
-      if (predictedPoints !== null && bettingLine !== null) {
-        if (predictedPoints > bettingLine) {
-          recommendation = 'OVER';
-        } else if (predictedPoints < bettingLine) {
-          recommendation = 'UNDER';
-        } else {
-          recommendation = 'PUSH';
-        }
-      }
-    }
+    // The prediction service decides whether there is a pick; null means the
+    // model sees no real edge, and the client shows the side it leans instead
+    const recommendation = prediction?.recommendation || null;
 
     // Get team logos (using static import from top of file)
     

@@ -700,8 +700,8 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
     nextGameDate: nextGameInfo?.commence_time || nextGameInfo?.date || null
   };
   const formatted = propTypes.map(p => PROP_TYPE_MAP[p] || p.toUpperCase());
-  const { predictions: rawPredictions, errors: modelErrors, features: mlFeatureVector } =
-    await mlPredictProps(games, formatted, modelContext);
+  const { predictions: rawPredictions, errors: modelErrors, features: mlFeatureVector, edge: edgeByProp = {} } =
+    await mlPredictProps(games, formatted, modelContext, lines);
 
   const results = {};
   for (const propType of propTypes) {
@@ -725,7 +725,7 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
       const features = buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData, lines[propType], matchupFeatures);
       results[propType] = finalizePrediction({
         rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData,
-        matchupEdge, opponentAbbrev, mlFeatureVector
+        matchupEdge, opponentAbbrev, mlFeatureVector, edge: edgeByProp[propType] || null
       });
     } catch (error) {
       console.error(`[PIPELINE-${propTypeFormatted}] Prediction failed:`, error);
@@ -749,7 +749,25 @@ export async function predictPropFromGames(games, playerName, propType = 'points
  * Everything after the model: injuries, recent-form blend, matchup, learned
  * bias, Vegas anchoring, probabilities, text. Identical for every prop.
  */
-function finalizePrediction({ rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData, matchupEdge, opponentAbbrev, mlFeatureVector }) {
+/**
+ * Over/under verdict from an already-calibrated over probability (edge model path).
+ * Picks need a real margin over the -110 break-even (52.4%).
+ */
+function edgeOverUnder(overProbability) {
+  const prob = Math.max(5, Math.min(95, overProbability));
+  const edgeStrength = Math.abs(prob - 50);
+  const confidence = edgeStrength >= 9 ? 'High' : edgeStrength >= 5 ? 'Medium' : 'Low';
+  const recommendation = prob >= 56 ? 'OVER' : prob <= 44 ? 'UNDER' : null;
+  return {
+    overProbability: Math.round(prob * 10) / 10,
+    confidence,
+    recommendation,
+    edgeStrength: Math.round(edgeStrength * 10) / 10,
+    matchupImpact: 0
+  };
+}
+
+function finalizePrediction({ rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData, matchupEdge, opponentAbbrev, mlFeatureVector, edge = null }) {
   const statsForAnalysis = {
     overall_avg: features.seasonAvg,
     recent_3_avg: features.recentAvg3,
@@ -807,19 +825,36 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     }
   }
 
-  // Vegas anchoring: keep the calibrated share of the model's deviation from
-  // the line (fitted per prop from evaluated history), capped at 10% of the line
   const calibration = getCalibration(propType);
   const preAnchorValue = finalPredictedValue;
-  if (features.vegasLine && features.vegasLine > 0) {
-    const modelDeviation = finalPredictedValue - features.vegasLine;
-    const maxAdj = features.vegasLine * 0.10;
-    finalPredictedValue = features.vegasLine + Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * calibration.anchor_weight, maxAdj);
-  }
-
-  // One spread drives the over probability, the recommendation and the margin
   const sigma = predictionSigma(features.stdDev, features.seasonAvg);
-  const ouResult = calculateEnhancedOverUnder(finalPredictedValue, features.vegasLine, sigma, matchupEdge, features.volatility, calibration.prob_shrink);
+  const hasLine = features.vegasLine && features.vegasLine > 0;
+  const useEdge = hasLine && edge && Number.isFinite(edge.residual) && edge.probabilityMap;
+  let ouResult;
+  let edgeResidual = null;
+
+  if (useEdge) {
+    // Edge model: trained on evaluated history to predict actual - line, with
+    // its own fitted map from residual to P(over). The projection is the line
+    // plus that residual (capped), and the probability comes from the map,
+    // not from a normal curve around the projection.
+    const cap = Math.max(1, features.vegasLine * 0.15);
+    edgeResidual = Math.max(-cap, Math.min(cap, edge.residual));
+    finalPredictedValue = features.vegasLine + edgeResidual;
+    const pm = edge.probabilityMap;
+    const z = pm.intercept + pm.coef_residual * edge.residual + pm.coef_residual_over_line * (edge.residual / features.vegasLine);
+    ouResult = edgeOverUnder(100 / (1 + Math.exp(-z)));
+  } else {
+    // Fallback (no line, or edge model unavailable): anchor the blended model
+    // value to the line by the calibrated share of its deviation, capped at
+    // 10% of the line, and read the probability off the calibrated spread
+    if (hasLine) {
+      const modelDeviation = finalPredictedValue - features.vegasLine;
+      const maxAdj = features.vegasLine * 0.10;
+      finalPredictedValue = features.vegasLine + Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * calibration.anchor_weight, maxAdj);
+    }
+    ouResult = calculateEnhancedOverUnder(finalPredictedValue, features.vegasLine, sigma, matchupEdge, features.volatility, calibration.prob_shrink);
+  }
 
   const predictedValueRounded = Math.max(0, Math.round(finalPredictedValue * 10) / 10);
 
@@ -854,7 +889,9 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     predicted_points: propType === 'points' ? predictedValueRounded : null,
     model_value: Math.round(rawPrediction * 10) / 10,
     pre_anchor_value: Math.round(preAnchorValue * 10) / 10,
-    anchor_weight: calibration.anchor_weight,
+    anchor_weight: useEdge ? null : calibration.anchor_weight,
+    edge_residual: edgeResidual != null ? Math.round(edgeResidual * 100) / 100 : null,
+    model_variant: useEdge ? 'edge' : 'anchored',
     analysis,
     confidence: ouResult.confidence,
     error_margin: Math.round(sigma * 10) / 10,

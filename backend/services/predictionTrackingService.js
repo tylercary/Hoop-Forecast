@@ -196,6 +196,8 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     model_value: prediction.model_value ?? null,
     pre_anchor_value: prediction.pre_anchor_value ?? null,
     anchor_weight: prediction.anchor_weight ?? null,
+    edge_residual: prediction.edge_residual ?? null,
+    model_variant: prediction.model_variant ?? null,
     sigma: prediction.error_margin ?? null,
     over_probability: prediction.over_probability || null,
     edge_strength: prediction.edge_strength || null,
