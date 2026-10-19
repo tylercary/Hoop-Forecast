@@ -95,9 +95,11 @@ def predict_edge(rows):
     out = [None] * len(rows)
     valid, matrix = [], []
     for i, row in enumerate(rows):
-        if all(name in row and row[name] is not None for name in names):
+        # Every feature must be present; null means "unknown" and becomes a
+        # missing value, which the booster handles natively
+        if all(name in row for name in names):
             valid.append(i)
-            matrix.append([float(row[name]) for name in names])
+            matrix.append([float('nan') if row[name] is None else float(row[name]) for name in names])
     if matrix:
         preds = model.predict(xgb.DMatrix(np.array(matrix), feature_names=names))
         for i, value in zip(valid, preds):

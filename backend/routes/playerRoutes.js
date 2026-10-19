@@ -1,6 +1,6 @@
 import express from 'express';
 import { getPlayerStats, getTeamRecord, searchPlayer } from '../services/nbaApiService.js';
-import { getPlayerOdds } from '../services/oddsService.js';
+import { getPlayerOdds, getGameSpread } from '../services/oddsService.js';
 import { predictPointsFromGames } from '../services/predictionService.js';
 import { 
   playerStatsCache, 
@@ -429,6 +429,7 @@ router.get('/:id/compare', async (req, res) => {
     // Returns an object with all props: { points: {...}, assists: {...}, rebounds: {...}, etc. }
     let allProps = {}; // Initialize to empty object
     let odds = null; // Backward compatibility: points prop only
+    let oddsGameInfo = null; // Odds API event (full team names) for the game spread
     
     // Check cache first (only use if it's from API, not homepage)
     const cachedOdds = bettingLinesCache.get(finalPlayerName, teamAbbrev, nextGame?.opponent);
@@ -467,6 +468,7 @@ router.get('/:id/compare', async (req, res) => {
         // Extract game info from Odds API - THIS IS NOW THE ONLY SOURCE FOR MATCHUP DATA
         if (oddsData._gameInfo) {
           const gameInfo = oddsData._gameInfo;
+          oddsGameInfo = gameInfo;
           try {
             // Convert Odds API full team names to abbreviations (using static import)
             const homeTeamAbbrev = getTeamAbbrevFromFullName(gameInfo.home_team);
@@ -607,12 +609,15 @@ router.get('/:id/compare', async (req, res) => {
     }
 
     if (Object.keys(propsNeedingPrediction).length > 0) {
+      // Blowout risk for the edge model (cached per game; null when unknown)
+      const gameSpread = oddsGameInfo ? await getGameSpread(oddsGameInfo.home_team, oddsGameInfo.away_team) : null;
       const generated = await generateAllPropPredictions(
         stats.games,
         finalPlayerName,
         propsNeedingPrediction,
         nextGameInfo,
-        injuryData
+        injuryData,
+        { gameSpread }
       );
       for (const [propType, p] of Object.entries(generated)) {
         if (p?.predicted_value == null) continue;

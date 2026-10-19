@@ -558,6 +558,35 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
   }
 }
 
+// Consensus spread per game, kept for 2 hours: the edge model only needs the
+// blowout risk, which barely moves, and getGameOdds costs an API call per 5 min
+const gameSpreadCache = new NodeCache({ stdTTL: 2 * 60 * 60, useClones: false });
+
+/**
+ * Consensus point spread for a game: median of the books' home spreads.
+ * @returns {Promise<{home_spread: number, abs: number, n_books: number}|null>}
+ */
+export async function getGameSpread(homeTeam, awayTeam) {
+  if (!homeTeam || !awayTeam) return null;
+  const key = `spread:${homeTeam}|${awayTeam}`;
+  const cached = gameSpreadCache.get(key);
+  if (cached !== undefined) return cached;
+  let result = null;
+  try {
+    const odds = await getGameOdds(homeTeam, awayTeam);
+    const spreads = (odds?.spread?.all_bookmakers || []).map(b => Number(b.home_spread)).filter(Number.isFinite).sort((a, b) => a - b);
+    if (spreads.length) {
+      const mid = Math.floor(spreads.length / 2);
+      const median = spreads.length % 2 ? spreads[mid] : (spreads[mid - 1] + spreads[mid]) / 2;
+      result = { home_spread: median, abs: Math.abs(median), n_books: spreads.length };
+    }
+  } catch (err) {
+    console.warn(`[GameOdds] spread lookup failed: ${err.message}`);
+  }
+  gameSpreadCache.set(key, result);
+  return result;
+}
+
 // ============================================================
 // Game-Level Odds (Spread, Moneyline, Totals) from all books
 // ============================================================
