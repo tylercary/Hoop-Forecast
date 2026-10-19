@@ -304,7 +304,7 @@ function PropOddsTable({ props, selectedProp }) {
             return (
               <div key={`${bookmaker.bookmaker_key || bookmaker.bookmaker}-${idx}`} className="flex-shrink-0 w-36 flex flex-col">
                 {/* Header: full-bleed banner image or text fallback */}
-                <div className="h-12 mb-2 rounded-lg overflow-hidden relative" style={{ backgroundColor: info?.bannerBg || '#000000' }}>
+                <div className="h-12 mb-2 rounded-lg overflow-hidden relative border border-slate-700/60" style={{ backgroundColor: info?.bannerBg || '#1e293b' }}>
                   {info?.banner && (
                     <img
                       src={info.banner}
@@ -319,7 +319,7 @@ function PropOddsTable({ props, selectedProp }) {
                     />
                   )}
                   <span
-                    className="text-[10px] font-semibold text-white truncate items-center justify-center absolute inset-0"
+                    className="absolute inset-0 items-center justify-center px-2 text-[11px] font-semibold tracking-wide text-slate-100 truncate"
                     style={{ display: info?.banner ? 'none' : 'flex' }}
                   >
                     {info?.displayName || bookmaker.bookmaker.toUpperCase()}

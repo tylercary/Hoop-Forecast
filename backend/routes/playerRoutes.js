@@ -12,6 +12,7 @@ import {
   createGamesHash 
 } from '../services/databaseService.js';
 import { getImageUrl, imageExists, downloadPlayerImage } from '../services/imageStorageService.js';
+import { getAllEventOdds, DFS_BOOKMAKERS } from '../services/oddsEventCache.js';
 import {
   getAccuracyStats,
   updatePredictionOutcome,
@@ -52,40 +53,19 @@ router.get('/with-lines', async (req, res) => {
       return res.json(cached);
     }
 
-    // Step 1: Get all NBA events
-    const eventsResponse = await axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events`, {
-      params: { apiKey: THE_ODDS_API_KEY },
-      timeout: 15000
-    });
-
-    if (!eventsResponse.data || !Array.isArray(eventsResponse.data)) {
-      return res.json([]);
-    }
-
-    const events = eventsResponse.data.slice(0, 10); // Limit to first 10 events to avoid too many API calls
+    // All events' props for every relevant book, from the shared cache
+    const oddsResults = await getAllEventOdds();
 
     const playersWithLines = [];
     const seenPlayers = new Set();
 
-    // Step 2: Fetch all event odds in parallel (much faster than sequential)
-    const oddsResults = await Promise.allSettled(
-      events.map(event =>
-        axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events/${event.id}/odds`, {
-          params: {
-            apiKey: THE_ODDS_API_KEY,
-            regions: 'us',
-            markets: 'player_points,player_rebounds,player_assists,player_threes,player_points_rebounds_assists,player_points_rebounds,player_points_assists,player_rebounds_assists',
-            oddsFormat: 'american'
-          },
-          timeout: 10000
-        }).then(res => ({ event, data: res.data }))
-      )
-    );
-
-    for (const result of oddsResults) {
-      if (result.status !== 'fulfilled') continue;
-      const { event, data } = result.value;
+    for (const { event, data } of oddsResults) {
       if (!data?.bookmakers?.length) continue;
+
+      // Prefer a real sportsbook as the displayed line; pick'em sites only as a fallback
+      const bookmakers = [...data.bookmakers].sort(
+        (a, b) => Number(DFS_BOOKMAKERS.has(a.key)) - Number(DFS_BOOKMAKERS.has(b.key))
+      );
 
       const propTypeMap = {
         'player_points': 'points',
@@ -98,7 +78,7 @@ router.get('/with-lines', async (req, res) => {
         'player_rebounds_assists': 'ra'
       };
 
-      for (const bookmaker of data.bookmakers) {
+      for (const bookmaker of bookmakers) {
         for (const market of bookmaker.markets || []) {
           const propType = propTypeMap[market.key];
           if (!propType) continue;

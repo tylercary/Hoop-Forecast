@@ -1,5 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { getUpcomingEvents, getEventOdds, getCachedEventOdds, PLAYER_VIEW_MAX_AGE_MS } from './oddsEventCache.js';
 
 dotenv.config();
 
@@ -499,88 +500,54 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
   }
 
   try {
-    // Step 1: Get all NBA events
-    const eventsUrl = `${THE_ODDS_API_BASE}/sports/basketball_nba/events`;
-    const eventsResponse = await axios.get(eventsUrl, {
-      params: { apiKey: THE_ODDS_API_KEY },
-      timeout: 10000
-    });
-
-    if (!eventsResponse.data || eventsResponse.data.length === 0) {
+    const events = await getUpcomingEvents();
+    if (events.length === 0) {
       return createEmptyPropsObject(playerName);
     }
 
-    // Step 2: Find matching event (if team info provided)
+    const withGameInfo = (props, event) => {
+      const result = ensureAllPropsPresent(props, playerName);
+      result._gameInfo = {
+        home_team: event.home_team,
+        away_team: event.away_team,
+        event_id: event.id,
+        commence_time: event.commence_time
+      };
+      return result;
+    };
+
+    // Prefer the player's own game when we know the matchup
     let targetEvent = null;
     if (gameInfo.teamAbbrev && gameInfo.opponentAbbrev) {
-      for (const event of eventsResponse.data) {
-        const homeTeam = (event.home_team || '').toLowerCase();
-        const awayTeam = (event.away_team || '').toLowerCase();
-        const playerTeam = (gameInfo.teamAbbrev || '').toLowerCase();
-        const opponent = (gameInfo.opponentAbbrev || '').toLowerCase();
-        
-        if ((homeTeam.includes(playerTeam) && awayTeam.includes(opponent)) ||
-            (awayTeam.includes(playerTeam) && homeTeam.includes(opponent))) {
-          targetEvent = event;
-          break;
-        }
-      }
+      const playerTeam = gameInfo.teamAbbrev.toLowerCase();
+      const opponent = gameInfo.opponentAbbrev.toLowerCase();
+      targetEvent = events.find(event => {
+        const home = (event.home_team || '').toLowerCase();
+        const away = (event.away_team || '').toLowerCase();
+        return (home.includes(playerTeam) && away.includes(opponent)) ||
+               (away.includes(playerTeam) && home.includes(opponent));
+      }) || null;
     }
 
-    // Step 3: Try to find player in events
-    // If we have a target event, only check that one
-    // Otherwise, check ALL events (not just first 5) to ensure we find the player
-    const eventsToCheck = targetEvent ? [targetEvent] : eventsResponse.data;
-    const allMarkets = [
-      'player_points',
-      'player_rebounds',
-      'player_assists',
-      'player_threes',
-      'player_points_rebounds_assists',
-      'player_points_rebounds',
-      'player_points_assists',
-      'player_rebounds_assists'
-    ].join(',');
+    if (targetEvent) {
+      // The game being viewed: refresh if the cached odds are more than a few minutes old
+      const data = await getEventOdds(targetEvent, { maxAgeMs: PLAYER_VIEW_MAX_AGE_MS });
+      const props = data?.bookmakers ? parseAllMarkets(data, playerName) : {};
+      return Object.keys(props).length > 0
+        ? withGameInfo(props, targetEvent)
+        : createEmptyPropsObject(playerName);
+    }
 
-    for (const event of eventsToCheck) {
-      try {
-        const oddsUrl = `${THE_ODDS_API_BASE}/sports/basketball_nba/events/${event.id}/odds`;
-        const oddsResponse = await axios.get(oddsUrl, {
-          params: {
-            apiKey: THE_ODDS_API_KEY,
-            regions: 'us',
-            markets: allMarkets,
-            oddsFormat: 'american'
-          },
-          timeout: 15000
-        });
-
-        if (!oddsResponse.data || !oddsResponse.data.bookmakers) continue;
-
-        // Parse ALL markets from this event (bulletproof parser)
-        const props = parseAllMarkets(oddsResponse.data, playerName);
-        
+    // Unknown matchup: look through already-cached events first (free), then
+    // fetch the ones we don't have yet until the player turns up
+    for (const pass of ['cached', 'fetch']) {
+      for (const event of events) {
+        const data = pass === 'cached' ? getCachedEventOdds(event.id) : await getEventOdds(event);
+        if (!data?.bookmakers) continue;
+        const props = parseAllMarkets(data, playerName);
         if (Object.keys(props).length > 0) {
-          // Add game/event metadata to the result
-          const result = ensureAllPropsPresent(props, playerName);
-          result._gameInfo = {
-            home_team: event.home_team,
-            away_team: event.away_team,
-            event_id: event.id,
-            commence_time: event.commence_time
-          };
-          
-          return result;
+          return withGameInfo(props, event);
         }
-      } catch (err) {
-        const status = err.response?.status;
-        const errorCode = err.response?.data?.error_code;
-        // Bail immediately on quota/auth errors — no point retrying other events
-        if (status === 401 || status === 403 || errorCode === 'OUT_OF_USAGE_CREDITS') {
-          console.error(`Odds API quota/auth error (${status}).`);
-          return createEmptyPropsObject(playerName);
-        }
-        continue;
       }
     }
 

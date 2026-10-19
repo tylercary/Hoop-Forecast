@@ -13,6 +13,7 @@ import { getTeamAbbrevFromFullName } from './teamMappingService.js';
 import { predictGameOutcome } from './gameOutcomePredictionService.js';
 import { getGameOdds } from './oddsService.js';
 import { storeGamePrediction } from './gamePredictionTrackingService.js';
+import { getAllEventOdds } from './oddsEventCache.js';
 
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 
@@ -39,36 +40,12 @@ async function fetchPlayersWithLines() {
     return [];
   }
 
-  // Get all NBA events
-  const eventsRes = await axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events`, {
-    params: { apiKey: THE_ODDS_API_KEY },
-    timeout: 15000
-  });
-
-  if (!eventsRes.data?.length) return [];
-
-  const events = eventsRes.data.slice(0, 10);
+  // All events' props for every relevant book, from the shared cache
+  const results = await getAllEventOdds();
   const players = [];
   const seen = new Set();
 
-  // Fetch odds for all events in parallel
-  const results = await Promise.allSettled(
-    events.map(event =>
-      axios.get(`${THE_ODDS_API_BASE}/sports/basketball_nba/events/${event.id}/odds`, {
-        params: {
-          apiKey: THE_ODDS_API_KEY,
-          regions: 'us',
-          markets: Object.keys(PROP_TYPE_MAP).join(','),
-          oddsFormat: 'american'
-        },
-        timeout: 10000
-      }).then(res => ({ event, data: res.data }))
-    )
-  );
-
-  for (const result of results) {
-    if (result.status !== 'fulfilled') continue;
-    const { event, data } = result.value;
+  for (const { event, data } of results) {
     if (!data?.bookmakers?.length) continue;
 
     for (const bookmaker of data.bookmakers) {
