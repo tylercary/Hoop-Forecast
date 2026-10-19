@@ -1,5 +1,30 @@
 import dotenv from 'dotenv';
 import { storePrediction, getPlayerBias, getGlobalBias } from './predictionTrackingService.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Per-prop calibration (anchor weight, probability shrink), fitted from
+// evaluated history by scripts/calibrateProps.mjs
+const CALIBRATION_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '../ml/calibration.json');
+const DEFAULT_CALIBRATION = { anchor_weight: 0.15, prob_shrink: 1.0 };
+let _calibration = null;
+function getCalibration(propType) {
+  if (!_calibration) {
+    try {
+      _calibration = JSON.parse(fs.readFileSync(CALIBRATION_FILE, 'utf8'));
+    } catch (error) {
+      console.warn('[Calibration] Using defaults:', error.message);
+      _calibration = {};
+    }
+  }
+  const entry = _calibration[propType] || _calibration._default || {};
+  return {
+    anchor_weight: Number.isFinite(entry.anchor_weight) ? entry.anchor_weight : DEFAULT_CALIBRATION.anchor_weight,
+    prob_shrink: Number.isFinite(entry.prob_shrink) ? entry.prob_shrink : DEFAULT_CALIBRATION.prob_shrink
+  };
+}
+export function getPropCalibration(propType) { return getCalibration(propType); }
 import { predictProps as mlPredictProps } from '../ml/mlPredictionService.js';
 import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './opponentMatchupService.js';
 
@@ -592,7 +617,7 @@ function buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData
  * @param {number} volatility - Player volatility percentage
  * @returns {Object} { overProbability, confidence, recommendation, edgeStrength }
  */
-function calculateEnhancedOverUnder(prediction, line, stdDev, matchupEdge = 0, volatility = 30) {
+function calculateEnhancedOverUnder(prediction, line, stdDev, matchupEdge = 0, volatility = 30, probShrink = 1.0) {
   if (!prediction || !line) {
     return { overProbability: 50, confidence: 'Low', recommendation: null, edgeStrength: 0 };
   }
@@ -604,8 +629,10 @@ function calculateEnhancedOverUnder(prediction, line, stdDev, matchupEdge = 0, v
   // matchupEdge ranges roughly -0.3 to +0.3; scale to probability points
   const matchupShift = matchupEdge * 8; // ±2.4 percentage points typical
 
-  // Combine: base statistical probability + matchup context
-  const adjustedProb = Math.max(5, Math.min(95, baseCoverProb + matchupShift));
+  // Combine, then pull toward 50/50 by the calibrated shrink: the raw normal
+  // curve has historically been overconfident for these props
+  const rawProb = Math.max(5, Math.min(95, baseCoverProb + matchupShift));
+  const adjustedProb = 50 + (rawProb - 50) * probShrink;
 
   // Edge strength: how far from 50/50 is this pick? (0-50 scale)
   const edgeStrength = Math.abs(adjustedProb - 50);
@@ -780,16 +807,19 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     }
   }
 
-  // Vegas anchoring: keep 15% of the model's deviation, capped at 10% of the line
+  // Vegas anchoring: keep the calibrated share of the model's deviation from
+  // the line (fitted per prop from evaluated history), capped at 10% of the line
+  const calibration = getCalibration(propType);
+  const preAnchorValue = finalPredictedValue;
   if (features.vegasLine && features.vegasLine > 0) {
     const modelDeviation = finalPredictedValue - features.vegasLine;
     const maxAdj = features.vegasLine * 0.10;
-    finalPredictedValue = features.vegasLine + Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * 0.15, maxAdj);
+    finalPredictedValue = features.vegasLine + Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * calibration.anchor_weight, maxAdj);
   }
 
   // One spread drives the over probability, the recommendation and the margin
   const sigma = predictionSigma(features.stdDev, features.seasonAvg);
-  const ouResult = calculateEnhancedOverUnder(finalPredictedValue, features.vegasLine, sigma, matchupEdge, features.volatility);
+  const ouResult = calculateEnhancedOverUnder(finalPredictedValue, features.vegasLine, sigma, matchupEdge, features.volatility, calibration.prob_shrink);
 
   const predictedValueRounded = Math.max(0, Math.round(finalPredictedValue * 10) / 10);
 
@@ -823,6 +853,8 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     [`predicted_${propType}`]: predictedValueRounded,
     predicted_points: propType === 'points' ? predictedValueRounded : null,
     model_value: Math.round(rawPrediction * 10) / 10,
+    pre_anchor_value: Math.round(preAnchorValue * 10) / 10,
+    anchor_weight: calibration.anchor_weight,
     analysis,
     confidence: ouResult.confidence,
     error_margin: Math.round(sigma * 10) / 10,

@@ -280,7 +280,8 @@ router.get('/:id/prediction/:propType', async (req, res) => {
               date: nextGame.date,
               opponent: opponent,
               isHome: isHome,
-              team: teamAbbrev
+              team: teamAbbrev,
+              commence_time: gameInfo.commence_time
             };
             
           }
@@ -559,8 +560,9 @@ router.get('/:id/compare', async (req, res) => {
     const nextGameInfo = nextGame ? {
       date: nextGame.date || null,
       opponent: nextGame.opponent || null,
-      isHome: nextGame.isHome || null,
-      team: teamAbbrev || null
+      isHome: nextGame.isHome ?? null,
+      team: teamAbbrev || null,
+      commence_time: nextGame.commence_time || null
     } : null;
     
     // Create cache key that includes injury data (injuries change frequently)

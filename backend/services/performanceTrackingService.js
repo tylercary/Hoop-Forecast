@@ -7,34 +7,46 @@
  * Fallback: if within_margin is unavailable, accuracy >= 60.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { getAllPredictions } from './predictionTrackingService.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Same predictions file used by predictionTrackingService
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
-const PREDICTIONS_FILE = path.join(DATA_DIR, 'predictions.json');
 const PERFORMANCE_CACHE_TTL = 300; // 5 minutes
 
 // In-memory cache for performance metrics
 let performanceCache = null;
 let performanceCacheTime = 0;
 
-/**
- * Load all predictions from storage (predictionTrackingService format)
- */
+/** All predictions, from the shared in-memory store */
 function loadPredictions() {
-  try {
-    if (!fs.existsSync(PREDICTIONS_FILE)) return [];
-    const data = fs.readFileSync(PREDICTIONS_FILE, 'utf8');
-    return JSON.parse(data).predictions || [];
-  } catch (error) {
-    console.error('Error loading predictions:', error);
-    return [];
-  }
+  return getAllPredictions();
+}
+
+/** One prediction in the shape the frontend and export consumers read */
+function toPublicRecord(p) {
+  const resolved = !!(p.evaluated && !p.expired && !p.dnp && p.actual_value != null);
+  return {
+    id: p.id,
+    playerName: p.player_name,
+    propType: p.prop_type || 'points',
+    prediction: p.predicted_value ?? p.predicted_points,
+    modelValue: p.model_value ?? null,
+    preAnchorValue: p.pre_anchor_value ?? null,
+    actual: p.actual_value ?? p.actual_points,
+    result: resolved ? (isHit(p) ? 'hit' : 'miss') : null,
+    isResolved: resolved,
+    timestamp: p.created_at,
+    gameDate: p.next_game?.date || null,
+    opponent: p.next_game?.opponent || p.opponent || null,
+    isHome: p.next_game?.is_home ?? null,
+    accuracy: p.accuracy,
+    absoluteError: p.absolute_error ?? null,
+    bettingLine: p.betting_line || null,
+    recommendation: p.recommendation || null,
+    overProbability: p.over_probability || null,
+    edgeStrength: p.edge_strength || null,
+    confidence: p.confidence || null,
+    errorMargin: p.error_margin ?? null,
+    matchupImpact: p.matchup_impact || null
+  };
 }
 
 /**
@@ -146,32 +158,7 @@ function calculatePerformance() {
   const recentPredictions = evaluated
     .sort((a, b) => new Date(b.evaluated_at || b.created_at || 0) - new Date(a.evaluated_at || a.created_at || 0))
     .slice(0, 20)
-    .map(p => {
-      const predictedVal = p.predicted_value ?? p.predicted_points;
-      const actualVal = p.actual_value ?? p.actual_points;
-      const hit = isHit(p);
-
-      return {
-        id: p.id,
-        playerName: p.player_name,
-        propType: p.prop_type || 'points',
-        prediction: predictedVal,
-        actual: actualVal,
-        result: hit ? 'hit' : 'miss',
-        isResolved: true,
-        timestamp: p.created_at,
-        gameDate: p.next_game?.date || null,
-        opponent: p.next_game?.opponent || p.opponent || null,
-        accuracy: p.accuracy,
-        absoluteError: p.absolute_error,
-        bettingLine: p.betting_line || null,
-        recommendation: p.recommendation || null,
-        overProbability: p.over_probability || null,
-        edgeStrength: p.edge_strength || null,
-        confidence: p.confidence || null,
-        matchupImpact: p.matchup_impact || null
-      };
-    });
+    .map(toPublicRecord);
 
   // Average error for resolved predictions
   const avgError = evaluated.reduce((sum, p) => sum + (p.absolute_error || 0), 0) / evaluated.length;
@@ -222,21 +209,7 @@ function getPlayerPredictions(playerName) {
   return predictions
     .filter(p => (p.player_name || '').toLowerCase() === playerName.toLowerCase())
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-    .map(p => ({
-      id: p.id,
-      playerName: p.player_name,
-      propType: p.prop_type || 'points',
-      prediction: p.predicted_value ?? p.predicted_points,
-      actual: p.actual_value ?? p.actual_points,
-      result: p.evaluated && !p.expired && p.actual_value != null
-        ? (isHit(p) ? 'hit' : 'miss')
-        : null,
-      isResolved: p.evaluated && !p.expired && p.actual_value != null,
-      timestamp: p.created_at,
-      gameDate: p.next_game?.date || null,
-      opponent: p.next_game?.opponent || null,
-      accuracy: p.accuracy
-    }));
+    .map(toPublicRecord);
 }
 
 /**
@@ -249,21 +222,7 @@ function getPredictionsByDate(date) {
   return predictions
     .filter(p => p.next_game?.date === date)
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-    .map(p => ({
-      id: p.id,
-      playerName: p.player_name,
-      propType: p.prop_type || 'points',
-      prediction: p.predicted_value ?? p.predicted_points,
-      actual: p.actual_value ?? p.actual_points,
-      result: p.evaluated && !p.expired && p.actual_value != null
-        ? (isHit(p) ? 'hit' : 'miss')
-        : null,
-      isResolved: p.evaluated && !p.expired && p.actual_value != null,
-      timestamp: p.created_at,
-      gameDate: p.next_game?.date || null,
-      opponent: p.next_game?.opponent || null,
-      accuracy: p.accuracy
-    }));
+    .map(toPublicRecord);
 }
 
 /**

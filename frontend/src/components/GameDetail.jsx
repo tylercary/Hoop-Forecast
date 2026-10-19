@@ -7,6 +7,14 @@ import { getTeamLogo } from '../utils/teamLogos';
 import Comments from './Comments';
 import MatchupAnalyzer from './MatchupAnalyzer';
 
+// Point spread as a bettor reads it: favorites negative, underdogs positive, PK at zero
+const formatSpread = (spread) => {
+  const n = Number(spread);
+  if (!Number.isFinite(n)) return '-';
+  if (Math.abs(n) < 0.05) return 'PK';
+  return n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1);
+};
+
 const STAT_COLS = ['min', 'pts', 'reb', 'ast', 'stl', 'blk', 'fg', '3pt', 'ft', 'to'];
 
 // Season averages shown for scheduled games (preview)
@@ -243,13 +251,13 @@ export default function GameDetail() {
               <tbody>
                 <tr className="border-t border-slate-700/50">
                   <td className="py-2 text-slate-300 font-medium">{awayTeam?.abbreviation}</td>
-                  <td className="py-2 text-center text-slate-300 tabular-nums">{odds.spread > 0 ? `+${(-odds.spread).toFixed(1)}` : `+${Math.abs(odds.spread).toFixed(1)}`}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">{formatSpread(-odds.spread)}</td>
                   <td className="py-2 text-center text-slate-300 tabular-nums">o{odds.overUnder}</td>
                   <td className="py-2 text-center text-slate-300 tabular-nums">{odds.awayMoneyLine > 0 ? `+${odds.awayMoneyLine}` : odds.awayMoneyLine}</td>
                 </tr>
                 <tr className="border-t border-slate-700/50">
                   <td className="py-2 text-slate-300 font-medium">{homeTeam?.abbreviation}</td>
-                  <td className="py-2 text-center text-slate-300 tabular-nums">{odds.spread < 0 ? odds.spread.toFixed(1) : `+${odds.spread.toFixed(1)}`}</td>
+                  <td className="py-2 text-center text-slate-300 tabular-nums">{formatSpread(odds.spread)}</td>
                   <td className="py-2 text-center text-slate-300 tabular-nums">u{odds.overUnder}</td>
                   <td className="py-2 text-center text-slate-300 tabular-nums">{odds.homeMoneyLine > 0 ? `+${odds.homeMoneyLine}` : odds.homeMoneyLine}</td>
                 </tr>

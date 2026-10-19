@@ -32,29 +32,124 @@ const PROP_TYPE_FORMAT_MAP = {
 };
 
 /**
- * Load predictions from file
+ * Prediction store.
+ *
+ * The history lives in one JSON file (tens of MB in production). It is read
+ * once into memory and every reader works on that object; writes are
+ * coalesced and flushed to disk shortly afterwards, atomically (tmp + rename),
+ * so a player page that stores eight props no longer re-parses and rewrites the
+ * whole file eight times.
  */
+let _store = null;
+let _dirty = false;
+let _flushTimer = null;
+let _flushing = false;
+const FLUSH_DELAY_MS = 2000;
+
 function loadPredictions() {
+  if (_store) return _store;
   try {
     if (fs.existsSync(PREDICTIONS_FILE)) {
       const data = fs.readFileSync(PREDICTIONS_FILE, 'utf8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      _store = parsed && Array.isArray(parsed.predictions) ? parsed : { predictions: [] };
+      console.log(`[PredictionTracking] Loaded ${_store.predictions.length} predictions into memory`);
+      return _store;
     }
   } catch (error) {
     console.error('Error loading predictions:', error);
   }
-  return { predictions: [] };
+  _store = { predictions: [] };
+  return _store;
+}
+
+function writeStoreToDisk(sync = false) {
+  if (!_store) return;
+  const payload = JSON.stringify(_store);
+  const tmp = `${PREDICTIONS_FILE}.tmp`;
+  if (sync) {
+    fs.writeFileSync(tmp, payload, 'utf8');
+    fs.renameSync(tmp, PREDICTIONS_FILE);
+    return;
+  }
+  _flushing = true;
+  fs.writeFile(tmp, payload, 'utf8', (writeErr) => {
+    if (writeErr) {
+      _flushing = false;
+      _dirty = true;
+      console.error('Error saving predictions:', writeErr);
+      return;
+    }
+    fs.rename(tmp, PREDICTIONS_FILE, (renameErr) => {
+      _flushing = false;
+      if (renameErr) {
+        _dirty = true;
+        console.error('Error saving predictions:', renameErr);
+      }
+      if (_dirty) scheduleFlush();
+    });
+  });
+}
+
+function scheduleFlush() {
+  if (_flushTimer) return;
+  _flushTimer = setTimeout(() => {
+    _flushTimer = null;
+    if (_flushing) { scheduleFlush(); return; }
+    if (!_dirty) return;
+    _dirty = false;
+    writeStoreToDisk(false);
+  }, FLUSH_DELAY_MS);
+  if (typeof _flushTimer.unref === 'function') _flushTimer.unref();
 }
 
 /**
- * Save predictions to file
+ * Mark the in-memory store changed; it is written to disk shortly after.
  */
 function savePredictions(data) {
+  if (data && data !== _store) _store = data;
+  _dirty = true;
+  scheduleFlush();
+}
+
+/** Write any pending changes now (used on shutdown). */
+export function flushPredictionsSync() {
+  if (_flushTimer) { clearTimeout(_flushTimer); _flushTimer = null; }
+  if (!_dirty) return;
   try {
-    fs.writeFileSync(PREDICTIONS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    _dirty = false;
+    writeStoreToDisk(true);
   } catch (error) {
-    console.error('Error saving predictions:', error);
+    console.error('Error flushing predictions:', error);
   }
+}
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => {
+    flushPredictionsSync();
+    process.exit(0);
+  });
+}
+process.on('beforeExit', flushPredictionsSync);
+
+/** Every stored prediction (live array; callers must not mutate it). */
+export function getAllPredictions() {
+  return loadPredictions().predictions;
+}
+
+/**
+ * Raw records for export/analysis, paginated. Feature vectors are large and
+ * only included on request.
+ */
+export function getRawPredictions({ offset = 0, limit = 1000, includeFeatures = false, evaluatedOnly = false } = {}) {
+  const all = loadPredictions().predictions;
+  const source = evaluatedOnly ? all.filter(p => p.evaluated && !p.expired && !p.dnp && p.actual_value != null) : all;
+  const page = source.slice(offset, offset + limit).map(p => {
+    if (includeFeatures) return p;
+    const { feature_vector, ...rest } = p;
+    return { ...rest, has_feature_vector: !!feature_vector };
+  });
+  return { total: source.length, offset, limit, predictions: page };
 }
 
 /**
@@ -98,6 +193,10 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     error_margin: prediction.error_margin,
     recommendation: prediction.recommendation || null, // OVER, UNDER, or null
     betting_line: prediction.betting_line || null,
+    model_value: prediction.model_value ?? null,
+    pre_anchor_value: prediction.pre_anchor_value ?? null,
+    anchor_weight: prediction.anchor_weight ?? null,
+    sigma: prediction.error_margin ?? null,
     over_probability: prediction.over_probability || null,
     edge_strength: prediction.edge_strength || null,
     matchup_impact: prediction.matchup_impact || null,
@@ -108,8 +207,9 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     next_game: {
       date: gameDate,
       opponent: nextGameInfo.opponent || null,
-      is_home: nextGameInfo.isHome || null,
-      team: nextGameInfo.team || null
+      is_home: nextGameInfo.isHome ?? null,
+      team: nextGameInfo.team || null,
+      commence_time: nextGameInfo.commence_time || null
     },
     feature_vector: featureVector || null, // Full ML features for retraining
     prop_type_formatted: prediction.method === 'xgboost_model' ? (PROP_TYPE_FORMAT_MAP[propType] || propType.toUpperCase()) : null,
@@ -357,7 +457,17 @@ export function getGlobalBias(propType = 'points') {
   return bias;
 }
 
+const _playerBiasCache = new Map();
 export function getPlayerBias(playerName, propType = 'points') {
+  const cacheKey = `${playerName.toLowerCase()}|${propType}`;
+  const cached = _playerBiasCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) return cached.value;
+  const value = computePlayerBias(playerName, propType);
+  _playerBiasCache.set(cacheKey, { value, timestamp: Date.now() });
+  return value;
+}
+
+function computePlayerBias(playerName, propType) {
   const data = loadPredictions();
   const playerPreds = data.predictions.filter(p =>
     p.evaluated &&

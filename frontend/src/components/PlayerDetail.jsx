@@ -947,6 +947,11 @@ function PlayerDetail() {
                             : (prediction > line ? 'OVER' : prediction < line ? 'UNDER' : 'PUSH')))
                     : null;
                   const isLean = recommendation != null && !serverRecommendation;
+                  // The model's own number before it is pulled toward the market line
+                  const modelValue = propPredictions[selectedProp]?.model_value ??
+                    propData?.prediction_model_value ??
+                    (selectedProp === 'points' ? comparisonData.model_value : null) ?? null;
+                  const modelEdge = (modelValue != null && line != null) ? modelValue - line : null;
                   
                   // Get prop labels
                   const propLabels = {
@@ -1082,7 +1087,15 @@ function PlayerDetail() {
                         value={prediction != null
                           ? prediction.toFixed(1)
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
-                        subtitle={prediction != null ? `${propLabel}${recommendation ? ` · ${isLean ? 'leans' : 'pick:'} ${recommendation.toLowerCase()}` : ''}` : null}
+                        subtitle={prediction != null
+                          ? [
+                              modelValue != null ? `model ${modelValue.toFixed(1)}` : propLabel,
+                              modelEdge != null ? `${modelEdge > 0 ? '+' : ''}${modelEdge.toFixed(1)} vs line` : null,
+                              recommendation ? `${isLean ? 'leans' : 'pick:'} ${recommendation.toLowerCase()}` : null
+                            ].filter(Boolean).join(' · ')
+                          : null}
+                        infoTooltip="The projection blends the model's own number with the market line. 'Model' is the raw model output; 'vs line' is how far it sits from the consensus line."
+                        infoTooltipLabel="Projection"
                         color={recommendation === 'OVER' ? 'text-emerald-400' : recommendation === 'UNDER' ? 'text-rose-400' : 'text-amber-400'}
                         valueSize="text-2xl"
                         index={1}

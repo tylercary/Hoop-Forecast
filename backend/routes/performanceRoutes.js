@@ -5,7 +5,7 @@
 
 import express from 'express';
 import * as performanceService from '../services/performanceTrackingService.js';
-import { resetPredictions } from '../services/predictionTrackingService.js';
+import { resetPredictions, getRawPredictions } from '../services/predictionTrackingService.js';
 import { getGamePredictionStats } from '../services/gamePredictionTrackingService.js';
 
 const router = express.Router();
@@ -60,6 +60,24 @@ router.get('/date/:date', async (req, res) => {
       error: 'Failed to fetch predictions by date',
       message: error.message
     });
+  }
+});
+
+/**
+ * GET /api/performance/export?offset=0&limit=1000&evaluated=1&features=0
+ * Raw prediction records, paginated, for offline calibration and retraining.
+ * Feature vectors are included only with features=1 (they are large).
+ */
+router.get('/export', (req, res) => {
+  try {
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(5000, Math.max(1, parseInt(req.query.limit, 10) || 1000));
+    const includeFeatures = req.query.features === '1';
+    const evaluatedOnly = req.query.evaluated !== '0';
+    res.json(getRawPredictions({ offset, limit, includeFeatures, evaluatedOnly }));
+  } catch (error) {
+    console.error('Error exporting predictions:', error);
+    res.status(500).json({ error: 'Failed to export predictions', message: error.message });
   }
 });
 
