@@ -205,10 +205,14 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     opponent: prediction.opponent || null,
     method: prediction.method || 'xgboost_model',
     stats: prediction.stats || {},
+    // What the books said about the line (marketFeatureService.summarizeMarket)
+    market: prediction.market || null,
+    // Opponent and risk context the edge model saw (unifiedPredictionService)
+    edge_context: prediction.edge_context || null,
     game_history_hash: hashParts,
     next_game: {
       date: gameDate,
-      opponent: nextGameInfo.opponent || null,
+      opponent: nextGameInfo.opponent || prediction.opponent || null,
       is_home: nextGameInfo.isHome ?? null,
       team: nextGameInfo.team || null,
       commence_time: nextGameInfo.commence_time || null

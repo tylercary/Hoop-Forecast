@@ -222,6 +222,11 @@ function buildMLFeatures(gameLogs, propType, context = {}) {
     // === MINUTES DEVIATION ===
     min_std_10: std(minutes, 10),
     min_trend: avg(minutes, 3) - avg(minutes, 10),
+    // Share of the last 10 games under 25 minutes (edge_features.minutes_under_share)
+    min_under25_share_10: (() => {
+      const last = minutes.slice(-10);
+      return last.length ? last.filter(m => m < 25).length / last.length : 0;
+    })(),
 
     // === PLUS/MINUS CONTEXT ===
     plus_minus_avg_10: avg(plusMinus, 10),
@@ -356,17 +361,59 @@ function getEdgeMetadata() {
   return _edgeMetadata;
 }
 
+// Context features: null means unknown, scored as a missing value. Each block
+// has a twin in backend/ml/edge_features.py; keep them identical.
+const num = (v) => {
+  const n = Number(v);
+  return v == null || !Number.isFinite(n) ? null : n;
+};
+const r3 = (x) => (x == null ? null : Math.round(x * 1000) / 1000);
+const EDGE_OPP_PART_KEY = { pts: 'opp_pts_allowed_rel', reb: 'opp_reb_allowed_rel', ast: 'opp_ast_allowed_rel', threes: 'opp_fg3m_allowed_rel' };
+const EDGE_OPPONENT_KEYS = ['opp_pts_allowed_rel', 'opp_reb_allowed_rel', 'opp_ast_allowed_rel', 'opp_fg3m_allowed_rel',
+  'opp_pace_rel', 'opp_def_rating_rel', 'opp_games_n'];
+
+/** market: marketFeatureService.summarizeMarket output (or null). Twin: edge_features.market_features */
+function marketFeatures(market, line) {
+  const out = { mkt_over_prob: null, mkt_line_spread: null, mkt_n_books: null, mkt_pinnacle_minus_line: null, mkt_line_minus_mean: null };
+  if (!market) return out;
+  out.mkt_over_prob = num(market.over_prob_novig);
+  out.mkt_line_spread = num(market.line_spread);
+  out.mkt_n_books = num(market.n_books);
+  const pin = num(market.pinnacle_line);
+  out.mkt_pinnacle_minus_line = pin == null ? null : Math.round((pin - line) * 100) / 100;
+  const meanLine = num(market.line_mean);
+  out.mkt_line_minus_mean = meanLine == null ? null : Math.round((line - meanLine) * 1000) / 1000;
+  return out;
+}
+
+/** opponent: teamContextService.opponentContext output (or null). Twin: edge_features.opponent_features */
+function opponentFeatures(opponent, prop) {
+  const out = {};
+  for (const k of EDGE_OPPONENT_KEYS) out[k] = opponent ? num(opponent[k]) : null;
+  const parts = EDGE_STAT_PARTS[prop].map(part => out[EDGE_OPP_PART_KEY[part]]);
+  out.opp_stat_allowed_rel = parts.some(v => v == null) ? null : r3(parts.reduce((a, b) => a + b, 0));
+  return out;
+}
+
+/** risk: { game_spread_abs, teammates_out_key } (or null). Twin: edge_features.risk_features */
+function riskFeatures(risk) {
+  return { game_spread_abs: num(risk?.game_spread_abs), teammates_out_key: num(risk?.teammates_out_key) };
+}
+
 /**
  * One row for the edge model: the base features plus the line and how it sits
- * against the player's averages for that prop.
+ * against the player's averages for that prop, plus the context the line does
+ * not state (market price, opponent, minutes risk).
  * @param {Object} features  output of buildMLFeatures
  * @param {string} prop      lower-case prop key (points, rebounds, ...)
  * @param {number} line      sportsbook line
+ * @param {Object} [context] { market, opponent, risk } (see the helpers above)
  */
-function buildEdgeRow(features, prop, line) {
+function buildEdgeRow(features, prop, line, context = {}) {
   const parts = EDGE_STAT_PARTS[prop];
   if (!parts || !(line > 0)) return null;
   const row = { ...features };
+  if (row.min_under25_share_10 == null) row.min_under25_share_10 = null;
   for (const win of ['3', '5', '10', 'season']) {
     row[`stat_avg_${win}`] = parts.reduce((sum, part) => sum + (Number(features[`${part}_avg_${win}`]) || 0), 0);
   }
@@ -376,6 +423,9 @@ function buildEdgeRow(features, prop, line) {
   row.line_minus_season = line - row.stat_avg_season;
   row.line_over_avg10 = line / Math.max(row.stat_avg_10, 0.5);
   for (const p of EDGE_PROPS) row[`prop_${p}`] = p === prop ? 1 : 0;
+  Object.assign(row, marketFeatures(context.market || null, line));
+  Object.assign(row, opponentFeatures(context.opponent || null, prop));
+  Object.assign(row, riskFeatures(context.risk || null));
   return row;
 }
 
@@ -383,17 +433,22 @@ function buildEdgeRow(features, prop, line) {
  * Predict several prop types with one feature build and one Python process.
  * When `lines` ({ prop: line }) is given and the edge model is trained, the
  * same process also scores the pooled edge model for every lined prop.
+ * edgeContext: { markets: { prop: market summary }, opponent, risk } (see buildEdgeRow)
  * @returns {Promise<{predictions: Object, errors: Object, features: Object, edge: Object}>}
  *   edge: { prop: { residual, probabilityMap } } for props the edge model scored
  */
-async function predictProps(gameLogs, propTypes, context = {}, lines = null) {
+async function predictProps(gameLogs, propTypes, context = {}, lines = null, edgeContext = {}) {
   const features = buildMLFeatures(gameLogs, propTypes[0], context);
   const edgeMeta = lines ? getEdgeMetadata() : null;
   const edgeProps = [];
   const edgeRows = [];
   if (edgeMeta) {
     for (const [prop, line] of Object.entries(lines)) {
-      const row = buildEdgeRow(features, prop, Number(line));
+      const row = buildEdgeRow(features, prop, Number(line), {
+        market: edgeContext.markets?.[prop] || null,
+        opponent: edgeContext.opponent || null,
+        risk: edgeContext.risk || null
+      });
       if (row) { edgeProps.push(prop); edgeRows.push(row); }
     }
   }
@@ -460,6 +515,9 @@ export {
   predictProp,
   predictProps,
   buildEdgeRow,
+  marketFeatures,
+  opponentFeatures,
+  riskFeatures,
   predictAllProps,
   buildMLFeatures,
   areModelsAvailable

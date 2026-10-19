@@ -27,6 +27,7 @@ function getCalibration(propType) {
 export function getPropCalibration(propType) { return getCalibration(propType); }
 import { predictProps as mlPredictProps } from '../ml/mlPredictionService.js';
 import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './opponentMatchupService.js';
+import { opponentContext, ensureTeamGameStatsFresh } from './teamContextService.js';
 
 dotenv.config();
 
@@ -666,6 +667,18 @@ function calculateEnhancedOverUnder(prediction, line, stdDev, matchupEdge = 0, v
 }
 
 /**
+ * The game date as YYYY-MM-DD. Callers pass either an ISO commence_time, an
+ * ISO date, or the display form ("Oct 20, 2026"); the tip-off time wins.
+ */
+function isoGameDate(nextGameInfo) {
+  const raw = nextGameInfo?.commence_time || nextGameInfo?.date;
+  if (!raw) return new Date().toISOString().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(raw))) return String(raw).slice(0, 10);
+  const parsed = new Date(raw);
+  return isNaN(parsed.getTime()) ? new Date().toISOString().slice(0, 10) : parsed.toISOString().slice(0, 10);
+}
+
+/**
  * Predict several props for one player with a single model call.
  *
  * @param {Array} games        game log, most recent first
@@ -673,25 +686,44 @@ function calculateEnhancedOverUnder(prediction, line, stdDev, matchupEdge = 0, v
  * @param {Object} lines       { propType: vegasLine } for every prop to predict
  * @param {Object} nextGameInfo { date, opponent, isHome, team, commence_time? }
  * @param {Object} injuryData
+ * @param {Object} [options]   { markets: { propType: marketFeatureService summary }, gameSpread: oddsService.getGameSpread result }
  * @returns {Promise<Object>}  { propType: predictionResult }
  */
-export async function predictPropsFromGames(games, playerName, lines, nextGameInfo = null, injuryData = null) {
+export async function predictPropsFromGames(games, playerName, lines, nextGameInfo = null, injuryData = null, options = {}) {
   if (!games || games.length < 3) {
     throw new Error(`Insufficient game data for prediction. Need at least 3 games, got ${games?.length || 0}.`);
   }
   const propTypes = Object.keys(lines);
   if (propTypes.length === 0) return {};
 
-  // Opponent context is shared by every prop
-  let opponentAbbrev = null;
-  if (nextGameInfo) {
+  // Opponent context is shared by every prop. The caller's resolved opponent
+  // wins; otherwise work it out from the event's team names.
+  let opponentAbbrev = nextGameInfo?.opponent || null;
+  if (!opponentAbbrev && nextGameInfo) {
     try {
       const lastGame = games[0];
-      opponentAbbrev = resolveOpponentAbbrev(nextGameInfo, lastGame?.team || lastGame?.teamAbbrev || null);
+      opponentAbbrev = resolveOpponentAbbrev(nextGameInfo, nextGameInfo.team || lastGame?.team || lastGame?.teamAbbrev || null);
     } catch (err) {
       console.warn('[Matchup] Could not resolve opponent:', err.message);
     }
   }
+
+  // Context the line does not state, for the edge model (null = unknown).
+  // Opponent allowances come from the team box-score file as of the game
+  // date, so training can rebuild the same numbers from the stored record.
+  const gameDate = isoGameDate(nextGameInfo);
+  ensureTeamGameStatsFresh(); // background; this call reads whatever is on file
+  const opponentCtx = opponentAbbrev ? opponentContext(opponentAbbrev, gameDate) : null;
+  const lastName = playerName.toLowerCase().split(' ').pop();
+  const teammatesOutKey = injuryData?.playerTeamInjuries
+    ? injuryData.playerTeamInjuries.filter(inj => inj.structuredStatus === 'out' && inj.impactScore >= 80 &&
+        !inj.playerName?.toLowerCase().includes(lastName)).length
+    : null;
+  const risk = { game_spread_abs: options.gameSpread?.abs ?? null, teammates_out_key: teammatesOutKey };
+  const edgeContextRecord = {
+    opponent: opponentAbbrev, game_date: gameDate, is_home: nextGameInfo?.isHome ?? null,
+    ...(opponentCtx || {}), ...risk
+  };
 
   // One feature build, one Python process for all requested props. The model
   // is told about the UPCOMING game (home/away, rest) rather than the last one.
@@ -701,7 +733,7 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
   };
   const formatted = propTypes.map(p => PROP_TYPE_MAP[p] || p.toUpperCase());
   const { predictions: rawPredictions, errors: modelErrors, features: mlFeatureVector, edge: edgeByProp = {} } =
-    await mlPredictProps(games, formatted, modelContext, lines);
+    await mlPredictProps(games, formatted, modelContext, lines, { markets: options.markets || {}, opponent: opponentCtx, risk });
 
   const results = {};
   for (const propType of propTypes) {
@@ -725,7 +757,8 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
       const features = buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData, lines[propType], matchupFeatures);
       results[propType] = finalizePrediction({
         rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData,
-        matchupEdge, opponentAbbrev, mlFeatureVector, edge: edgeByProp[propType] || null
+        matchupEdge, opponentAbbrev, mlFeatureVector, edge: edgeByProp[propType] || null,
+        market: options.markets?.[propType] || null, edgeContext: edgeContextRecord
       });
     } catch (error) {
       console.error(`[PIPELINE-${propTypeFormatted}] Prediction failed:`, error);
@@ -767,7 +800,7 @@ function edgeOverUnder(overProbability) {
   };
 }
 
-function finalizePrediction({ rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData, matchupEdge, opponentAbbrev, mlFeatureVector, edge = null }) {
+function finalizePrediction({ rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData, matchupEdge, opponentAbbrev, mlFeatureVector, edge = null, market = null, edgeContext = null }) {
   const statsForAnalysis = {
     overall_avg: features.seasonAvg,
     recent_3_avg: features.recentAvg3,
@@ -900,6 +933,8 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     edge_strength: ouResult.edgeStrength,
     matchup_impact: ouResult.matchupImpact,
     betting_line: features.vegasLine,
+    market,
+    edge_context: edgeContext,
     games_used: games.length,
     method: 'xgboost_model',
     prop_type: propType,

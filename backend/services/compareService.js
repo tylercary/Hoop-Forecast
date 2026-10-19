@@ -5,6 +5,7 @@
  */
 
 import { predictPropFromGames, predictPropsFromGames } from './unifiedPredictionService.js';
+import { summarizeMarket } from './marketFeatureService.js';
 
 /**
  * Generate prediction for a specific prop type
@@ -112,19 +113,25 @@ export async function generatePropPrediction(games, playerName, propType, nextGa
  * @param {object} allProps - All props from odds service
  * @param {object} nextGameInfo - Next game information
  * @param {object} injuryData - Injury data
+ * @param {object} [options] - { gameSpread: oddsService.getGameSpread result }
  * @returns {Promise<object>} Object with predictions for each prop
  */
-export async function generateAllPropPredictions(games, playerName, allProps, nextGameInfo, injuryData) {
+export async function generateAllPropPredictions(games, playerName, allProps, nextGameInfo, injuryData, options = {}) {
   const propTypes = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
   const predictions = {};
   const unavailable = { predicted_value: null, confidence: null, recommendation: null, error_margin: null, status: 'unavailable' };
 
-  // Only props with a posted line get a prediction
+  // Only props with a posted line get a prediction; the books behind each
+  // line travel along as the market summary the edge model and tracker use
   const lines = {};
+  const markets = {};
   for (const propType of propTypes) {
     const prop = allProps[propType];
     if (!prop || prop.status === 'unavailable' || !prop.line) predictions[propType] = unavailable;
-    else lines[propType] = prop.line;
+    else {
+      lines[propType] = prop.line;
+      markets[propType] = summarizeMarket(prop);
+    }
   }
   if (Object.keys(lines).length === 0 || !games || games.length < 3) {
     for (const propType of Object.keys(lines)) predictions[propType] = { ...unavailable, error: 'Insufficient game data' };
@@ -134,7 +141,7 @@ export async function generateAllPropPredictions(games, playerName, allProps, ne
   // One feature build and one model process for every prop
   let results = {};
   try {
-    results = await predictPropsFromGames(games, playerName, lines, nextGameInfo, injuryData);
+    results = await predictPropsFromGames(games, playerName, lines, nextGameInfo, injuryData, { markets, gameSpread: options.gameSpread || null });
   } catch (error) {
     console.error('❌ Error generating prop predictions:', error.message);
   }

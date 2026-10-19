@@ -11,7 +11,8 @@ import { predictPropsFromGames } from './unifiedPredictionService.js';
 import { getMatchupInjuries } from './injuryService.js';
 import { getTeamAbbrevFromFullName } from './teamMappingService.js';
 import { predictGameOutcome } from './gameOutcomePredictionService.js';
-import { getGameOdds } from './oddsService.js';
+import { getGameOdds, getGameSpread } from './oddsService.js';
+import { summarizeBooks } from './marketFeatureService.js';
 import { storeGamePrediction } from './gamePredictionTrackingService.js';
 import { getAllEventOdds } from './oddsEventCache.js';
 
@@ -43,7 +44,7 @@ async function fetchPlayersWithLines() {
   // All events' props for every relevant book, from the shared cache
   const results = await getAllEventOdds();
   const players = [];
-  const seen = new Set();
+  const seen = new Map(); // player|prop -> entry, so every book's line joins the market summary
 
   for (const { event, data } of results) {
     if (!data?.bookmakers?.length) continue;
@@ -53,33 +54,51 @@ async function fetchPlayersWithLines() {
         const propType = PROP_TYPE_MAP[market.key];
         if (!propType) continue;
 
+        // One book: { player -> { line, over_odds, under_odds } }
+        const byPlayer = new Map();
         for (const outcome of market.outcomes || []) {
           const playerName = outcome.description;
-          if (!playerName) continue;
-
-          const key = `${playerName.toLowerCase()}|${propType}`;
-          if (seen.has(key)) continue;
-
           const line = parseFloat(outcome.point);
-          if (isNaN(line) || line <= 0) continue;
+          if (!playerName || isNaN(line) || line <= 0) continue;
+          const side = (outcome.name || '').toLowerCase();
+          const entry = byPlayer.get(playerName) || { line, over_odds: null, under_odds: null };
+          if (side === 'over') { entry.line = line; entry.over_odds = outcome.price ?? null; }
+          else if (side === 'under' && entry.over_odds == null) { entry.line = line; }
+          if (side === 'under' && Math.abs(entry.line - line) < 0.1) entry.under_odds = outcome.price ?? null;
+          byPlayer.set(playerName, entry);
+        }
 
-          seen.add(key);
-          players.push({
-            name: playerName,
-            propType,
-            line,
-            nextGame: {
-              date: event.commence_time?.split('T')[0],
-              home_team: event.home_team,
-              away_team: event.away_team,
-              commence_time: event.commence_time
-            }
-          });
+        for (const [playerName, book] of byPlayer) {
+          const key = `${playerName.toLowerCase()}|${propType}`;
+          let entry = seen.get(key);
+          if (!entry) {
+            // The first book seen sets the line (as before); the rest describe the market
+            entry = {
+              name: playerName,
+              propType,
+              line: book.line,
+              bookmakerKey: bookmaker.key,
+              books: [],
+              nextGame: {
+                date: event.commence_time?.split('T')[0],
+                home_team: event.home_team,
+                away_team: event.away_team,
+                commence_time: event.commence_time
+              }
+            };
+            seen.set(key, entry);
+            players.push(entry);
+          }
+          entry.books.push({ bookmaker_key: bookmaker.key, line: book.line, over_odds: book.over_odds, under_odds: book.under_odds });
         }
       }
     }
   }
 
+  for (const entry of players) {
+    entry.market = summarizeBooks(entry.books, entry.line, entry.bookmakerKey);
+    delete entry.books;
+  }
   return players;
 }
 
@@ -136,15 +155,19 @@ export async function runBatchPredictions() {
 
       // Resolve team abbreviations from Odds API full names and fetch injuries
       let injuryData = null;
+      let gameSpread = null;
+      const nextGame = { ...first.nextGame };
       const homeAbbrev = getTeamAbbrevFromFullName(first.nextGame?.home_team);
       const awayAbbrev = getTeamAbbrevFromFullName(first.nextGame?.away_team);
 
       if (homeAbbrev && awayAbbrev) {
-        // Determine player's team from their most recent game
-        const playerTeam = games[0]?.team || games[0]?.teamAbbrev || null;
+        // The player's team comes from ESPN's player record (game logs carry no team)
+        const playerTeam = statsResult?.player?.team || games[0]?.team || games[0]?.teamAbbrev || null;
         const isHome = playerTeam === homeAbbrev;
         const playerTeamAbbrev = isHome ? homeAbbrev : awayAbbrev;
         const opponentAbbrev = isHome ? awayAbbrev : homeAbbrev;
+        Object.assign(nextGame, { opponent: opponentAbbrev, isHome, team: playerTeamAbbrev });
+        gameSpread = await getGameSpread(first.nextGame.home_team, first.nextGame.away_team);
 
         // Cache injuries per matchup (both teams share the same injury report)
         const matchupKey = [playerTeamAbbrev, opponentAbbrev].sort().join('|');
@@ -170,7 +193,8 @@ export async function runBatchPredictions() {
 
       // One model call for all of this player's props — stores each via storePrediction
       const lines = Object.fromEntries(entries.map(e => [e.propType, e.line]));
-      const results = await predictPropsFromGames(games, name, lines, first.nextGame, injuryData);
+      const markets = Object.fromEntries(entries.map(e => [e.propType, e.market || null]));
+      const results = await predictPropsFromGames(games, name, lines, nextGame, injuryData, { markets, gameSpread });
       const done = Object.keys(results).length;
       predicted += done;
       failed += entries.length - done;
