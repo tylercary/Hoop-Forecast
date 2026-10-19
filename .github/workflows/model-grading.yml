@@ -1,0 +1,112 @@
+name: Model grading
+
+# Weekly feedback loop for the edge model: pull the evaluated prediction
+# history from production, grade the live model's picks, train a candidate on
+# the fresh data and, if it beats the live model on held-out rows, open a pull
+# request with the new model files. Nothing is ever pushed to main directly.
+# Runs Monday 13:00 UTC (09:00 EDT / 08:00 EST) and on demand.
+on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  EXPORT: backend/data/predictions_export_fv.json
+
+jobs:
+  grade-and-retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: pip install --quiet numpy pandas scikit-learn xgboost
+
+      - name: Pull evaluated predictions from production
+        run: node backend/scripts/pullPredictions.mjs --features --out "$EXPORT"
+
+      - name: Grade the live edge model
+        run: node backend/scripts/gradeEdgeModel.mjs --in "$EXPORT" | tee backend/data/edge_grading.txt
+
+      - name: Train candidate and run the promotion gate
+        run: >-
+          python3 backend/ml/train_edge_model.py --candidate --promote --in "$EXPORT"
+          | tee backend/data/edge_retrain.txt
+
+      - name: Upload grading output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-grading-${{ github.run_id }}
+          path: |
+            backend/data/edge_grading.json
+            backend/data/edge_grading.txt
+            backend/data/edge_retrain.txt
+            backend/data/edge_promotion.json
+            backend/ml/models/edge_xgb_metadata.candidate.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Read the promotion decision
+        id: decision
+        run: |
+          promoted=$(jq -r '.promoted' backend/data/edge_promotion.json)
+          echo "promoted=$promoted" >> "$GITHUB_OUTPUT"
+          echo "Promoted: $promoted ($(jq -r '.reason' backend/data/edge_promotion.json))"
+
+      - name: Write the pull request body
+        if: steps.decision.outputs.promoted == 'true'
+        run: |
+          {
+            echo "Weekly retrain of the pooled edge model. The candidate passed the promotion gate"
+            echo "(held-out sign accuracy at |residual| >= 1.0 at least as good as the live model,"
+            echo "probability-map log loss no worse), so this PR replaces the live model files."
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "## Promotion decision"
+            echo '```json'
+            cat backend/data/edge_promotion.json
+            echo '```'
+            echo
+            echo "## Candidate training and gate"
+            echo '```'
+            cat backend/data/edge_retrain.txt
+            echo '```'
+            echo
+            echo "## Grading of the live model before this change"
+            echo '```'
+            cat backend/data/edge_grading.txt
+            echo '```'
+          } > backend/data/edge_pr_body.md
+
+      - name: Open a pull request with the promoted model
+        if: steps.decision.outputs.promoted == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: main
+          branch: model/edge-retrain-${{ github.run_id }}
+          delete-branch: true
+          add-paths: |
+            backend/ml/models/edge_xgb_model.json
+            backend/ml/models/edge_xgb_metadata.json
+          commit-message: 'Promote retrained edge model (weekly grading run ${{ github.run_id }})'
+          title: 'Promote retrained edge model'
+          body-path: backend/data/edge_pr_body.md
+          labels: model

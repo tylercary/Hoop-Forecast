@@ -5,7 +5,8 @@
 
 import express from 'express';
 import * as performanceService from '../services/performanceTrackingService.js';
-import { resetPredictions, getRawPredictions } from '../services/predictionTrackingService.js';
+import { resetPredictions, getRawPredictions, getAllPredictions } from '../services/predictionTrackingService.js';
+import { gradeEdgePredictions } from '../services/edgeGradingService.js';
 import { getGamePredictionStats } from '../services/gamePredictionTrackingService.js';
 
 const router = express.Router();
@@ -78,6 +79,34 @@ router.get('/export', (req, res) => {
   } catch (error) {
     console.error('Error exporting predictions:', error);
     res.status(500).json({ error: 'Failed to export predictions', message: error.message });
+  }
+});
+
+/**
+ * GET /api/performance/edge?variant=edge
+ * How the edge model's live picks have graded out: hit rates, stated vs
+ * realised over probability, leans, calibration, per prop and per ISO week.
+ * Same summary as backend/scripts/gradeEdgeModel.mjs; recomputed from the
+ * in-memory store at most every 10 minutes per variant.
+ */
+const EDGE_GRADING_TTL_MS = 10 * 60 * 1000;
+const EDGE_VARIANTS = new Set(['edge', 'anchored', 'legacy', 'all']);
+const edgeGradingCache = new Map(); // variant -> { at, summary }
+
+router.get('/edge', (req, res) => {
+  try {
+    const variant = EDGE_VARIANTS.has(req.query.variant) ? req.query.variant : 'edge';
+    const hit = edgeGradingCache.get(variant);
+    if (!hit || Date.now() - hit.at > EDGE_GRADING_TTL_MS) {
+      const summary = gradeEdgePredictions(getAllPredictions(), { variant });
+      edgeGradingCache.set(variant, { at: Date.now(), summary });
+    }
+    const { at, summary } = edgeGradingCache.get(variant);
+    res.set('Cache-Control', 'public, max-age=600');
+    res.json({ ...summary, cached_at: new Date(at).toISOString() });
+  } catch (error) {
+    console.error('Error grading edge model:', error);
+    res.status(500).json({ error: 'Failed to grade edge model', message: error.message });
   }
 });
 
