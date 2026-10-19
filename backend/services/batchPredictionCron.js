@@ -7,7 +7,7 @@
 
 import axios from 'axios';
 import { getPlayerStats, mapEspnToNbaAbbrev } from './nbaApiService.js';
-import { predictPropFromGames } from './unifiedPredictionService.js';
+import { predictPropsFromGames } from './unifiedPredictionService.js';
 import { getMatchupInjuries } from './injuryService.js';
 import { getTeamAbbrevFromFullName } from './teamMappingService.js';
 import { predictGameOutcome } from './gameOutcomePredictionService.js';
@@ -108,33 +108,36 @@ export async function runBatchPredictions() {
   const uniquePlayerNames = [...new Set(players.map(p => p.name))];
   console.log(`[BatchPred] Found ${players.length} player-prop combos across ${uniquePlayerNames.length} players`);
 
-  // Cache game logs and injury data to avoid re-fetching per prop type
-  const gameLogCache = new Map();
+  // Group the player-prop combos by player: one game-log fetch, one injury
+  // lookup and one model process per player instead of one per prop
+  const byPlayer = new Map();
+  for (const entry of players) {
+    if (!byPlayer.has(entry.name)) byPlayer.set(entry.name, []);
+    byPlayer.get(entry.name).push(entry);
+  }
+
   const injuryCache = new Map();
   let predicted = 0;
   let failed = 0;
 
-  for (const entry of players) {
+  for (const [name, entries] of byPlayer) {
     try {
-      // Fetch game logs (cached per player)
-      let statsResult = gameLogCache.get(entry.name);
-      if (!statsResult) {
-        statsResult = await getPlayerStats(entry.name);
-        gameLogCache.set(entry.name, statsResult);
-        // Small delay between different player API calls
-        await new Promise(r => setTimeout(r, 500));
-      }
+      const statsResult = await getPlayerStats(name);
+      // Small delay between player API calls
+      await new Promise(r => setTimeout(r, 500));
 
       const games = statsResult?.games;
       if (!games || games.length < 10) {
-        failed++;
+        failed += entries.length;
         continue;
       }
 
+      const first = entries[0];
+
       // Resolve team abbreviations from Odds API full names and fetch injuries
       let injuryData = null;
-      const homeAbbrev = getTeamAbbrevFromFullName(entry.nextGame?.home_team);
-      const awayAbbrev = getTeamAbbrevFromFullName(entry.nextGame?.away_team);
+      const homeAbbrev = getTeamAbbrevFromFullName(first.nextGame?.home_team);
+      const awayAbbrev = getTeamAbbrevFromFullName(first.nextGame?.away_team);
 
       if (homeAbbrev && awayAbbrev) {
         // Determine player's team from their most recent game
@@ -165,19 +168,14 @@ export async function runBatchPredictions() {
         }
       }
 
-      // Generate prediction — this stores it via storePrediction internally
-      await predictPropFromGames(
-        games,
-        entry.name,
-        entry.propType,
-        entry.nextGame,
-        injuryData,
-        entry.line
-      );
-
-      predicted++;
+      // One model call for all of this player's props — stores each via storePrediction
+      const lines = Object.fromEntries(entries.map(e => [e.propType, e.line]));
+      const results = await predictPropsFromGames(games, name, lines, first.nextGame, injuryData);
+      const done = Object.keys(results).length;
+      predicted += done;
+      failed += entries.length - done;
     } catch (err) {
-      failed++;
+      failed += entries.length;
     }
   }
 

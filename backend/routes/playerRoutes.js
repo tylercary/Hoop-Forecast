@@ -26,7 +26,7 @@ import {
 } from '../services/predictionEvaluationService.js';
 import { getTeamAbbrevFromFullName } from '../services/teamMappingService.js';
 import { getMatchupInjuries } from '../services/injuryService.js';
-import { generatePropPrediction } from '../services/compareService.js';
+import { generatePropPrediction, generateAllPropPredictions } from '../services/compareService.js';
 import { getTeamLogo, getTeamName } from '../services/teamLogoService.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -236,19 +236,24 @@ router.get('/:id/prediction/:propType', async (req, res) => {
         })
       : 'no_injuries';
     const gamesHash = createGamesHash(stats.games);
-    const cacheKey = `${gamesHash}_${injuryHash}_${propType}`;
+
+    // The projection is anchored to the line, so the line is part of the cache key.
+    // Odds come from the shared cache, so this lookup is cheap.
+    let bettingLine = null;
+    let oddsResult = null;
+    try {
+      oddsResult = await getPlayerOdds(null, playerName);
+      bettingLine = oddsResult?.[propType]?.line || null;
+    } catch (oddsError) {
+      // Continue without a line - compareService reports it as unavailable
+    }
+    const cacheKey = `${gamesHash}_${injuryHash}_${propType}_${bettingLine ?? 'noline'}`;
     
     // Check cache first
     let prediction = predictionsCache.get(playerName, cacheKey);
     
     if (!prediction) {
-      // Get the CORRECT vegas line for this specific prop from The Odds API
-      // ALSO extract game info for matchup data
-      let bettingLine = null;
       try {
-        // Using static import from top of file
-        const oddsResult = await getPlayerOdds(null, playerName);
-        bettingLine = oddsResult?.[propType]?.line || null;
         
         // Extract game info from Odds API if available
         if (oddsResult?._gameInfo) {
@@ -302,10 +307,13 @@ router.get('/:id/prediction/:propType', async (req, res) => {
           predicted_value: propPrediction.predicted_value,
           // For backward compatibility with points
           predicted_points: propType === 'points' ? propPrediction.predicted_value : null,
+          model_value: propPrediction.model_value ?? null,
+          betting_line: bettingLine,
           confidence: propPrediction.confidence,
           error_margin: propPrediction.error_margin,
           errorMargin: propPrediction.error_margin,
           recommendation: propPrediction.recommendation,
+          over_probability: propPrediction.over_probability ?? null,
           analysis: propPrediction.analysis || null,
           stats: propPrediction.stats || null,
           status: propPrediction.status || null
@@ -567,60 +575,51 @@ router.get('/:id/compare', async (req, res) => {
     // Get all available prop types (from betting lines we just fetched)
     const availablePropTypes = Object.keys(allProps || {});
     
-    // LAZY LOADING: Only generate points prediction on initial load for faster page load
-    // Other prop predictions will be generated on-demand when user clicks on that prop tab
+    // Predictions for every prop with a line. All props come from one model
+    // process, so this costs about the same as points alone did. Each prop is
+    // cached by games + injuries + its line (the projection is anchored to the line).
     let prediction = null;
-    let allPredictions = {}; // Store predictions for all props
-    
-    // Always generate points prediction (for backward compatibility and initial display)
-    // Use compareService to ensure we use ONLY the correct vegas line for points prop
-    const pointsCacheKey = `${gamesHash}_${injuryHash}_points`;
-    prediction = predictionsCache.get(playerName, pointsCacheKey);
-    if (!prediction) {
-      // Get betting line for points prop ONLY from The Odds API
-      const pointsBettingLine = allProps?.points?.line || null;
-      
-      // Use compareService to generate prediction with correct line
-      // Using static import from top of file
-      const pointsPrediction = await generatePropPrediction(
+    const allPredictions = {};
+    const cacheKeyFor = (propType) => `${gamesHash}_${injuryHash}_${propType}_${allProps?.[propType]?.line ?? 'noline'}`;
+    const toClientShape = (propType, p) => ({
+      [`predicted_${propType}`]: p.predicted_value,
+      predicted_value: p.predicted_value,
+      predicted_points: propType === 'points' ? p.predicted_value : null,
+      predictedPoints: propType === 'points' ? p.predicted_value : null,
+      model_value: p.model_value ?? null,
+      betting_line: p.betting_line ?? allProps?.[propType]?.line ?? null,
+      confidence: p.confidence,
+      error_margin: p.error_margin,
+      errorMargin: p.error_margin,
+      recommendation: p.recommendation,
+      over_probability: p.over_probability ?? null,
+      analysis: p.analysis || null,
+      stats: p.stats || null
+    });
+
+    const propsNeedingPrediction = {};
+    for (const propType of availablePropTypes) {
+      const cached = predictionsCache.get(playerName, cacheKeyFor(propType));
+      if (cached) allPredictions[propType] = cached;
+      else if (allProps[propType]?.line) propsNeedingPrediction[propType] = allProps[propType];
+    }
+
+    if (Object.keys(propsNeedingPrediction).length > 0) {
+      const generated = await generateAllPropPredictions(
         stats.games,
         finalPlayerName,
-        'points',
+        propsNeedingPrediction,
         nextGameInfo,
-        injuryData,
-        pointsBettingLine  // ONLY use The Odds API line for points
+        injuryData
       );
-      
-      // Convert to format expected by frontend
-      prediction = {
-        predicted_points: pointsPrediction.predicted_value,
-        predictedPoints: pointsPrediction.predicted_value,
-        confidence: pointsPrediction.confidence,
-        error_margin: pointsPrediction.error_margin,
-        errorMargin: pointsPrediction.error_margin,
-        recommendation: pointsPrediction.recommendation,
-        analysis: pointsPrediction.analysis || null,
-        stats: pointsPrediction.stats || null
-      };
-      
-      if (prediction.predicted_points != null) {
-        predictionsCache.set(playerName, pointsCacheKey, prediction);
+      for (const [propType, p] of Object.entries(generated)) {
+        if (p?.predicted_value == null) continue;
+        const shaped = toClientShape(propType, p);
+        allPredictions[propType] = shaped;
+        predictionsCache.set(playerName, cacheKeyFor(propType), shaped);
       }
     }
-    allPredictions.points = prediction;
-    
-    // Check cache for other props (but don't generate them - lazy load on demand)
-    // This allows us to show cached predictions if available, but not block page load
-    for (const propType of availablePropTypes) {
-      if (propType !== 'points') {
-        const cacheKey = `${gamesHash}_${injuryHash}_${propType}`;
-        const cached = predictionsCache.get(playerName, cacheKey);
-        if (cached) {
-          allPredictions[propType] = cached;
-        }
-        // If not cached, we'll generate it on-demand when user clicks that prop tab
-      }
-    }
+    prediction = allPredictions.points || null;
 
     // Use the playerName we already extracted, or fallback
     if (!playerName) {
@@ -695,6 +694,8 @@ router.get('/:id/compare', async (req, res) => {
       recommendation,
       confidence: prediction?.confidence || null,
       error_margin: prediction?.error_margin || prediction?.errorMargin || null,
+      over_probability: prediction?.over_probability ?? null,
+      model_value: prediction?.model_value ?? null,
       next_game: nextGame ? {
         ...nextGame,
         // Standardized matchup fields from Odds API
@@ -735,6 +736,8 @@ router.get('/:id/compare', async (req, res) => {
               prediction_error_margin: prediction.error_margin || null,
               prediction_analysis: prediction.analysis || null,
               prediction_recommendation: prediction.recommendation || null,
+              prediction_over_probability: prediction.over_probability ?? null,
+              prediction_model_value: prediction.model_value ?? null,
               prediction_stats: prediction.stats || null
             } : {})
           };

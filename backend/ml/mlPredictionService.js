@@ -20,7 +20,12 @@ const MODELS_DIR = path.join(__dirname, 'models');
  * @param {string} propType - Prop type (PTS, REB, AST, etc.)
  * @returns {Object} - Features object
  */
-function buildMLFeatures(gameLogs, propType) {
+/**
+ * context (all optional, describe the UPCOMING game):
+ *   isHome       true/false for the next game
+ *   nextGameDate ISO string or Date of the next game (for rest-day features)
+ */
+function buildMLFeatures(gameLogs, propType, context = {}) {
   if (!gameLogs || gameLogs.length < 10) {
     throw new Error('Need at least 10 game logs to calculate features');
   }
@@ -43,7 +48,31 @@ function buildMLFeatures(gameLogs, propType) {
   const minutes = recentGames.map(g => parseFloat(g.minutes) || 0);
   const fga = recentGames.map(g => parseFloat(g.fga ?? g.field_goals_attempted) || 0);
   const fg3a = recentGames.map(g => parseFloat(g.fg3a ?? g.three_pointers_attempted ?? g.threes_attempted) || 0);
-  const fgPct = recentGames.map(g => parseFloat(g.fg_pct ?? g.field_goal_pct) || 0);
+  // Training data carried NBA.com's per-game fg_pct (0-1); ESPN logs give makes/attempts
+  const fgPct = recentGames.map(g => {
+    const pct = parseFloat(g.fg_pct ?? g.field_goal_pct);
+    if (!isNaN(pct) && pct > 0) return pct > 1 ? pct / 100 : pct;
+    const made = parseFloat(g.fgm ?? g.field_goals_made) || 0;
+    const att = parseFloat(g.fga ?? g.field_goals_attempted) || 0;
+    return att > 0 ? made / att : 0;
+  });
+  // Training used NBA.com's "wl"; ESPN logs call it "result"
+  const winLoss = recentGames.map(g => {
+    const raw = String(g.wl ?? g.result ?? g.win_loss ?? '').trim().toUpperCase();
+    return raw.startsWith('W') ? 'W' : raw.startsWith('L') ? 'L' : null;
+  });
+  const gameDate = (g) => new Date(g.date || g.game_date);
+  const lastGameDate = gameDate(recentGames[recentGames.length - 1]);
+  const nextGameDate = context.nextGameDate ? new Date(context.nextGameDate) : null;
+  const hasNextDate = nextGameDate && !isNaN(nextGameDate.getTime()) && nextGameDate > lastGameDate;
+  // Rest features describe the upcoming game when we know its date; otherwise
+  // fall back to the gap before the last game (the old behaviour)
+  const restDays = hasNextDate
+    ? Math.round((nextGameDate - lastGameDate) / 86400000)
+    : recentGames.length >= 2
+      ? Math.round((lastGameDate - gameDate(recentGames[recentGames.length - 2])) / 86400000)
+      : 1;
+  const referenceDate = hasNextDate ? nextGameDate : lastGameDate;
   const fta = recentGames.map(g => parseFloat(g.fta ?? g.free_throws_attempted) || 0);
   const plusMinus = recentGames.map(g => parseFloat(g.plus_minus ?? g.plusMinus) || 0);
 
@@ -149,38 +178,22 @@ function buildMLFeatures(gameLogs, propType) {
       return streak;
     })(),
 
-    // Days rest (calculate from game dates if available)
-    days_rest: (() => {
-      if (recentGames.length < 2) return 1;
-      const lastGame = new Date(recentGames[recentGames.length - 1].date || recentGames[recentGames.length - 1].game_date);
-      const prevGame = new Date(recentGames[recentGames.length - 2].date || recentGames[recentGames.length - 2].game_date);
-      const daysDiff = Math.round((lastGame - prevGame) / (1000 * 60 * 60 * 24));
-      return Math.max(0, Math.min(daysDiff, 7));
-    })(),
-
-    is_back_to_back: (() => {
-      if (recentGames.length < 2) return 0;
-      const lastGame = new Date(recentGames[recentGames.length - 1].date || recentGames[recentGames.length - 1].game_date);
-      const prevGame = new Date(recentGames[recentGames.length - 2].date || recentGames[recentGames.length - 2].game_date);
-      const daysDiff = Math.round((lastGame - prevGame) / (1000 * 60 * 60 * 24));
-      return daysDiff === 1 ? 1 : 0;
-    })(),
-
+    // Rest before the upcoming game (same definitions as training)
+    days_rest: Math.max(0, Math.min(restDays, 7)),
+    is_back_to_back: restDays === 1 ? 1 : 0,
     games_in_last_week: (() => {
-      if (recentGames.length === 0) return 0;
-      const lastGame = new Date(recentGames[recentGames.length - 1].date || recentGames[recentGames.length - 1].game_date);
-      const weekAgo = new Date(lastGame.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const weekAgo = new Date(referenceDate.getTime() - 7 * 24 * 60 * 60 * 1000);
       return recentGames.filter(g => {
-        const gDate = new Date(g.date || g.game_date);
-        return gDate >= weekAgo && gDate <= lastGame;
+        const d = gameDate(g);
+        return d >= weekAgo && d < referenceDate || (!hasNextDate && d.getTime() === referenceDate.getTime());
       }).length;
     })(),
 
     // Win/loss streaks
     win_streak: (() => {
       let streak = 0;
-      for (let i = recentGames.length - 1; i >= Math.max(0, recentGames.length - 10); i--) {
-        if (recentGames[i].wl === 'W') streak++;
+      for (let i = winLoss.length - 1; i >= Math.max(0, winLoss.length - 10); i--) {
+        if (winLoss[i] === 'W') streak++;
         else break;
       }
       return streak;
@@ -188,18 +201,17 @@ function buildMLFeatures(gameLogs, propType) {
 
     loss_streak: (() => {
       let streak = 0;
-      for (let i = recentGames.length - 1; i >= Math.max(0, recentGames.length - 10); i--) {
-        if (recentGames[i].wl === 'L') streak++;
+      for (let i = winLoss.length - 1; i >= Math.max(0, winLoss.length - 10); i--) {
+        if (winLoss[i] === 'L') streak++;
         else break;
       }
       return streak;
     })(),
 
     recent_win_pct: (() => {
-      const last10 = recentGames.slice(-10);
+      const last10 = winLoss.slice(-10).filter(Boolean);
       if (last10.length === 0) return 0.5;
-      const wins = last10.filter(g => g.wl === 'W').length;
-      return wins / last10.length;
+      return last10.filter(r => r === 'W').length / last10.length;
     })(),
 
     // === EFFICIENCY & SHOOTING TRENDS ===
@@ -235,8 +247,8 @@ function buildMLFeatures(gameLogs, propType) {
       return last10.filter(v => Math.abs(v - seasonAvg) <= threshold).length / last10.length;
     })(),
 
-    // Context
-    is_home: 0 // Default to away, can be overridden
+    // Upcoming game is home? (unknown -> 0, matching the old default)
+    is_home: context.isHome === true || context.isHome === 1 ? 1 : 0
   };
 
   // Replace NaN with 0
@@ -264,12 +276,13 @@ function calculateUsage(avgPoints, avgMinutes) {
  * @param {string} propType - Prop type (PTS, REB, AST, etc.)
  * @returns {Promise<number>} - Predicted value
  */
-function callXGBoostPredictor(features, propType) {
+function callXGBoostPredictor(features, propTypes) {
+  const list = Array.isArray(propTypes) ? propTypes : [propTypes];
   return new Promise((resolve, reject) => {
     const args = [
       XGBOOST_SCRIPT,
       JSON.stringify(features),
-      propType.toUpperCase(),
+      list.map(p => p.toUpperCase()).join(','),
       MODELS_DIR
     ];
 
@@ -294,9 +307,9 @@ function callXGBoostPredictor(features, propType) {
       try {
         const result = JSON.parse(stdout);
         if (!result.success) {
-          return reject(new Error(result.error));
+          return reject(new Error(result.error || Object.values(result.errors || {}).join('; ') || 'Prediction failed'));
         }
-        resolve(result.prediction);
+        resolve(result);
       } catch (error) {
         reject(new Error(`Failed to parse XGBoost output: ${stdout}`));
       }
@@ -316,16 +329,27 @@ function callXGBoostPredictor(features, propType) {
  * @returns {Promise<Object>} - { prediction, features }
  */
 async function predictProp(gameLogs, propType, options = {}) {
-  const features = buildMLFeatures(gameLogs, propType);
-
-  if (options.isHome !== undefined) {
-    features.is_home = options.isHome ? 1 : 0;
+  const { predictions, features } = await predictProps(gameLogs, [propType], options);
+  if (predictions[propType.toUpperCase()] == null) {
+    throw new Error(`No prediction returned for ${propType}`);
   }
+  return { prediction: predictions[propType.toUpperCase()], features };
+}
 
-  const prediction = await callXGBoostPredictor(features, propType);
-  const bounded = Math.max(0, prediction);
-  console.log(`✅ [XGBoost] ${propType} prediction: ${bounded.toFixed(2)}`);
-  return { prediction: bounded, features };
+/**
+ * Predict several prop types with one feature build and one Python process.
+ * @returns {Promise<{predictions: Object, errors: Object, features: Object}>}
+ */
+async function predictProps(gameLogs, propTypes, context = {}) {
+  const features = buildMLFeatures(gameLogs, propTypes[0], context);
+  const result = await callXGBoostPredictor(features, propTypes);
+  const predictions = {};
+  for (const [prop, value] of Object.entries(result.predictions || {})) {
+    predictions[prop] = Math.max(0, value);
+  }
+  const summary = Object.entries(predictions).map(([p, v]) => `${p} ${v.toFixed(1)}`).join(', ');
+  console.log(`✅ [XGBoost] ${summary}`);
+  return { predictions, errors: result.errors || {}, features };
 }
 
 /**
@@ -370,6 +394,7 @@ function areModelsAvailable() {
 
 export {
   predictProp,
+  predictProps,
   predictAllProps,
   buildMLFeatures,
   areModelsAvailable

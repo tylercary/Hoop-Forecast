@@ -4,7 +4,7 @@
  * Uses ONLY correct vegas line for each prop
  */
 
-import { predictPropFromGames } from './unifiedPredictionService.js';
+import { predictPropFromGames, predictPropsFromGames } from './unifiedPredictionService.js';
 
 /**
  * Generate prediction for a specific prop type
@@ -81,26 +81,17 @@ export async function generatePropPrediction(games, playerName, propType, nextGa
       predictedValue = prediction.predicted_value || null;
     }
 
-    // Determine recommendation
-    let recommendation = null;
-    if (predictedValue != null && vegasLine != null) {
-      const difference = predictedValue - vegasLine;
-      if (Math.abs(difference) < 0.5) {
-        recommendation = 'PUSH';
-      } else if (difference > 0) {
-        recommendation = 'OVER';
-      } else {
-        recommendation = 'UNDER';
-      }
-    }
-
     return {
       predicted_value: predictedValue,
       confidence: prediction.confidence || null,
-      recommendation: recommendation,
+      // null when the backend sees no real edge; the page shows a lean instead
+      recommendation: prediction.recommendation ?? null,
+      over_probability: prediction.over_probability ?? null,
       error_margin: prediction.error_margin || prediction.errorMargin || null,
       analysis: prediction.analysis || null,
-      stats: prediction.stats || null
+      stats: prediction.stats || null,
+      model_value: prediction.model_value ?? null,
+      opponent: prediction.opponent || null
     };
   } catch (error) {
     console.error(`❌ Error generating prediction for ${propType}:`, error.message);
@@ -124,39 +115,48 @@ export async function generatePropPrediction(games, playerName, propType, nextGa
  * @returns {Promise<object>} Object with predictions for each prop
  */
 export async function generateAllPropPredictions(games, playerName, allProps, nextGameInfo, injuryData) {
-  const predictions = {};
-  
-  // Generate prediction for each prop that has a line
   const propTypes = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
-  
+  const predictions = {};
+  const unavailable = { predicted_value: null, confidence: null, recommendation: null, error_margin: null, status: 'unavailable' };
+
+  // Only props with a posted line get a prediction
+  const lines = {};
   for (const propType of propTypes) {
     const prop = allProps[propType];
-    
-    // Skip if prop is unavailable or has no line
-    if (!prop || prop.status === 'unavailable' || !prop.line) {
-      predictions[propType] = {
-        predicted_value: null,
-        confidence: null,
-        recommendation: null,
-        error_margin: null,
-        status: 'unavailable'
-      };
+    if (!prop || prop.status === 'unavailable' || !prop.line) predictions[propType] = unavailable;
+    else lines[propType] = prop.line;
+  }
+  if (Object.keys(lines).length === 0 || !games || games.length < 3) {
+    for (const propType of Object.keys(lines)) predictions[propType] = { ...unavailable, error: 'Insufficient game data' };
+    return predictions;
+  }
+
+  // One feature build and one model process for every prop
+  let results = {};
+  try {
+    results = await predictPropsFromGames(games, playerName, lines, nextGameInfo, injuryData);
+  } catch (error) {
+    console.error('❌ Error generating prop predictions:', error.message);
+  }
+
+  for (const [propType, vegasLine] of Object.entries(lines)) {
+    const prediction = results[propType];
+    if (!prediction) {
+      predictions[propType] = { ...unavailable, status: null, error: 'Prediction generation failed' };
       continue;
     }
-    
-    // Generate prediction with the correct vegas line for this prop
-    const prediction = await generatePropPrediction(
-      games,
-      playerName,
-      propType,
-      nextGameInfo,
-      injuryData,
-      prop.line
-    );
-    
-    predictions[propType] = prediction;
+    const predictedValue = prediction[`predicted_${propType}`] ?? prediction.predicted_value ?? null;
+    predictions[propType] = {
+      predicted_value: predictedValue,
+      confidence: prediction.confidence || null,
+      recommendation: prediction.recommendation || null,
+      over_probability: prediction.over_probability ?? null,
+      error_margin: prediction.error_margin ?? null,
+      analysis: prediction.analysis || null,
+      stats: prediction.stats || null,
+      model_value: prediction.model_value ?? null,
+      betting_line: vegasLine
+    };
   }
-  
   return predictions;
 }
-

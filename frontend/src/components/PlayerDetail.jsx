@@ -181,6 +181,7 @@ function PlayerDetail() {
             error_margin: propData.prediction_error_margin,
             analysis: propData.prediction_analysis || null,
             recommendation: propData.prediction_recommendation || null,
+            over_probability: propData.prediction_over_probability ?? null,
             stats: propData.prediction_stats || null
           }
         }));
@@ -931,9 +932,21 @@ function PlayerDetail() {
                     }
                   }
                   
-                  const recommendation = (prediction != null && line != null) 
-                    ? (prediction > line ? 'OVER' : prediction < line ? 'UNDER' : 'PUSH')
+                  // Server over-probability and recommendation (the recommendation
+                  // already accounts for the player's spread; null means no real edge)
+                  const serverOverProb = propPredictions[selectedProp]?.over_probability ??
+                    propData?.prediction_over_probability ??
+                    (selectedProp === 'points' ? comparisonData.over_probability : null) ?? null;
+                  const serverRecommendation = propPredictions[selectedProp]?.recommendation ??
+                    propData?.prediction_recommendation ??
+                    (selectedProp === 'points' ? comparisonData.recommendation : null) ?? null;
+                  const recommendation = (prediction != null && line != null)
+                    ? (serverRecommendation
+                        || (serverOverProb != null
+                            ? (serverOverProb >= 50 ? 'OVER' : 'UNDER')
+                            : (prediction > line ? 'OVER' : prediction < line ? 'UNDER' : 'PUSH')))
                     : null;
+                  const isLean = recommendation != null && !serverRecommendation;
                   
                   // Get prop labels
                   const propLabels = {
@@ -960,14 +973,12 @@ function PlayerDetail() {
                     (propData?.prediction_error_margin) ||
                     Math.max(2, Math.abs((prediction || 0) - (line || 0)) * 0.3);
                   
-                  // Use server-computed over probability when available (matchup-enhanced),
-                  // otherwise fall back to client-side calculation
-                  const serverOverProb = propData?.prediction_over_probability ||
-                    propPredictions[selectedProp]?.over_probability;
+                  // Probability of the side we're showing, from the server's single spread
+                  // model; the client-side normal curve is only a fallback for old caches
                   const coverProbability = serverOverProb != null
-                    ? (recommendation === 'OVER' ? serverOverProb : (100 - serverOverProb))
+                    ? (recommendation === 'UNDER' ? (100 - serverOverProb) : serverOverProb)
                     : (prediction != null && line != null)
-                      ? calculateCoverProbability(prediction, line, errorMargin, recommendation === 'OVER')
+                      ? calculateCoverProbability(prediction, line, errorMargin, recommendation !== 'UNDER')
                       : 50.0;
                   
                   // Get odds for EV calculation (use best odds from all_bookmakers or single bookmaker)
@@ -1007,8 +1018,11 @@ function PlayerDetail() {
                     : null;
                   
                   // Only calculate bet rating if we have all necessary data
+                  const confidenceScore = typeof confidence === 'number'
+                    ? confidence
+                    : ({ High: 85, Medium: 70, Low: 55 }[confidence] ?? 50);
                   const betRating = (hasPrediction && ev != null && coverProbability != null && predictionDiff != null && confidence != null)
-                    ? calculateBetRating(ev, coverProbability, predictionDiff, confidence)
+                    ? calculateBetRating(ev, coverProbability, predictionDiff, confidenceScore)
                     : null;
                   
                   // Calculate season prop record
@@ -1068,7 +1082,7 @@ function PlayerDetail() {
                         value={prediction != null
                           ? prediction.toFixed(1)
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
-                        subtitle={prediction != null ? `${propLabel}${recommendation ? ` · leans ${recommendation.toLowerCase()}` : ''}` : null}
+                        subtitle={prediction != null ? `${propLabel}${recommendation ? ` · ${isLean ? 'leans' : 'pick:'} ${recommendation.toLowerCase()}` : ''}` : null}
                         color={recommendation === 'OVER' ? 'text-emerald-400' : recommendation === 'UNDER' ? 'text-rose-400' : 'text-amber-400'}
                         valueSize="text-2xl"
                         index={1}
@@ -1084,6 +1098,7 @@ function PlayerDetail() {
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
                         color={hasPrediction && coverProbability != null ? getCoverProbabilityColor(coverProbability) : 'text-slate-400'}
                         progressBar={hasPrediction && coverProbability != null ? coverProbability : null}
+                        subtitle={hasPrediction && coverProbability != null && recommendation ? `chance of the ${recommendation.toLowerCase()}` : null}
                         infoTooltip="The probability that the bet will cover based on our model's prediction and historical performance."
                         infoTooltipLabel="Cover Probability"
                         valueSize="text-2xl"

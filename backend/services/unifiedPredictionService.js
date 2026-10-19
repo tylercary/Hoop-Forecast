@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { storePrediction, getPlayerBias, getGlobalBias } from './predictionTrackingService.js';
-import { predictProp as mlPredictProp, buildMLFeatures } from '../ml/mlPredictionService.js';
+import { predictProps as mlPredictProps } from '../ml/mlPredictionService.js';
 import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './opponentMatchupService.js';
 
 dotenv.config();
@@ -472,26 +472,13 @@ function calculateConfidenceLevel(predictedValue, vegasLine, volatility = 30) {
 }
 
 /**
- * Calculate error margin from volatility and season average.
- * Scales with stat magnitude so low-value props (threes, steals, blocks)
- * get proportionally tighter margins than high-value props (points, PRA).
- *
- * Base margin = seasonAvg * percentage (15%-30% depending on volatility),
- * with a floor of 1.0 and a cap of 6.0.
+ * Spread used for every probability on the page: the player's game-to-game
+ * standard deviation for this prop, with a floor so thin logs or very steady
+ * players don't produce absurd certainty.
  */
-function calculateErrorMargin(volatility, seasonAvg = 20) {
-  // Percentage of season average to use as margin
-  let pct;
-  if (volatility < 20) {
-    pct = 0.15 + (volatility / 20) * 0.05; // 15% to 20%
-  } else if (volatility < 50) {
-    pct = 0.20 + ((volatility - 20) / 30) * 0.05; // 20% to 25%
-  } else {
-    pct = 0.25 + Math.min((volatility - 50) / 50, 1.0) * 0.05; // 25% to 30%
-  }
-
-  const margin = seasonAvg * pct;
-  return Math.max(1.0, Math.min(margin, 6.0));
+function predictionSigma(stdDev, seasonAvg) {
+  const floor = Math.max(0.5, seasonAvg * 0.12);
+  return Math.max(stdDev || 0, floor);
 }
 
 /**
@@ -652,217 +639,212 @@ function calculateEnhancedOverUnder(prediction, line, stdDev, matchupEdge = 0, v
 }
 
 /**
- * Predict any prop type from games array using XGBoost models
- * This is the UNIFIED prediction function for ALL props
+ * Predict several props for one player with a single model call.
+ *
+ * @param {Array} games        game log, most recent first
+ * @param {string} playerName
+ * @param {Object} lines       { propType: vegasLine } for every prop to predict
+ * @param {Object} nextGameInfo { date, opponent, isHome, team, commence_time? }
+ * @param {Object} injuryData
+ * @returns {Promise<Object>}  { propType: predictionResult }
  */
-export async function predictPropFromGames(games, playerName, propType = 'points', nextGameInfo = null, injuryData = null, bettingLine = null) {
+export async function predictPropsFromGames(games, playerName, lines, nextGameInfo = null, injuryData = null) {
   if (!games || games.length < 3) {
     throw new Error(`Insufficient game data for prediction. Need at least 3 games, got ${games?.length || 0}.`);
   }
+  const propTypes = Object.keys(lines);
+  if (propTypes.length === 0) return {};
 
-  const propTypeFormatted = PROP_TYPE_MAP[propType] || propType.toUpperCase();
-  try {
-    // Step 1: Fetch opponent matchup features (non-blocking — falls back to null)
-    let matchupFeatures = null;
-    let matchupEdge = 0;
-    let opponentAbbrev = null;
+  // Opponent context is shared by every prop
+  let opponentAbbrev = null;
+  if (nextGameInfo) {
+    try {
+      const lastGame = games[0];
+      opponentAbbrev = resolveOpponentAbbrev(nextGameInfo, lastGame?.team || lastGame?.teamAbbrev || null);
+    } catch (err) {
+      console.warn('[Matchup] Could not resolve opponent:', err.message);
+    }
+  }
 
-    if (nextGameInfo) {
-      try {
-        // Determine player's team from recent games
-        const lastGame = games[0];
-        const playerTeam = lastGame?.team || lastGame?.teamAbbrev || null;
-        opponentAbbrev = resolveOpponentAbbrev(nextGameInfo, playerTeam);
+  // One feature build, one Python process for all requested props. The model
+  // is told about the UPCOMING game (home/away, rest) rather than the last one.
+  const modelContext = {
+    isHome: nextGameInfo?.isHome ?? null,
+    nextGameDate: nextGameInfo?.commence_time || nextGameInfo?.date || null
+  };
+  const formatted = propTypes.map(p => PROP_TYPE_MAP[p] || p.toUpperCase());
+  const { predictions: rawPredictions, errors: modelErrors, features: mlFeatureVector } =
+    await mlPredictProps(games, formatted, modelContext);
 
-        if (opponentAbbrev) {
+  const results = {};
+  for (const propType of propTypes) {
+    const propTypeFormatted = PROP_TYPE_MAP[propType] || propType.toUpperCase();
+    const rawPrediction = rawPredictions[propTypeFormatted];
+    if (rawPrediction == null) {
+      console.error(`[PIPELINE-${propTypeFormatted}] Model error:`, modelErrors?.[propTypeFormatted]);
+      continue;
+    }
+    try {
+      let matchupFeatures = null;
+      let matchupEdge = 0;
+      if (opponentAbbrev) {
+        try {
           matchupFeatures = await buildMatchupFeatures(opponentAbbrev, propType);
           matchupEdge = getMatchupEdge(matchupFeatures, propType);
+        } catch (matchupErr) {
+          console.warn('[Matchup] Failed to build matchup features:', matchupErr.message);
         }
-      } catch (matchupErr) {
-        console.warn('[Matchup] Failed to build matchup features:', matchupErr.message);
       }
+      const features = buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData, lines[propType], matchupFeatures);
+      results[propType] = finalizePrediction({
+        rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData,
+        matchupEdge, opponentAbbrev, mlFeatureVector
+      });
+    } catch (error) {
+      console.error(`[PIPELINE-${propTypeFormatted}] Prediction failed:`, error);
     }
-
-    // Step 2: Build prop-specific features
-    const features = buildPropFeatures(games, playerName, propType, nextGameInfo, injuryData, bettingLine, matchupFeatures);
-
-    // Step 3: Handle OUT players immediately
-    if (features.injuryStatus === 'out') {
-      const statsForAnalysis = {
-        overall_avg: features.seasonAvg,
-        recent_3_avg: features.recentAvg3,
-        recent_5_avg: features.recentAvg5,
-        volatility: features.volatility,
-        std_dev: features.stdDev
-      };
-
-      const analysis = `The player is currently listed as out and will not play in the upcoming game. This prediction reflects that status.`;
-
-      return {
-        player: playerName,
-        [`predicted_${propType}`]: 0,
-        predicted_points: propType === 'points' ? 0 : null,
-        analysis: analysis,
-        confidence: 'High',
-        error_margin: 0,
-        recommendation: null,
-        over_probability: null,
-        edge_strength: 0,
-        matchup_impact: 0,
-        games_used: games.length,
-        method: 'player_out',
-        prop_type: propType,
-        stats: statsForAnalysis
-      };
-    }
-
-    // Step 4: Generate numeric prediction using XGBoost ML models
-    let predictedValue;
-    let predictionMethod = 'xgboost_model';
-    let mlFeatureVector = null;
-
-    try {
-      mlFeatureVector = buildMLFeatures(games, propTypeFormatted);
-    } catch (featErr) {
-      console.warn('Could not compute feature vector:', featErr.message);
-    }
-
-    const mlResult = await mlPredictProp(games, propTypeFormatted);
-    predictedValue = mlResult.prediction;
-    mlFeatureVector = mlResult.features;
-
-    // Step 5: Dynamic recent form blending — scale by volatility.
-    let finalPredictedValue = predictedValue;
-    const recentAvg3 = features.recentAvg3;
-    const recentDeviation = recentAvg3 - predictedValue;
-    const vol = features.volatility || 0;
-
-    if (Math.abs(recentDeviation) > 1.5 && recentAvg3 > 0) {
-      const blendRatio = vol < 15 ? 0.15 : vol > 50 ? 0.45 : 0.15 + (vol - 15) / 35 * 0.30;
-      const maxCap = Math.max(3, features.seasonAvg * 0.15);
-      const rawAdjustment = recentDeviation * blendRatio;
-      const adjustment = Math.sign(rawAdjustment) * Math.min(Math.abs(rawAdjustment), maxCap);
-      finalPredictedValue = predictedValue + adjustment;
-    }
-
-    // Step 5b: Apply matchup adjustment to predicted value.
-    // Scale matchup edge by season average to get absolute adjustment.
-    if (matchupEdge !== 0 && features.seasonAvg > 0) {
-      const matchupAdjustment = matchupEdge * features.seasonAvg * 0.08; // ~8% of season avg max
-      const cappedMatchupAdj = Math.sign(matchupAdjustment) * Math.min(Math.abs(matchupAdjustment), features.seasonAvg * 0.1);
-      finalPredictedValue += cappedMatchupAdj;
-    }
-
-    // Step 5c: Apply learned bias corrections from historical prediction errors.
-    // Player-specific bias takes priority when sufficient data exists; otherwise
-    // fall back to the global bias for this prop type. This is how the model
-    // actually learns from past predictions.
-    const playerBias = getPlayerBias(playerName, propType);
-    if (playerBias !== null) {
-      const cappedBias = Math.sign(playerBias) * Math.min(Math.abs(playerBias), 5);
-      finalPredictedValue += cappedBias;
-    } else {
-      const globalBias = getGlobalBias(propType);
-      if (globalBias !== null) {
-        const cappedBias = Math.sign(globalBias) * Math.min(Math.abs(globalBias), 4);
-        finalPredictedValue += cappedBias;
-      }
-    }
-
-    // Step 5d: Vegas line anchoring — the Vegas line is the most efficient
-    // predictor available. Data shows 80% hit rate when model stays within 10%
-    // of the line, but only 40% when deviating more. Use the line as the
-    // primary anchor and apply only a small fraction of the model's deviation.
-    if (features.vegasLine && features.vegasLine > 0) {
-      const modelDeviation = finalPredictedValue - features.vegasLine;
-
-      // Apply only 15% of the model's deviation. Cap adjustment at 10% of line.
-      // Tighter than before because data shows model deviations are usually wrong.
-      const maxAdj = features.vegasLine * 0.10;
-      const adjustment = Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * 0.15, maxAdj);
-      finalPredictedValue = features.vegasLine + adjustment;
-    }
-
-    // Step 6: Enhanced over/under classifier with matchup context
-    const ouResult = calculateEnhancedOverUnder(
-      finalPredictedValue, features.vegasLine, features.stdDev, matchupEdge, features.volatility
-    );
-
-    // Step 7: Calculate error margin from volatility
-    const errorMargin = calculateErrorMargin(features.volatility, features.seasonAvg);
-
-    // Step 8: Build result object
-    const predictedFieldName = `predicted_${propType}`;
-    const predictedValueRounded = Math.max(0, Math.round(finalPredictedValue * 10) / 10);
-
-    const statsForAnalysis = {
-      overall_avg: features.seasonAvg,
-      recent_3_avg: features.recentAvg3,
-      recent_5_avg: features.recentAvg5,
-      volatility: features.volatility,
-      std_dev: features.stdDev
-    };
-
-    // Build injury context for analysis
-    let injuryContext = null;
-    if (injuryData) {
-      const keyInjuries = (injuryData.playerTeamInjuries || [])
-        .filter(inj => inj.impactScore >= 80 && !inj.playerName?.toLowerCase().includes(playerName.toLowerCase().split(' ').pop()));
-      const oppKeyInjuries = (injuryData.opponentInjuries || [])
-        .filter(inj => inj.impactScore >= 80);
-
-      if (keyInjuries.length > 0) {
-        const names = keyInjuries.map(i => i.playerName).join(', ');
-        injuryContext = `Key teammate${keyInjuries.length > 1 ? 's' : ''} ${names} ${keyInjuries.length > 1 ? 'are' : 'is'} out, which may increase usage and opportunity.`;
-      }
-      if (oppKeyInjuries.length > 0) {
-        const names = oppKeyInjuries.map(i => i.playerName).join(', ');
-        const oppContext = `Opponent is missing ${names}, which could affect the defensive matchup.`;
-        injuryContext = injuryContext ? `${injuryContext} ${oppContext}` : oppContext;
-      }
-    }
-
-    // Generate natural language analysis with full context
-    const analysis = generateAnalysis(finalPredictedValue, features.vegasLine, statsForAnalysis, propType, ouResult.overProbability, {
-      matchupImpact: ouResult.matchupImpact,
-      opponent: opponentAbbrev,
-      recommendation: ouResult.recommendation,
-      confidence: ouResult.confidence,
-      injuryContext
-    });
-
-    const predictionResult = {
-      player: playerName,
-      [predictedFieldName]: predictedValueRounded,
-      predicted_points: propType === 'points' ? predictedValueRounded : null,
-      analysis: analysis,
-      confidence: ouResult.confidence,
-      error_margin: Math.round(errorMargin * 10) / 10,
-      recommendation: ouResult.recommendation,
-      over_probability: ouResult.overProbability,
-      edge_strength: ouResult.edgeStrength,
-      matchup_impact: ouResult.matchupImpact,
-      betting_line: features.vegasLine,
-      games_used: games.length,
-      method: predictionMethod,
-      prop_type: propType,
-      opponent: opponentAbbrev,
-      stats: statsForAnalysis
-    };
-
-    // Store prediction for tracking (if next game info is available)
-    if (nextGameInfo && nextGameInfo.date) {
-      try {
-        storePrediction(playerName, predictionResult, games, nextGameInfo, propType, mlFeatureVector);
-      } catch (trackError) {
-        console.warn('Failed to store prediction for tracking:', trackError.message);
-      }
-    }
-
-    return predictionResult;
-  } catch (error) {
-    console.error(`[PIPELINE-${propTypeFormatted}] Prediction failed:`, error);
-    throw new Error(`Prediction failed for ${propType}: ${error.message}`);
   }
+  return results;
 }
 
+/**
+ * Predict one prop (kept for single-prop callers; uses the batch path).
+ */
+export async function predictPropFromGames(games, playerName, propType = 'points', nextGameInfo = null, injuryData = null, bettingLine = null) {
+  const results = await predictPropsFromGames(games, playerName, { [propType]: bettingLine }, nextGameInfo, injuryData);
+  if (!results[propType]) {
+    throw new Error(`Prediction failed for ${propType}`);
+  }
+  return results[propType];
+}
+
+/**
+ * Everything after the model: injuries, recent-form blend, matchup, learned
+ * bias, Vegas anchoring, probabilities, text. Identical for every prop.
+ */
+function finalizePrediction({ rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData, matchupEdge, opponentAbbrev, mlFeatureVector }) {
+  const statsForAnalysis = {
+    overall_avg: features.seasonAvg,
+    recent_3_avg: features.recentAvg3,
+    recent_5_avg: features.recentAvg5,
+    volatility: features.volatility,
+    std_dev: features.stdDev
+  };
+
+  // OUT players: nothing to predict
+  if (features.injuryStatus === 'out') {
+    return {
+      player: playerName,
+      [`predicted_${propType}`]: 0,
+      predicted_points: propType === 'points' ? 0 : null,
+      analysis: 'The player is currently listed as out and will not play in the upcoming game. This prediction reflects that status.',
+      confidence: 'High',
+      error_margin: 0,
+      recommendation: null,
+      over_probability: null,
+      edge_strength: 0,
+      matchup_impact: 0,
+      games_used: games.length,
+      method: 'player_out',
+      prop_type: propType,
+      stats: statsForAnalysis
+    };
+  }
+
+  let finalPredictedValue = rawPrediction;
+
+  // Recent form blend, scaled by volatility
+  const recentDeviation = features.recentAvg3 - rawPrediction;
+  const vol = features.volatility || 0;
+  if (Math.abs(recentDeviation) > 1.5 && features.recentAvg3 > 0) {
+    const blendRatio = vol < 15 ? 0.15 : vol > 50 ? 0.45 : 0.15 + (vol - 15) / 35 * 0.30;
+    const maxCap = Math.max(3, features.seasonAvg * 0.15);
+    const rawAdjustment = recentDeviation * blendRatio;
+    finalPredictedValue += Math.sign(rawAdjustment) * Math.min(Math.abs(rawAdjustment), maxCap);
+  }
+
+  // Matchup adjustment (~8% of season avg at most)
+  if (matchupEdge !== 0 && features.seasonAvg > 0) {
+    const matchupAdjustment = matchupEdge * features.seasonAvg * 0.08;
+    finalPredictedValue += Math.sign(matchupAdjustment) * Math.min(Math.abs(matchupAdjustment), features.seasonAvg * 0.1);
+  }
+
+  // Learned bias from evaluated predictions (player first, then prop-wide)
+  const playerBias = getPlayerBias(playerName, propType);
+  if (playerBias !== null) {
+    finalPredictedValue += Math.sign(playerBias) * Math.min(Math.abs(playerBias), 5);
+  } else {
+    const globalBias = getGlobalBias(propType);
+    if (globalBias !== null) {
+      finalPredictedValue += Math.sign(globalBias) * Math.min(Math.abs(globalBias), 4);
+    }
+  }
+
+  // Vegas anchoring: keep 15% of the model's deviation, capped at 10% of the line
+  if (features.vegasLine && features.vegasLine > 0) {
+    const modelDeviation = finalPredictedValue - features.vegasLine;
+    const maxAdj = features.vegasLine * 0.10;
+    finalPredictedValue = features.vegasLine + Math.sign(modelDeviation) * Math.min(Math.abs(modelDeviation) * 0.15, maxAdj);
+  }
+
+  // One spread drives the over probability, the recommendation and the margin
+  const sigma = predictionSigma(features.stdDev, features.seasonAvg);
+  const ouResult = calculateEnhancedOverUnder(finalPredictedValue, features.vegasLine, sigma, matchupEdge, features.volatility);
+
+  const predictedValueRounded = Math.max(0, Math.round(finalPredictedValue * 10) / 10);
+
+  let injuryContext = null;
+  if (injuryData) {
+    const lastName = playerName.toLowerCase().split(' ').pop();
+    const keyInjuries = (injuryData.playerTeamInjuries || [])
+      .filter(inj => inj.impactScore >= 80 && !inj.playerName?.toLowerCase().includes(lastName));
+    const oppKeyInjuries = (injuryData.opponentInjuries || []).filter(inj => inj.impactScore >= 80);
+    if (keyInjuries.length > 0) {
+      const names = keyInjuries.map(i => i.playerName).join(', ');
+      injuryContext = `Key teammate${keyInjuries.length > 1 ? 's' : ''} ${names} ${keyInjuries.length > 1 ? 'are' : 'is'} out, which may increase usage and opportunity.`;
+    }
+    if (oppKeyInjuries.length > 0) {
+      const names = oppKeyInjuries.map(i => i.playerName).join(', ');
+      const oppContext = `Opponent is missing ${names}, which could affect the defensive matchup.`;
+      injuryContext = injuryContext ? `${injuryContext} ${oppContext}` : oppContext;
+    }
+  }
+
+  const analysis = generateAnalysis(finalPredictedValue, features.vegasLine, statsForAnalysis, propType, ouResult.overProbability, {
+    matchupImpact: ouResult.matchupImpact,
+    opponent: opponentAbbrev,
+    recommendation: ouResult.recommendation,
+    confidence: ouResult.confidence,
+    injuryContext
+  });
+
+  const predictionResult = {
+    player: playerName,
+    [`predicted_${propType}`]: predictedValueRounded,
+    predicted_points: propType === 'points' ? predictedValueRounded : null,
+    model_value: Math.round(rawPrediction * 10) / 10,
+    analysis,
+    confidence: ouResult.confidence,
+    error_margin: Math.round(sigma * 10) / 10,
+    recommendation: ouResult.recommendation,
+    over_probability: ouResult.overProbability,
+    edge_strength: ouResult.edgeStrength,
+    matchup_impact: ouResult.matchupImpact,
+    betting_line: features.vegasLine,
+    games_used: games.length,
+    method: 'xgboost_model',
+    prop_type: propType,
+    opponent: opponentAbbrev,
+    stats: statsForAnalysis
+  };
+
+  if (nextGameInfo && nextGameInfo.date) {
+    try {
+      storePrediction(playerName, predictionResult, games, nextGameInfo, propType, mlFeatureVector);
+    } catch (trackError) {
+      console.warn('Failed to store prediction for tracking:', trackError.message);
+    }
+  }
+
+  return predictionResult;
+}
