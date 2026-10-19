@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { getSportsbookLogo, getSportsbookBanner, getSportsbookBannerBg, getSportsbookDisplayName, normalizeSportsbookName } from '../utils/sportsbookLogos';
+import { getSportsbookInfo, getSportsbookDisplayName, normalizeSportsbookName } from '../utils/sportsbookLogos';
+import SportsbookHeader from './SportsbookHeader';
 
 // Sportsbook priority order (matches BettingPros)
 const SPORTSBOOK_ORDER = [
@@ -23,22 +24,6 @@ const SPORTSBOOK_ORDER = [
   'superbook'
 ];
 
-function getSportsbookInfo(bookmakerKeyOrName) {
-  if (!bookmakerKeyOrName) return null;
-
-  const icon = getSportsbookLogo(bookmakerKeyOrName);
-  const banner = getSportsbookBanner(bookmakerKeyOrName);
-  const bannerBg = getSportsbookBannerBg(bookmakerKeyOrName);
-  const displayName = getSportsbookDisplayName(bookmakerKeyOrName);
-
-  return {
-    name: displayName,
-    icon: icon,
-    banner: banner,
-    bannerBg: bannerBg,
-    displayName: displayName.toUpperCase()
-  };
-}
 
 function getSportsbookPriority(bookmakerKey) {
   if (!bookmakerKey) return 9999;
@@ -303,28 +288,7 @@ function PropOddsTable({ props, selectedProp }) {
             const isUnderBest = bookmaker.under_odds === bestUnderOdds;
             return (
               <div key={`${bookmaker.bookmaker_key || bookmaker.bookmaker}-${idx}`} className="flex-shrink-0 w-36 flex flex-col">
-                {/* Header: full-bleed banner image or text fallback */}
-                <div className="h-12 mb-2 rounded-lg overflow-hidden relative border border-slate-700/60" style={{ backgroundColor: info?.bannerBg || '#1e293b' }}>
-                  {info?.banner && (
-                    <img
-                      src={info.banner}
-                      alt={info.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.parentElement.style.backgroundColor = '#1e293b';
-                        e.target.parentElement.style.border = '1px solid rgba(75,85,99,0.3)';
-                        e.target.nextElementSibling.style.display = 'flex';
-                      }}
-                    />
-                  )}
-                  <span
-                    className="absolute inset-0 items-center justify-center px-2 text-[11px] font-semibold tracking-wide text-slate-100 truncate"
-                    style={{ display: info?.banner ? 'none' : 'flex' }}
-                  >
-                    {info?.displayName || bookmaker.bookmaker.toUpperCase()}
-                  </span>
-                </div>
+                <SportsbookHeader bookmaker={bookmaker.bookmaker_key || bookmaker.bookmaker} className="mb-2" />
                 <div className="mb-1.5">
                   <OddsRow type="over" line={bookmaker.line} odds={bookmaker.over_odds} isBest={isOverBest} />
                 </div>

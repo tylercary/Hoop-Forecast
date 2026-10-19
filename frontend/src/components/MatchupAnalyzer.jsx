@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { TrendingUp, Target, Activity, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
-import { getSportsbookBanner, getSportsbookBannerBg, getSportsbookDisplayName, normalizeSportsbookName } from '../utils/sportsbookLogos';
+import { getSportsbookDisplayName, normalizeSportsbookName } from '../utils/sportsbookLogos';
+import SportsbookHeader from './SportsbookHeader';
 
 const SPORTSBOOK_ORDER = [
   'draftkings', 'fanduel', 'betmgm', 'caesars', 'bovada',
@@ -73,33 +74,7 @@ function TotalCell({ type, line, odds, isBest }) {
 }
 
 function BookmakerHeader({ bookmakerKey, bookmakerName }) {
-  const banner = getSportsbookBanner(bookmakerKey);
-  const bannerBg = getSportsbookBannerBg(bookmakerKey);
-  const displayName = getSportsbookDisplayName(bookmakerKey);
-
-  return (
-    <div className="h-12 rounded-lg overflow-hidden relative" style={{ backgroundColor: bannerBg || '#000' }}>
-      {banner && (
-        <img
-          src={banner}
-          alt={displayName}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            e.target.parentElement.style.backgroundColor = '#1e293b';
-            e.target.parentElement.style.border = '1px solid rgba(75,85,99,0.3)';
-            if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
-          }}
-        />
-      )}
-      <span
-        className="text-[10px] font-semibold text-white truncate items-center justify-center absolute inset-0"
-        style={{ display: banner ? 'none' : 'flex' }}
-      >
-        {(displayName || bookmakerName || '').toUpperCase()}
-      </span>
-    </div>
-  );
+  return <SportsbookHeader bookmaker={bookmakerKey || bookmakerName} />;
 }
 
 // ============================
