@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
+import { motion } from 'framer-motion';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell, LabelList } from 'recharts';
 import { getGameSeason, getSeasonsInStats } from '../utils/seasons';
 
 function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading, nextGameOpponent }) {
@@ -8,7 +8,6 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
   const [adjustedLine, setAdjustedLine] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const chartRef = useRef(null);
-  const [chartBounds, setChartBounds] = useState(null);
   const yAxisDomainRef = useRef({ min: 0, max: 100 });
 
   // Reset filter and adjusted line when prop changes
@@ -26,67 +25,60 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
   const originalLine = bettingLine != null ? bettingLine : (prediction != null ? prediction : null);
   const line = adjustedLine != null ? adjustedLine : originalLine;
 
-  // Mouse event handlers for dragging the line — only near the line
-  const handleMouseDown = useCallback((e) => {
-    if (!chartRef.current || line == null) return;
+  // Drag the betting line. The plot area is measured from the rendered grid,
+  // so the pointer maps to the right value whatever the axis/margin sizes are.
+  const plotAreaRef = useRef(null);
 
-    const chartElement = chartRef.current;
-    const bounds = chartElement.getBoundingClientRect();
-    // Must match BarChart margins: top 15, bottom 55
-    const chartTop = bounds.top + 15;
-    const chartHeight = bounds.height - 15 - 55;
-    const { min: minPts, max: maxPts } = yAxisDomainRef.current;
-    const linePixelY = chartTop + ((maxPts - line) / (maxPts - minPts)) * chartHeight;
-
-    if (Math.abs(e.clientY - linePixelY) > 20) return;
-
-    setChartBounds(bounds);
-    setIsDragging(true);
-  }, [line]);
-
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging || !chartBounds || line == null) return;
-
-    requestAnimationFrame(() => {
-      // Must match BarChart margins: top 15, bottom 55
-      const chartTop = chartBounds.top + 15;
-      const chartHeight = chartBounds.height - 15 - 55;
-      const mouseY = e.clientY;
-
-      const relativeY = (mouseY - chartTop) / chartHeight;
-      const clampedY = Math.max(0.05, Math.min(0.95, relativeY));
-
-      const { min: minPoints, max: maxPoints } = yAxisDomainRef.current;
-      const newValue = maxPoints - (clampedY * (maxPoints - minPoints));
-
-      // Snap to nearest 0.5
-      const roundedValue = Math.round(newValue * 2) / 2;
-      const clampedValue = Math.max(minPoints, Math.min(maxPoints, roundedValue));
-
-      setAdjustedLine(clampedValue);
-    });
-  }, [isDragging, chartBounds, line]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    setChartBounds(null);
+  const measurePlotArea = useCallback(() => {
+    if (!chartRef.current) return null;
+    const grid = chartRef.current.querySelector('.recharts-cartesian-grid');
+    const rect = (grid || chartRef.current).getBoundingClientRect();
+    return { top: rect.top, height: rect.height };
   }, []);
 
-  // Add/remove event listeners with passive flag for better performance
+  const handlePointerDown = useCallback((e) => {
+    if (line == null) return;
+    const plot = measurePlotArea();
+    if (!plot || plot.height <= 0) return;
+
+    const { min, max } = yAxisDomainRef.current;
+    const linePixelY = plot.top + ((max - line) / (max - min)) * plot.height;
+    if (Math.abs(e.clientY - linePixelY) > 20) return;
+
+    e.preventDefault();
+    plotAreaRef.current = plot;
+    setIsDragging(true);
+  }, [line, measurePlotArea]);
+
+  const handlePointerMove = useCallback((e) => {
+    const plot = plotAreaRef.current;
+    if (!isDragging || !plot) return;
+
+    const { min, max } = yAxisDomainRef.current;
+    const relativeY = Math.max(0, Math.min(1, (e.clientY - plot.top) / plot.height));
+    const value = max - relativeY * (max - min);
+    // Snap to the nearest 0.5, like a real line
+    setAdjustedLine(Math.max(min, Math.min(max, Math.round(value * 2) / 2)));
+  }, [isDragging]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsDragging(false);
+    plotAreaRef.current = null;
+  }, []);
+
   useEffect(() => {
-    if (isDragging) {
-      // Use passive: false for mousemove to allow preventDefault if needed
-      window.addEventListener('mousemove', handleMouseMove, { passive: false });
-      window.addEventListener('mouseup', handleMouseUp);
-      // Prevent text selection while dragging
-      document.body.style.userSelect = 'none';
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-        document.body.style.userSelect = '';
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+    if (!isDragging) return;
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    document.body.style.userSelect = 'none';
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, handlePointerMove, handlePointerUp]);
 
   // Sort stats: most recent first
   const sortedStats = [...stats].sort((a, b) => {
@@ -243,16 +235,9 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
   }
 
   // Reverse so oldest is on left, newest on right
-  const chartData = [...filteredStats].reverse().map((game, index) => {
+  const chartData = [...filteredStats].reverse().map((game) => {
     if (!game) {
-      return {
-        name: 'N/A',
-        points: 0,
-        date: '',
-        opponent: 'N/A',
-        color: '#64748b',
-        isOver: false
-      };
+      return { name: 'N/A', points: 0, date: '', opponent: 'N/A', color: '#64748b', isOver: false };
     }
 
     const value = getChartValue(game);
@@ -261,29 +246,25 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
     if (line != null && typeof value === 'number' && !isNaN(value)) {
       barColor = value >= line ? '#10b981' : '#f43f5e';
     }
-    
-    // Format date for label (format: M/D/YY)
+
+    // Short date for the axis (M/D) and a fuller one for the tooltip (M/D/YY)
     let dateLabel = '';
-    try {
-      if (game.date) {
-        const dateObj = new Date(game.date);
-        if (!isNaN(dateObj.getTime())) {
-          const month = dateObj.getMonth() + 1;
-          const day = dateObj.getDate();
-          const year = dateObj.getFullYear().toString().slice(-2);
-          dateLabel = `${month}/${day}/${year}`;
-        }
+    let dateFull = '';
+    if (game.date) {
+      const dateObj = new Date(game.date);
+      if (!isNaN(dateObj.getTime())) {
+        const month = dateObj.getMonth() + 1;
+        const day = dateObj.getDate();
+        dateLabel = `${month}/${day}`;
+        dateFull = `${month}/${day}/${String(dateObj.getFullYear()).slice(-2)}`;
       }
-    } catch (e) {
-      dateLabel = '';
     }
-    
+
     const opponent = game.opponent || 'N/A';
-    const isAway = game.home === false;
-    const opponentLabel = isAway ? `@${opponent}` : opponent;
-    
+    const opponentLabel = game.home === false ? `@${opponent}` : opponent;
+
     return {
-      name: `${opponentLabel} ${dateLabel}`,
+      name: `${opponentLabel} · ${dateFull}`,
       points: value,
       date: dateLabel,
       opponent: opponentLabel,
@@ -292,47 +273,48 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
     };
   });
 
-  // Calculate over/under stats
+  // Calculate over/under stats for the games shown
   const overCount = chartData.filter(d => d.isOver).length;
   const underCount = chartData.length - overCount;
-  const dominantResult = overCount > underCount ? 'Over' : 'Under';
-  const dominantCount = Math.max(overCount, underCount);
+  const hitRate = chartData.length ? Math.round((overCount / chartData.length) * 100) : 0;
+
+  const values = chartData.map(d => d.points).filter(v => typeof v === 'number' && isFinite(v));
+  const average = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
+  const formatValue = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
 
   // Show if line was adjusted
   const isLineAdjusted = adjustedLine != null && adjustedLine !== originalLine;
 
-  // Calculate Y-axis domain with safety checks
-  const allValues = chartData
-    .map(d => d.points)
-    .filter(v => typeof v === 'number' && !isNaN(v) && isFinite(v));
-
-  if (line != null && typeof line === 'number' && !isNaN(line)) {
-    allValues.push(line);
-  }
-
-  // Ensure we have at least some values
-  if (allValues.length === 0) {
-    allValues.push(0, 10);
-  }
-
+  // Y-axis domain: pick the smallest "nice" step that keeps the axis to ~8
+  // ticks, so low-volume props (threes, blocks) don't get a 0-5-10 axis.
+  const allValues = [...values];
+  if (line != null && typeof line === 'number' && !isNaN(line)) allValues.push(line);
+  if (allValues.length === 0) allValues.push(0, 10);
   const rawMin = Math.min(...allValues, 0);
-  const rawMax = Math.max(...allValues, 10);
+  const rawMax = Math.max(...allValues, 1);
 
-  const minPoints = Math.max(0, Math.floor((rawMin - 5) / 5) * 5);
-  const maxPoints = Math.ceil((rawMax + 5) / 5) * 5;
+  let step = 20;
+  let minPoints = 0;
+  let maxPoints = rawMax;
+  for (const candidate of [1, 2, 5, 10, 20]) {
+    const lo = Math.max(0, Math.floor((rawMin - candidate) / candidate) * candidate);
+    const hi = Math.ceil((rawMax + candidate) / candidate) * candidate;
+    if ((hi - lo) / candidate <= 8) {
+      step = candidate;
+      minPoints = lo;
+      maxPoints = hi;
+      break;
+    }
+    step = candidate;
+    minPoints = lo;
+    maxPoints = hi;
+  }
 
   // Update domain ref for drag handling
   yAxisDomainRef.current = { min: minPoints, max: maxPoints };
-  
-  // Generate Y-axis ticks
+
   const yAxisTicks = [];
-  const tickInterval = Math.max(5, Math.ceil((maxPoints - minPoints) / 6));
-  for (let i = minPoints; i <= maxPoints; i += tickInterval) {
-    yAxisTicks.push(i);
-  }
-  if (yAxisTicks[yAxisTicks.length - 1] < maxPoints) {
-    yAxisTicks.push(maxPoints);
-  }
+  for (let tick = minPoints; tick <= maxPoints; tick += step) yAxisTicks.push(tick);
 
   // Prop label for tooltip
   const propLabel = {
@@ -367,24 +349,62 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
   }
 
   // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload?.length) return null;
-    const value = payload[0].value;
+    const game = payload[0].payload;
+    const value = game.points;
     const isOver = line != null && value >= line;
     return (
-      <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-[11px] text-slate-400 mb-0.5">{label}</p>
-        <p className={`text-sm font-bold ${line != null ? (isOver ? 'text-emerald-400' : 'text-rose-400') : 'text-white'}`}>
-          {value.toFixed(1)} <span className="text-slate-500 font-normal text-xs">{propLabel}</span>
+      <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 shadow-xl">
+        <p className="mb-0.5 text-[11px] text-slate-400">{game.name}</p>
+        <p className={`text-sm font-bold tabular-nums ${line != null ? (isOver ? 'text-emerald-400' : 'text-rose-400') : 'text-white'}`}>
+          {formatValue(value)} <span className="text-xs font-normal text-slate-500">{propLabel}</span>
         </p>
         {line != null && (
-          <p className="text-[10px] text-slate-600 mt-0.5">
-            {isOver ? '+' : ''}{(value - line).toFixed(1)} vs line
+          <p className="mt-0.5 text-[10px] text-slate-500 tabular-nums">
+            {isOver ? '+' : ''}{(value - line).toFixed(1)} vs line{average != null ? ` · ${value >= average ? '+' : ''}${(value - average).toFixed(1)} vs avg` : ''}
           </p>
         )}
       </div>
     );
   };
+
+  // Two-line x-axis tick: opponent on top, date underneath (no rotation).
+  // When bars get narrow, only every 2nd/3rd label is drawn, counted from the
+  // most recent game so the latest one always keeps its label.
+  const GameTick = ({ x, y, payload, index, visibleTicksCount, width }) => {
+    const game = chartData[payload.index];
+    if (!game) return null;
+    const perTick = width / Math.max(visibleTicksCount, 1);
+    const skip = perTick >= 44 ? 1 : perTick >= 24 ? 2 : 3;
+    if ((visibleTicksCount - 1 - index) % skip !== 0) return null;
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text textAnchor="middle" dy={12} fill="#cbd5e1" fontSize={10} fontWeight={600}>{game.opponent}</text>
+        <text textAnchor="middle" dy={24} fill="#64748b" fontSize={9}>{game.date}</text>
+      </g>
+    );
+  };
+
+  // Value above each bar, skipped when bars are too thin to read
+  const BarValue = ({ viewBox, value }) => {
+    if (!viewBox || viewBox.width < 20 || value == null) return null;
+    return (
+      <text x={viewBox.x + viewBox.width / 2} y={viewBox.y - 6} textAnchor="middle" fill="#cbd5e1" fontSize={10} fontWeight={600}>
+        {formatValue(value)}
+      </text>
+    );
+  };
+
+  // Label pinned to the left end of the average line
+  const AvgLabel = ({ viewBox }) => (
+    <g>
+      <rect x={viewBox.x + 4} y={viewBox.y - 9} width={56} height={18} rx={5} fill="#1e293b" stroke="#fbbf24" strokeOpacity={0.5} />
+      <text x={viewBox.x + 32} y={viewBox.y + 4} textAnchor="middle" fill="#fbbf24" fontSize={10} fontWeight={700}>
+        AVG {formatValue(average)}
+      </text>
+    </g>
+  );
 
   return (
     <motion.div
@@ -395,30 +415,38 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
       transition={{ duration: 0.25, ease: "easeOut" }}
       className="panel p-5"
     >
-      {/* Row 1: Title + Over/Under pills */}
-      <div className="flex items-center justify-between mb-3">
+      {/* Row 1: Title + summary of the games shown */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h3 className="panel-title">Prop Analysis</h3>
         {line != null && chartData.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="flex items-center gap-2"
+            className="flex flex-wrap items-center gap-1.5 text-xs font-semibold"
           >
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-xs font-semibold text-emerald-400">{overCount}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {overCount} over
             </span>
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-              <span className="text-xs font-semibold text-rose-400">{underCount}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-rose-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+              {underCount} under
             </span>
+            <span className="rounded-full border border-slate-700/60 bg-slate-800/80 px-2.5 py-1 text-slate-200 tabular-nums">
+              {hitRate}% over
+            </span>
+            {average != null && (
+              <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-amber-300 tabular-nums">
+                Avg {formatValue(average)}
+              </span>
+            )}
           </motion.div>
         )}
       </div>
 
       {/* Row 2: Filters + Line control */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex flex-wrap gap-1.5">
           {filterButtons.map((f, i) => (
             <motion.button
@@ -475,114 +503,112 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3 }}
         ref={chartRef}
-        onMouseDown={handleMouseDown}
-        className={`relative ${isDragging ? 'cursor-grabbing' : 'cursor-default'} select-none`}
-        style={{
-          touchAction: 'none',
-          WebkitUserSelect: 'none',
-          transform: 'translateZ(0)',
-          willChange: isDragging ? 'transform' : 'auto'
-        }}
+        onPointerDown={handlePointerDown}
+        className={`relative select-none ${isDragging ? 'cursor-grabbing' : ''}`}
+        style={{ touchAction: 'pan-y', WebkitUserSelect: 'none' }}
       >
-        <ResponsiveContainer width="100%" height={380}>
+        <ResponsiveContainer width="100%" height={360}>
           <BarChart
             data={chartData}
-            margin={{ top: 15, right: 50, left: 15, bottom: 55 }}
-            barCategoryGap="15%"
+            margin={{ top: 24, right: 56, left: 4, bottom: 4 }}
+            barCategoryGap="22%"
           >
-          <CartesianGrid strokeDasharray="4 4" stroke="#334155" vertical={false} />
-          <XAxis
-            dataKey="name"
-            angle={-45}
-            textAnchor="end"
-            height={75}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
-          />
-          <YAxis
-            domain={[minPoints, maxPoints]}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: '#cbd5e1', fontSize: 11, fontWeight: 500 }}
-            width={35}
-            ticks={yAxisTicks}
-          />
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ fill: 'rgba(255, 255, 255, 0.02)', radius: 4 }}
-            position={{ y: 0 }}
-          />
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+            <XAxis
+              dataKey="opponent"
+              interval={0}
+              height={40}
+              axisLine={false}
+              tickLine={false}
+              tick={<GameTick />}
+            />
+            <YAxis
+              domain={[minPoints, maxPoints]}
+              ticks={yAxisTicks}
+              axisLine={false}
+              tickLine={false}
+              width={32}
+              tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 500 }}
+            />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ fill: 'rgba(148, 163, 184, 0.08)', radius: 4 }}
+            />
 
-          <Bar
-            dataKey="points"
-            radius={[5, 5, 0, 0]}
-            animationBegin={0}
-            animationDuration={isDragging ? 0 : 600}
-            animationEasing="ease-out"
-            isAnimationActive={!isDragging}
-          >
-            {chartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={entry.color}
-                opacity={0.85}
+            {/* Average over the games shown */}
+            {average != null && (
+              <ReferenceLine
+                y={average}
+                stroke="#fbbf24"
+                strokeOpacity={0.55}
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={<AvgLabel />}
               />
-            ))}
-          </Bar>
+            )}
 
-          {/* Draggable reference line */}
-          {line != null && (
-            <>
-              <ReferenceLine
-                y={line}
-                stroke={isDragging ? "#fbbf24" : (isLineAdjusted ? "#f59e0b" : "rgba(255,255,255,0.7)")}
-                strokeWidth={isDragging ? 2.5 : 1.5}
-                strokeDasharray={isLineAdjusted ? "6 3" : "0"}
-                style={{
-                  transition: isDragging ? 'none' : 'all 0.15s ease-out',
-                  willChange: 'transform'
-                }}
-                label={({ viewBox }) => {
-                  const labelX = viewBox.width + viewBox.x - 5;
-                  const labelY = viewBox.y;
-                  return (
-                    <g>
-                      <rect
-                        x={labelX - 33}
-                        y={labelY - 10}
-                        width={38}
-                        height={20}
-                        fill="#1e293b"
-                        rx={6}
-                        stroke={isDragging ? "#fbbf24" : (isLineAdjusted ? "#f59e0b" : "#334155")}
-                        strokeWidth={1}
-                      />
-                      <text
-                        x={labelX - 14}
-                        y={labelY + 4}
-                        fill="#ffffff"
-                        fontSize={11}
-                        fontWeight={700}
-                        textAnchor="middle"
-                      >
-                        {line.toFixed(1)}
-                      </text>
-                    </g>
-                  );
-                }}
-              />
-              <ReferenceLine
-                y={line}
-                stroke="transparent"
-                strokeWidth={24}
-                style={{ cursor: 'grab' }}
-              />
-            </>
-          )}
-        </BarChart>
-      </ResponsiveContainer>
+            <Bar
+              dataKey="points"
+              radius={[4, 4, 0, 0]}
+              maxBarSize={44}
+              animationDuration={isDragging ? 0 : 500}
+              isAnimationActive={!isDragging}
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.9} />
+              ))}
+              <LabelList dataKey="points" content={<BarValue />} />
+            </Bar>
+
+            {/* Draggable betting line */}
+            {line != null && (
+              <>
+                <ReferenceLine
+                  y={line}
+                  stroke={isDragging ? '#fbbf24' : (isLineAdjusted ? '#f59e0b' : 'rgba(255,255,255,0.75)')}
+                  strokeWidth={isDragging ? 2.5 : 1.5}
+                  strokeDasharray={isLineAdjusted ? '6 3' : '0'}
+                  label={({ viewBox }) => {
+                    const labelX = viewBox.width + viewBox.x - 5;
+                    const labelY = viewBox.y;
+                    return (
+                      <g>
+                        <rect
+                          x={labelX - 33}
+                          y={labelY - 10}
+                          width={38}
+                          height={20}
+                          fill="#1e293b"
+                          rx={6}
+                          stroke={isDragging ? '#fbbf24' : (isLineAdjusted ? '#f59e0b' : '#334155')}
+                          strokeWidth={1}
+                        />
+                        <text
+                          x={labelX - 14}
+                          y={labelY + 4}
+                          fill="#ffffff"
+                          fontSize={11}
+                          fontWeight={700}
+                          textAnchor="middle"
+                        >
+                          {line.toFixed(1)}
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
+                {/* Wide invisible hit area so the line is easy to grab */}
+                <ReferenceLine y={line} stroke="transparent" strokeWidth={24} style={{ cursor: 'grab' }} />
+              </>
+            )}
+          </BarChart>
+        </ResponsiveContainer>
       </motion.div>
+      {line != null && (
+        <p className="mt-1 text-[11px] text-slate-500">
+          Drag the line, or edit the number above, to test a different line.
+        </p>
+      )}
     </motion.div>
   );
 }
