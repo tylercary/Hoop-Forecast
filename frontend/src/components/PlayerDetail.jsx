@@ -446,191 +446,158 @@ function PlayerDetail() {
   };
 
   if (loading) {
+    // Mirrors the loaded layout block for block so nothing jumps when data arrives
+    const bone = 'rounded bg-slate-700/70 animate-pulse';
+    const displayName = player.name && player.name !== 'Loading...'
+      ? player.name.replace(/\b\w/g, c => c.toUpperCase())
+      : '';
     return (
       <div className="w-full">
-        {/* Breadcrumb Navigation Skeleton */}
+        {/* Breadcrumb */}
         <div className="max-w-7xl mx-auto px-4 mb-4">
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex h-7 items-center gap-2 text-sm text-slate-500">
             <button
               onClick={() => navigate(-1)}
-              className="hover:text-white transition-colors text-slate-400"
+              className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors"
             >
               ← Back
             </button>
-            <span className="text-slate-600">/</span>
-            <span className="text-slate-400">Prop Bet Analyzer</span>
-            <span className="text-slate-600">/</span>
-            <div className="h-4 w-32 bg-slate-700 rounded animate-pulse"></div>
+            <span className="text-slate-600">›</span>
+            {displayName ? <span className="text-slate-300">{displayName}</span> : <div className={`h-4 w-32 ${bone}`} />}
           </div>
         </div>
 
-        {/* Banner Skeleton */}
+        {/* Header band: same height and photo slot as the loaded one */}
         <div className="w-screen relative" style={{ left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw' }}>
-          <div className="bg-slate-800 shadow-xl p-6 mb-6 border-b border-t border-slate-700">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="flex items-start gap-8">
-                {/* Player Image Skeleton */}
-                <div className="w-40 h-40 rounded-full bg-slate-700 animate-pulse flex-shrink-0"></div>
-                
-                {/* Player Info Skeleton */}
-                <div className="flex-1 space-y-3">
-                  <div className="h-4 w-32 bg-slate-700 rounded animate-pulse"></div>
-                  <div className="h-8 w-48 bg-slate-700 rounded animate-pulse"></div>
-                  <div className="h-4 w-40 bg-slate-700 rounded animate-pulse"></div>
+          <div className="bg-slate-800/30 border-b border-slate-800 mb-6 overflow-hidden" style={{ minHeight: '160px' }}>
+            <div className="max-w-7xl mx-auto flex items-stretch" style={{ minHeight: '160px' }}>
+              <div className="relative flex-shrink-0 w-[120px] sm:w-[230px] bg-slate-800/40 animate-pulse" />
+              <div className="flex-1 min-w-0 flex flex-col justify-center gap-3 px-4 sm:px-8 py-5">
+                <div className={`h-7 w-48 max-w-full ${bone}`} />
+                <div className={`h-4 w-32 ${bone}`} />
+                <div className="flex items-center gap-4">
+                  <div className={`h-5 w-14 ${bone}`} />
+                  <div className={`h-5 w-14 ${bone}`} />
+                  <div className={`h-5 w-14 ${bone}`} />
                 </div>
-                
-                {/* Matchup Skeleton */}
-                <div className="flex items-center gap-8 flex-shrink-0">
-                  <div className="text-center space-y-2">
-                    <div className="w-20 h-20 bg-slate-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-4 w-24 bg-slate-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-3 w-16 bg-slate-700 rounded animate-pulse mx-auto"></div>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <div className="h-5 w-32 bg-slate-700 rounded animate-pulse"></div>
-                    <div className="h-3 w-24 bg-slate-700 rounded animate-pulse"></div>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <div className="w-20 h-20 bg-slate-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-4 w-24 bg-slate-700 rounded animate-pulse mx-auto"></div>
-                    <div className="h-3 w-16 bg-slate-700 rounded animate-pulse mx-auto"></div>
-                  </div>
+              </div>
+              <div className="hidden md:block w-px bg-slate-700/50 flex-shrink-0 my-6" />
+              <div className="hidden md:flex items-center gap-5 px-8 py-5 flex-shrink-0">
+                <div className="flex flex-col items-center gap-2" style={{ minWidth: '72px' }}>
+                  <div className={`h-11 w-11 rounded-full ${bone}`} />
+                  <div className={`h-3 w-16 ${bone}`} />
+                  <div className={`h-3 w-8 ${bone}`} />
+                </div>
+                <div className="flex flex-col items-center gap-2 px-2">
+                  <div className={`h-3 w-20 ${bone}`} />
+                  <div className={`h-3 w-12 ${bone}`} />
+                </div>
+                <div className="flex flex-col items-center gap-2" style={{ minWidth: '72px' }}>
+                  <div className={`h-11 w-11 rounded-full ${bone}`} />
+                  <div className={`h-3 w-16 ${bone}`} />
+                  <div className={`h-3 w-8 ${bone}`} />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Prop Cards Skeleton */}
-        <div className="max-w-7xl mx-auto px-4 mb-6">
-          <div className="flex flex-wrap gap-3">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div
-                key={i}
-                className="h-24 w-32 panel animate-pulse"
-              >
-                <div className="p-3 h-full flex flex-col justify-between">
-                  <div className="h-4 w-20 bg-slate-700 rounded"></div>
-                  <div className="h-6 w-16 bg-slate-700 rounded"></div>
-                  <div className="h-3 w-24 bg-slate-700 rounded"></div>
-                </div>
+        <div className="max-w-7xl mx-auto px-4">
+          {/* Prop tiles */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2.5 mb-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-slate-700/60 bg-slate-800/40 px-3 py-2.5">
+                <div className={`h-3 w-14 ${bone}`} />
+                <div className={`mt-2 h-6 w-12 ${bone}`} />
+                <div className={`mt-2 h-3 w-20 ${bone}`} />
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Main Content Skeleton */}
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="space-y-6 mb-6">
-            {/* Top Section: 6 Metric Cards Skeleton (including Season Prop Record) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="panel p-6">
-                  <div className="h-4 w-24 bg-slate-700 rounded animate-pulse mb-3"></div>
-                  <div className="h-10 w-32 bg-slate-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-3 w-20 bg-slate-700 rounded animate-pulse"></div>
+          {/* Stats bar */}
+          <div className="panel mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="p-4 sm:p-5">
+                  <div className={`h-3 w-24 ${bone}`} />
+                  <div className={`mt-6 h-8 w-16 ${bone}`} />
+                  <div className={`mt-3 h-3 w-20 ${bone}`} />
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Prediction Reasoning Toggle Skeleton */}
-            <div className="h-12 panel animate-pulse"></div>
+          {/* Prediction reasoning toggle */}
+          <div className="panel h-12 mb-6 animate-pulse" />
 
-            {/* Chart Skeleton */}
-            <div className="panel p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="h-7 w-32 bg-slate-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-4 w-64 bg-slate-700 rounded animate-pulse"></div>
-                </div>
-                <div className="flex gap-2">
-                  {['L5', 'L10', 'L15', 'H2H', 'Season', 'Prev1', 'Prev2'].map((f) => (
-                    <div key={f} className="h-8 w-12 bg-slate-700 rounded animate-pulse"></div>
-                  ))}
-                </div>
-              </div>
-              <div className="h-96 bg-slate-700/50 rounded-lg animate-pulse relative overflow-hidden">
-                {/* Simulated chart bars */}
-                <div className="absolute bottom-0 left-0 right-0 flex items-end justify-around px-4 pb-4 gap-2">
-                  {[20, 35, 45, 30, 50, 40, 55, 35, 45, 50, 30, 40, 45, 35, 50].map((height, i) => (
-                    <div
-                      key={i}
-                      className="w-6 bg-slate-600 rounded-t animate-pulse"
-                      style={{ height: `${height}%`, animationDelay: `${i * 50}ms` }}
-                    ></div>
-                  ))}
-                </div>
+          {/* Prop analysis chart */}
+          <div className="panel p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className={`h-5 w-28 ${bone}`} />
+              <div className="hidden sm:flex gap-1.5">
+                {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`h-6 w-16 rounded-full ${bone}`} />)}
               </div>
             </div>
-
-            {/* Prop Odds Table Skeleton */}
-            <div className="panel p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="h-7 w-32 bg-slate-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-4 w-40 bg-slate-700 rounded animate-pulse"></div>
-                </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex gap-1.5">
+                {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`h-6 w-11 rounded-full ${bone}`} />)}
               </div>
-              <div className="overflow-x-auto">
-                <div className="grid grid-cols-[150px_140px_repeat(6,140px)] gap-2">
-                  {/* Header row */}
-                  <div className="h-8 bg-slate-700 rounded animate-pulse"></div>
-                  <div className="h-8 bg-slate-700 rounded animate-pulse"></div>
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-8 bg-slate-700 rounded animate-pulse"></div>
-                  ))}
-                  {/* Over row */}
-                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
-                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
-                  ))}
-                  {/* Under row */}
-                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
-                  <div className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-12 bg-slate-700/50 rounded animate-pulse"></div>
-                  ))}
-                </div>
-              </div>
+              <div className={`h-6 w-20 rounded-full ${bone}`} />
             </div>
-
-            {/* Game Log Skeleton */}
-            <div className="panel p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-7 w-40 bg-slate-700 rounded animate-pulse"></div>
-                <div className="flex gap-2">
-                  <div className="h-8 w-24 bg-slate-700 rounded animate-pulse"></div>
-                  <div className="h-8 w-24 bg-slate-700 rounded animate-pulse"></div>
-                </div>
-              </div>
-              {/* Table header skeleton */}
-              <div className="grid grid-cols-8 gap-2 mb-2 pb-2 border-b border-slate-700">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                  <div key={i} className="h-4 bg-slate-700 rounded animate-pulse"></div>
-                ))}
-              </div>
-              {/* Table rows skeleton */}
-              <div className="space-y-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-                  <div key={i} className="grid grid-cols-8 gap-2">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((j) => (
-                      <div key={j} className="h-8 bg-slate-700/50 rounded animate-pulse"></div>
-                    ))}
-                  </div>
+            <div className="relative h-[360px]">
+              <div className="absolute inset-x-8 top-6 bottom-12 flex items-end justify-around gap-2">
+                {[40, 48, 65, 82, 62, 58, 58, 58, 60, 62, 47, 62, 75, 60, 42].map((height, i) => (
+                  <div
+                    key={i}
+                    className="w-full max-w-[44px] rounded-t bg-slate-700/60 animate-pulse"
+                    style={{ height: `${height}%`, animationDelay: `${i * 60}ms` }}
+                  />
                 ))}
               </div>
             </div>
+            <div className={`mt-2 h-3 w-72 max-w-full ${bone}`} />
+          </div>
 
-            {/* Injuries Table Skeleton */}
-            <div className="panel p-6">
-              <div className="h-7 w-32 bg-slate-700 rounded animate-pulse mb-4"></div>
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-slate-700/50 rounded animate-pulse"></div>
-                ))}
-              </div>
+          {/* Prop odds */}
+          <div className="panel p-5 mb-6">
+            <div className={`h-5 w-24 mb-4 ${bone}`} />
+            <div className="flex gap-2 overflow-hidden">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="w-36 flex-shrink-0">
+                  <div className={`h-12 rounded-lg ${bone}`} />
+                  <div className={`mt-2 h-10 rounded-lg ${bone}`} />
+                  <div className={`mt-1.5 h-10 rounded-lg ${bone}`} />
+                </div>
+              ))}
             </div>
+            <div className={`mt-3 h-2 rounded-full ${bone}`} />
+          </div>
+
+          {/* Game log */}
+          <div className="panel p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className={`h-6 w-40 ${bone}`} />
+                <div className={`mt-2 h-4 w-32 ${bone}`} />
+              </div>
+              <div className={`h-9 w-36 rounded-lg ${bone}`} />
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="grid grid-cols-6 sm:grid-cols-12 gap-3">
+                  {Array.from({ length: 12 }).map((_, j) => (
+                    <div key={j} className={`h-5 ${bone} ${j >= 6 ? 'hidden sm:block' : ''}`} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Injuries */}
+          <div className="panel p-6 mb-6">
+            <div className={`h-5 w-20 ${bone}`} />
+            <div className={`mt-2 h-3 w-48 ${bone}`} />
+            <div className={`mt-6 mx-auto h-4 w-40 ${bone}`} />
           </div>
         </div>
       </div>
