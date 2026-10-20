@@ -98,7 +98,7 @@ const notFinalId = store('Not Yet Final', 'points', 20.5, 'OVER', 58, { date: '2
   twin.id = 'pred_legacy_twin';
   twin.next_game.date = 'Oct 20, 2026';
   twin.created_at = '2026-10-19T20:00:00Z'; // older than the ISO record
-  tracking.getAllPredictions().push(twin);
+  tracking.importPredictions([twin]);
   void data;
 }
 

@@ -12,7 +12,8 @@ import { performanceRoutes } from './routes/performanceRoutes.js';
 import { gamesRoutes } from './routes/gamesRoutes.js';
 import { testInjuryRouter } from './routes/testInjuryRoute.js';
 import { evaluatePendingPredictions } from './services/predictionEvaluationService.js';
-import { getAccuracyStats } from './services/predictionTrackingService.js';
+import { getAccuracyStats, getStoreStatus } from './services/predictionTrackingService.js';
+import { scheduleBackups, getBackupStatus } from './services/backupService.js';
 import { evaluatePendingGamePredictions } from './services/gamePredictionTrackingService.js';
 import optionalAuth from './middleware/optionalAuth.js';
 import { resolveAllPendingPredictions } from './services/predictionCron.js';
@@ -68,9 +69,21 @@ app.get('/api/health', (req, res) => {
     commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || null,
     startedAt,
     oddsApi: getOddsApiUsage(),
-    teamStats: teamGameStatsSummary()
+    teamStats: teamGameStatsSummary(),
+    store: storeHealth()
   });
 });
+
+// Prediction store: engine, row count, file size and when it was last backed up
+function storeHealth() {
+  try {
+    const { engine, rows, db_size_mb } = getStoreStatus();
+    const backup = getBackupStatus();
+    return { engine, rows, db_size_mb, last_backup_at: backup.last_backup_at, backup_targets: backup.targets, backup_error: backup.last_error };
+  } catch (error) {
+    return { engine: 'sqlite', error: error.message };
+  }
+}
 
 // API routes
 app.use('/api/player', playerRoutes);
@@ -120,6 +133,9 @@ try {
 
 setTimeout(runEvaluation, 30000);
 setInterval(runEvaluation, EVAL_INTERVAL);
+
+// Nightly off-volume backup of the prediction store (~09:00 UTC; see backupService.js)
+scheduleBackups();
 
 // Resolve ALL users' Firestore predictions every 15 minutes
 const RESOLVE_INTERVAL = 15 * 60 * 1000;

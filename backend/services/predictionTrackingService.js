@@ -1,13 +1,18 @@
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import Database from 'better-sqlite3';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Persistent storage — use mounted volume in production, local data/ in dev
 const PREDICTIONS_DIR = process.env.DATA_DIR || join(__dirname, '../data');
-const PREDICTIONS_FILE = join(PREDICTIONS_DIR, 'predictions.json');
+export const DATA_DIR = PREDICTIONS_DIR;
+/** SQLite database holding the live prediction store. */
+export const DB_FILE = join(PREDICTIONS_DIR, 'predictions.sqlite');
+/** The JSON store this service used before SQLite; imported once, then renamed. */
+const LEGACY_FILE = join(PREDICTIONS_DIR, 'predictions.json');
 
 // Ensure data directory exists
 if (!fs.existsSync(PREDICTIONS_DIR)) {
@@ -34,103 +39,269 @@ const PROP_TYPE_FORMAT_MAP = {
 /**
  * Prediction store.
  *
- * The history lives in one JSON file (tens of MB in production). It is read
- * once into memory and every reader works on that object; writes are
- * coalesced and flushed to disk shortly afterwards, atomically (tmp + rename),
- * so a player page that stores eight props no longer re-parses and rewrites the
- * whole file eight times.
+ * Every prediction the model makes is a row in DATA_DIR/predictions.sqlite:
+ * the full record (feature vector included) as JSON in `data`, beside the
+ * handful of columns that are indexed or worth querying on their own. Writes
+ * are single-row transactions, so a crash or a full disk cannot take the
+ * history with it (WAL journal, synchronous=NORMAL); backupService copies the
+ * database off the volume nightly.
+ *
+ * Readers get the record objects from an in-memory cache that is loaded from
+ * the database on first use and kept in step with every write (updated in
+ * place, inserts appended, deletes removed), so getAllPredictions() stays a
+ * cheap array return for the callers that filter it on every request. Nothing
+ * on the hot path parses or rewrites a JSON file any more.
+ *
+ * The JSON store this replaced (predictions.json) is imported on the first
+ * start that finds it beside an empty database, then renamed to
+ * predictions.json.migrated. Archive files written by archiveLegacyPredictions
+ * stay JSON and are read on demand.
  */
-let _store = null;
-let _dirty = false;
-let _flushTimer = null;
-let _flushing = false;
-const FLUSH_DELAY_MS = 2000;
 
-function loadPredictions() {
-  if (_store) return _store;
-  try {
-    if (fs.existsSync(PREDICTIONS_FILE)) {
-      const data = fs.readFileSync(PREDICTIONS_FILE, 'utf8');
-      const parsed = JSON.parse(data);
-      _store = parsed && Array.isArray(parsed.predictions) ? parsed : { predictions: [] };
-      console.log(`[PredictionTracking] Loaded ${_store.predictions.length} predictions into memory`);
-      return _store;
-    }
-  } catch (error) {
-    console.error('Error loading predictions:', error);
-  }
-  _store = { predictions: [] };
-  return _store;
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS predictions (
+  id               TEXT PRIMARY KEY,
+  player_name      TEXT COLLATE NOCASE,
+  prop_type        TEXT,
+  game_date        TEXT,
+  created_at       TEXT,
+  updated_at       TEXT,
+  evaluated        INTEGER NOT NULL DEFAULT 0,
+  model_variant    TEXT,
+  recommendation   TEXT,
+  betting_line     REAL,
+  predicted_value  REAL,
+  over_probability REAL,
+  actual_value     REAL,
+  data             TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_predictions_player_prop_game ON predictions (player_name, prop_type, game_date);
+CREATE INDEX IF NOT EXISTS idx_predictions_evaluated ON predictions (evaluated);
+CREATE INDEX IF NOT EXISTS idx_predictions_game_date ON predictions (game_date);
+`;
+
+let _db = null;
+let _stmts = null;
+
+function openDatabase() {
+  const db = new Database(DB_FILE);
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+  db.exec(SCHEMA);
+  _stmts = {
+    upsert: db.prepare(`
+      INSERT INTO predictions (id, player_name, prop_type, game_date, created_at, updated_at, evaluated,
+        model_variant, recommendation, betting_line, predicted_value, over_probability, actual_value, data)
+      VALUES (@id, @player_name, @prop_type, @game_date, @created_at, @updated_at, @evaluated,
+        @model_variant, @recommendation, @betting_line, @predicted_value, @over_probability, @actual_value, @data)
+      ON CONFLICT(id) DO UPDATE SET
+        player_name = excluded.player_name, prop_type = excluded.prop_type, game_date = excluded.game_date,
+        created_at = excluded.created_at, updated_at = excluded.updated_at, evaluated = excluded.evaluated,
+        model_variant = excluded.model_variant, recommendation = excluded.recommendation,
+        betting_line = excluded.betting_line, predicted_value = excluded.predicted_value,
+        over_probability = excluded.over_probability, actual_value = excluded.actual_value, data = excluded.data`),
+    remove: db.prepare('DELETE FROM predictions WHERE id = ?'),
+    removeAll: db.prepare('DELETE FROM predictions'),
+    count: db.prepare('SELECT count(*) AS n FROM predictions'),
+    allData: db.prepare('SELECT data FROM predictions ORDER BY rowid'),
+    idsForGame: db.prepare('SELECT id FROM predictions WHERE player_name = ? AND prop_type = ? AND game_date = ?')
+  };
+  migrateLegacyJson(db);
+  return db;
 }
 
-function writeStoreToDisk(sync = false) {
-  if (!_store) return;
-  const payload = JSON.stringify(_store);
-  const tmp = `${PREDICTIONS_FILE}.tmp`;
-  if (sync) {
-    fs.writeFileSync(tmp, payload, 'utf8');
-    fs.renameSync(tmp, PREDICTIONS_FILE);
-    return;
-  }
-  _flushing = true;
-  fs.writeFile(tmp, payload, 'utf8', (writeErr) => {
-    if (writeErr) {
-      _flushing = false;
-      _dirty = true;
-      console.error('Error saving predictions:', writeErr);
-      return;
-    }
-    fs.rename(tmp, PREDICTIONS_FILE, (renameErr) => {
-      _flushing = false;
-      if (renameErr) {
-        _dirty = true;
-        console.error('Error saving predictions:', renameErr);
-      }
-      if (_dirty) scheduleFlush();
-    });
-  });
+function db() {
+  if (!_db) _db = openDatabase();
+  return _db;
 }
 
-function scheduleFlush() {
-  if (_flushTimer) return;
-  _flushTimer = setTimeout(() => {
-    _flushTimer = null;
-    if (_flushing) { scheduleFlush(); return; }
-    if (!_dirty) return;
-    _dirty = false;
-    writeStoreToDisk(false);
-  }, FLUSH_DELAY_MS);
-  if (typeof _flushTimer.unref === 'function') _flushTimer.unref();
+/** The open better-sqlite3 connection (backupService runs VACUUM INTO on it). */
+export function getDatabase() {
+  return db();
+}
+
+const num = (v) => {
+  if (v == null || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+/** Column values for a record; the whole record goes in `data`. */
+function rowFor(record) {
+  return {
+    id: record.id,
+    player_name: record.player_name ?? null,
+    prop_type: record.prop_type ?? null,
+    game_date: normalizeGameDate(record.next_game?.date),
+    created_at: record.created_at ?? null,
+    updated_at: record.updated_at ?? null,
+    evaluated: record.evaluated ? 1 : 0,
+    model_variant: record.model_variant ?? null,
+    recommendation: record.recommendation ?? null,
+    betting_line: num(record.betting_line),
+    predicted_value: num(record.predicted_value ?? record.predicted_points),
+    over_probability: num(record.over_probability),
+    actual_value: num(record.actual_value ?? record.actual_points),
+    data: JSON.stringify(record)
+  };
 }
 
 /**
- * Mark the in-memory store changed; it is written to disk shortly after.
+ * One-time import of the JSON store. Runs only when the table is empty, so a
+ * second start (or a stray predictions.json dropped next to a live database)
+ * never doubles or overwrites rows.
  */
-function savePredictions(data) {
-  if (data && data !== _store) _store = data;
-  _dirty = true;
-  scheduleFlush();
+function migrateLegacyJson(database) {
+  if (!fs.existsSync(LEGACY_FILE)) return;
+  const existing = database.prepare('SELECT count(*) AS n FROM predictions').get().n;
+  if (existing > 0) {
+    console.warn(`[PredictionTracking] ${LEGACY_FILE} found but the database already holds ${existing} rows; leaving it alone`);
+    return;
+  }
+  let records;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(LEGACY_FILE, 'utf8'));
+    records = Array.isArray(parsed) ? parsed : (parsed?.predictions || []);
+  } catch (error) {
+    console.error(`[PredictionTracking] Could not parse ${LEGACY_FILE}; not migrated:`, error.message);
+    return;
+  }
+  const insert = database.prepare(`
+    INSERT OR REPLACE INTO predictions (id, player_name, prop_type, game_date, created_at, updated_at, evaluated,
+      model_variant, recommendation, betting_line, predicted_value, over_probability, actual_value, data)
+    VALUES (@id, @player_name, @prop_type, @game_date, @created_at, @updated_at, @evaluated,
+      @model_variant, @recommendation, @betting_line, @predicted_value, @over_probability, @actual_value, @data)`);
+  const started = Date.now();
+  const imported = database.transaction((rows) => {
+    let n = 0;
+    for (const r of rows) {
+      if (!r || typeof r !== 'object' || !r.id) continue;
+      insert.run(rowFor(r));
+      n++;
+    }
+    return n;
+  })(records);
+  const stored = database.prepare('SELECT count(*) AS n FROM predictions').get().n;
+  const target = `${LEGACY_FILE}.migrated`;
+  fs.renameSync(LEGACY_FILE, fs.existsSync(target) ? `${target}.${Date.now()}` : target);
+  console.log(`[PredictionTracking] Migrated ${imported} of ${records.length} JSON records into SQLite (${stored} rows) in ${Date.now() - started}ms; renamed ${LEGACY_FILE} -> ${target}`);
 }
 
-/** Write any pending changes now (used on shutdown). */
-export function flushPredictionsSync() {
-  if (_flushTimer) { clearTimeout(_flushTimer); _flushTimer = null; }
-  if (!_dirty) return;
-  try {
-    _dirty = false;
-    writeStoreToDisk(true);
-  } catch (error) {
-    console.error('Error flushing predictions:', error);
+// ---------------------------------------------------------------------------
+// In-memory cache of record objects, kept in step with the database
+// ---------------------------------------------------------------------------
+
+let _cache = null; // { list: object[], byId: Map<string, object> }
+
+function ensureCache() {
+  if (_cache) return _cache;
+  const started = Date.now();
+  const list = [];
+  const byId = new Map();
+  for (const row of _stmts.allData.iterate()) {
+    const record = JSON.parse(row.data);
+    list.push(record);
+    byId.set(record.id, record);
   }
+  _cache = { list, byId };
+  console.log(`[PredictionTracking] Loaded ${list.length} predictions from SQLite in ${Date.now() - started}ms`);
+  return _cache;
+}
+
+function loadPredictions() {
+  db();
+  return ensureCache();
+}
+
+/** Drop the cache so the next reader rebuilds it from the database. */
+function invalidateCache() {
+  _cache = null;
+}
+
+/** Write one record's row; the caller runs this inside a transaction when it writes several. */
+function persist(record) {
+  _stmts.upsert.run(rowFor(record));
+}
+
+/** Run `fn` inside a transaction; if a write fails, the cache is rebuilt from disk so it cannot drift. */
+function write(fn) {
+  try {
+    return db().transaction(fn)();
+  } catch (error) {
+    invalidateCache();
+    throw error;
+  }
+}
+
+function cacheInsert(record) {
+  if (!_cache) return;
+  _cache.list.push(record);
+  _cache.byId.set(record.id, record);
+}
+
+function cacheRemove(ids) {
+  if (!_cache) return;
+  const drop = new Set(ids);
+  if (drop.size === 0) return;
+  _cache.list = _cache.list.filter(p => !drop.has(p.id));
+  for (const id of drop) _cache.byId.delete(id);
+}
+
+/**
+ * Insert records as they are (ids kept, nothing recomputed), replacing rows
+ * with the same id. Used by the migration and by scripts that need to seed a
+ * store with legacy-shaped records. Returns the number written.
+ */
+export function importPredictions(records) {
+  const rows = (records || []).filter(r => r && typeof r === 'object' && r.id);
+  write(() => { for (const r of rows) persist(r); });
+  if (_cache) {
+    for (const r of rows) {
+      const current = _cache.byId.get(r.id);
+      if (current) {
+        for (const k of Object.keys(current)) delete current[k];
+        Object.assign(current, r);
+      } else {
+        cacheInsert(r);
+      }
+    }
+  }
+  return rows.length;
+}
+
+/** Checkpoint the WAL into the main database file (used on shutdown and after bulk writes). */
+export function flushPredictionsSync() {
+  if (!_db) return;
+  try {
+    _db.pragma('wal_checkpoint(TRUNCATE)');
+  } catch (error) {
+    console.error('Error checkpointing predictions:', error);
+  }
+}
+
+function closeDatabase() {
+  flushPredictionsSync();
+  try { _db?.close(); } catch { /* already closed */ }
+  _db = null;
 }
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.once(signal, () => {
-    flushPredictionsSync();
+    closeDatabase();
     process.exit(0);
   });
 }
 process.on('beforeExit', flushPredictionsSync);
+
+/** Row count and file size, for /api/health. */
+export function getStoreStatus() {
+  const rows = db().prepare('SELECT count(*) AS n FROM predictions').get().n;
+  let bytes = 0;
+  for (const f of [DB_FILE, `${DB_FILE}-wal`]) {
+    try { bytes += fs.statSync(f).size; } catch { /* no wal yet */ }
+  }
+  return { engine: 'sqlite', rows, db_size_mb: Math.round(bytes / 1024 / 1024 * 10) / 10, file: DB_FILE };
+}
 
 /**
  * Move every prediction that did not come from the edge model out of the live
@@ -143,19 +314,21 @@ export function archiveLegacyPredictions({ keepVariant = 'edge' } = {}) {
   const data = loadPredictions();
   const keep = [];
   const archive = [];
-  for (const p of data.predictions) {
+  for (const p of data.list) {
     (p.model_variant === keepVariant ? keep : archive).push(p);
   }
   if (archive.length === 0) return { archived: 0, kept: keep.length, file: null };
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const file = join(PREDICTIONS_DIR, `predictions_archive_${stamp}.json`);
+  // The archive file is written and complete before any row leaves the database
   fs.writeFileSync(file, JSON.stringify({
     archived_at: new Date().toISOString(),
     reason: `records not from the '${keepVariant}' model`,
     predictions: archive
   }), 'utf8');
-  data.predictions = keep;
-  savePredictions(data);
+  write(() => { for (const p of archive) _stmts.remove.run(p.id); });
+  cacheRemove(archive.map(p => p.id));
+  _archiveCache = null;
   flushPredictionsSync();
   console.log(`[PredictionTracking] Archived ${archive.length} legacy predictions to ${file}; ${keep.length} kept`);
   return { archived: archive.length, kept: keep.length, file };
@@ -190,9 +363,9 @@ export function getArchivedPredictions() {
   return all;
 }
 
-/** Every stored prediction (live array; callers must not mutate it). */
+/** Every stored prediction (cached array; callers must not mutate it). */
 export function getAllPredictions() {
-  return loadPredictions().predictions;
+  return loadPredictions().list;
 }
 
 /**
@@ -200,7 +373,7 @@ export function getAllPredictions() {
  * only included on request.
  */
 export function getRawPredictions({ offset = 0, limit = 1000, includeFeatures = false, evaluatedOnly = false, source = 'live' } = {}) {
-  const all = source === 'archive' ? getArchivedPredictions() : loadPredictions().predictions;
+  const all = source === 'archive' ? getArchivedPredictions() : loadPredictions().list;
   const pool = evaluatedOnly ? all.filter(p => p.evaluated && !p.expired && !p.dnp && p.actual_value != null) : all;
   const page = pool.slice(offset, offset + limit).map(p => {
     if (includeFeatures) return p;
@@ -242,20 +415,16 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
   // that reads the store (Best Bets, grading) sees what the player page shows;
   // the record keeps its id and created_at and counts its revisions. Once the
   // game is graded the record is frozen.
-  const matches = gameDate == null ? [] : data.predictions.filter(p =>
-    p.player_name?.toLowerCase() === playerName.toLowerCase() &&
-    p.prop_type === propType &&
-    normalizeGameDate(p.next_game?.date) === gameDate
-  );
+  const matches = gameDate == null ? [] : _stmts.idsForGame.all(playerName, propType, gameDate)
+    .map(r => data.byId.get(r.id))
+    .filter(Boolean);
   if (matches.some(p => p.evaluated)) {
     return matches.find(p => p.evaluated).id;
   }
   // Legacy duplicates (two date spellings for one game): keep the newest
   matches.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
   const existing = matches[0] || null;
-  for (const dup of matches.slice(1)) {
-    data.predictions.splice(data.predictions.indexOf(dup), 1);
-  }
+  const duplicates = matches.slice(1);
 
   // Get the predicted value for this prop type
   const predictedValue = prediction[`predicted_${propType}`] || prediction.predicted_points || prediction.predicted_value;
@@ -315,7 +484,13 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
       existing.betting_line !== predictionRecord.betting_line ||
       existing.over_probability !== predictionRecord.over_probability ||
       existing.recommendation !== predictionRecord.recommendation;
-    if (!changed) return existing.id;
+    if (!changed) {
+      if (duplicates.length) {
+        write(() => { for (const dup of duplicates) _stmts.remove.run(dup.id); });
+        cacheRemove(duplicates.map(p => p.id));
+      }
+      return existing.id;
+    }
     const { id, created_at, actual_value, actual_points, accuracy, evaluated } = existing;
     const revisions = (existing.revisions || 0) + 1;
     Object.assign(existing, predictionRecord, {
@@ -335,12 +510,20 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
         at: created_at
       }
     });
-    savePredictions(data);
+    write(() => {
+      for (const dup of duplicates) _stmts.remove.run(dup.id);
+      persist(existing);
+    });
+    cacheRemove(duplicates.map(p => p.id));
     return existing.id;
   }
 
-  data.predictions.push(predictionRecord);
-  savePredictions(data);
+  write(() => {
+    for (const dup of duplicates) _stmts.remove.run(dup.id);
+    persist(predictionRecord);
+  });
+  cacheRemove(duplicates.map(p => p.id));
+  cacheInsert(predictionRecord);
   return predictionRecord.id;
 }
 
@@ -352,10 +535,10 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
 export function setClosingSnapshot(predictionId, closing) {
   if (!closing) return false;
   const data = loadPredictions();
-  const prediction = data.predictions.find(p => p.id === predictionId);
+  const prediction = data.byId.get(predictionId);
   if (!prediction || prediction.closing || prediction.evaluated) return false;
   prediction.closing = closing;
-  savePredictions(data);
+  write(() => persist(prediction));
   return true;
 }
 
@@ -366,13 +549,13 @@ export function setClosingSnapshot(predictionId, closing) {
  */
 export function updatePredictionOutcome(predictionId, actualPoints) {
   const data = loadPredictions();
-  const prediction = data.predictions.find(p => p.id === predictionId);
-  
+  const prediction = data.byId.get(predictionId);
+
   if (!prediction) {
     console.warn(`⚠️ Prediction ${predictionId} not found`);
     return null;
   }
-  
+
   prediction.actual_points = actualPoints; // backward compat
   prediction.actual_value = actualPoints;
   prediction.evaluated = true;
@@ -387,7 +570,7 @@ export function updatePredictionOutcome(predictionId, actualPoints) {
     : null;
   prediction.within_margin = error <= prediction.error_margin;
   prediction.within_2x_margin = error <= (prediction.error_margin * 2);
-  
+
   // Calculate accuracy score (0-100)
   if (prediction.error_margin > 0) {
     // Accuracy based on how close to error margin (100% if exact, 0% if >2x margin)
@@ -398,9 +581,9 @@ export function updatePredictionOutcome(predictionId, actualPoints) {
     const pctError = prediction.percentage_error || 0;
     prediction.accuracy = Math.max(0, Math.round(100 - Math.min(pctError, 100)));
   }
-  
-  savePredictions(data);
-  
+
+  write(() => persist(prediction));
+
   return prediction;
 }
 
@@ -410,7 +593,7 @@ export function updatePredictionOutcome(predictionId, actualPoints) {
  */
 export function markPredictionDNP(predictionId) {
   const data = loadPredictions();
-  const prediction = data.predictions.find(p => p.id === predictionId);
+  const prediction = data.byId.get(predictionId);
   if (!prediction) return null;
 
   prediction.evaluated = true;
@@ -421,7 +604,7 @@ export function markPredictionDNP(predictionId) {
   prediction.dnp = true;
   prediction.dnp_reason = 'Player did not play (injury/rest/DNP)';
 
-  savePredictions(data);
+  write(() => persist(prediction));
   return prediction;
 }
 
@@ -429,27 +612,27 @@ export function markPredictionDNP(predictionId) {
  * Get prediction accuracy statistics
  */
 export function getAccuracyStats() {
-  const data = loadPredictions();
-  const evaluated = data.predictions.filter(p => p.evaluated);
-  
+  const predictions = loadPredictions().list;
+  const evaluated = predictions.filter(p => p.evaluated);
+
   if (evaluated.length === 0) {
     return {
-      total_predictions: data.predictions.length,
+      total_predictions: predictions.length,
       evaluated: 0,
-      pending: data.predictions.length,
+      pending: predictions.length,
       message: 'No evaluated predictions yet'
     };
   }
-  
+
   const avgError = evaluated.reduce((sum, p) => sum + (p.absolute_error || 0), 0) / evaluated.length;
   const avgAccuracy = evaluated.reduce((sum, p) => sum + (p.accuracy || 0), 0) / evaluated.length;
   const withinMargin = evaluated.filter(p => p.within_margin).length;
   const within2xMargin = evaluated.filter(p => p.within_2x_margin).length;
-  
+
   return {
-    total_predictions: data.predictions.length,
+    total_predictions: predictions.length,
     evaluated: evaluated.length,
-    pending: data.predictions.length - evaluated.length,
+    pending: predictions.length - evaluated.length,
     average_error: Math.round(avgError * 10) / 10,
     average_accuracy: Math.round(avgAccuracy * 10) / 10,
     within_margin_rate: Math.round((withinMargin / evaluated.length) * 100),
@@ -473,15 +656,15 @@ export const GRADE_AFTER_TIP_HOURS = 4;
  * still in progress.
  */
 export function getPendingEvaluations({ now: nowMs = Date.now() } = {}) {
-  const data = loadPredictions();
+  const predictions = loadPredictions().list;
   const now = new Date(nowMs);
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  let expired = 0;
+  const expired = [];
   const pending = [];
 
-  for (const p of data.predictions) {
+  for (const p of predictions) {
     if (p.evaluated || !p.next_game || !p.next_game.date) continue;
 
     const gameDate = new Date(`${normalizeGameDate(p.next_game.date)}T00:00:00Z`);
@@ -496,7 +679,7 @@ export function getPendingEvaluations({ now: nowMs = Date.now() } = {}) {
       p.accuracy = null;
       p.expired = true;
       p.expired_reason = 'Game date older than 30 days, NBA API no longer has this data';
-      expired++;
+      expired.push(p);
       continue;
     }
 
@@ -508,8 +691,8 @@ export function getPendingEvaluations({ now: nowMs = Date.now() } = {}) {
     }
   }
 
-  if (expired > 0) {
-    savePredictions(data);
+  if (expired.length > 0) {
+    write(() => { for (const p of expired) persist(p); });
   }
 
   return pending;
@@ -526,13 +709,13 @@ export function getPendingEvaluations({ now: nowMs = Date.now() } = {}) {
  */
 export function dedupeGamePredictions() {
   const data = loadPredictions();
-  let normalized = 0;
+  const normalizedRecords = [];
   const groups = new Map();
-  for (const p of data.predictions) {
+  for (const p of data.list) {
     const iso = normalizeGameDate(p.next_game?.date);
     if (iso && iso !== p.next_game.date) {
       p.next_game.date = iso;
-      normalized++;
+      normalizedRecords.push(p);
     }
     if (!iso || !p.player_name) continue;
     const key = `${p.player_name.toLowerCase()}|${p.prop_type || 'points'}|${iso}`;
@@ -546,12 +729,14 @@ export function dedupeGamePredictions() {
     group.sort((a, b) => (graded(b) - graded(a)) || (stamp(b) - stamp(a)));
     for (const dup of group.slice(1)) removed.push(dup);
   }
-  if (removed.length) {
-    const drop = new Set(removed.map(p => p.id));
-    data.predictions = data.predictions.filter(p => !drop.has(p.id));
-  }
+  const normalized = normalizedRecords.length;
   if (normalized || removed.length) {
-    savePredictions(data);
+    const drop = new Set(removed.map(p => p.id));
+    write(() => {
+      for (const p of normalizedRecords) if (!drop.has(p.id)) persist(p);
+      for (const p of removed) _stmts.remove.run(p.id);
+    });
+    cacheRemove(drop);
     console.log(`[PredictionTracking] Normalised ${normalized} game dates, removed ${removed.length} duplicate records`);
   }
   return { normalized, removed: removed.map(p => ({ id: p.id, player: p.player_name, prop: p.prop_type, date: p.next_game?.date })) };
@@ -561,8 +746,8 @@ export function dedupeGamePredictions() {
  * Find prediction by player and game date
  */
 export function findPredictionByGame(playerName, gameDate) {
-  const data = loadPredictions();
-  return data.predictions.find(p => 
+  const predictions = loadPredictions().list;
+  return predictions.find(p =>
     p.player_name.toLowerCase() === playerName.toLowerCase() &&
     p.next_game.date === gameDate &&
     !p.evaluated
@@ -574,8 +759,8 @@ export function findPredictionByGame(playerName, gameDate) {
  * @param {number} minAccuracy - Minimum accuracy threshold (default: 70)
  */
 export function exportForRetraining(minAccuracy = 70) {
-  const data = loadPredictions();
-  const evaluated = data.predictions.filter(p =>
+  const predictions = loadPredictions().list;
+  const evaluated = predictions.filter(p =>
     p.evaluated &&
     p.accuracy >= minAccuracy
   );
@@ -619,8 +804,8 @@ export function getGlobalBias(propType = 'points') {
     return cached.value;
   }
 
-  const data = loadPredictions();
-  const recent = data.predictions
+  const predictions = loadPredictions().list;
+  const recent = predictions
     .filter(p => p.evaluated && !p.expired && (p.prop_type || 'points') === propType)
     .sort((a, b) => new Date(b.evaluated_at || b.created_at) - new Date(a.evaluated_at || a.created_at))
     .slice(0, 500); // Most recent 500 evaluated predictions
@@ -656,8 +841,8 @@ export function getPlayerBias(playerName, propType = 'points') {
 }
 
 function computePlayerBias(playerName, propType) {
-  const data = loadPredictions();
-  const playerPreds = data.predictions.filter(p =>
+  const predictions = loadPredictions().list;
+  const playerPreds = predictions.filter(p =>
     p.evaluated &&
     p.player_name.toLowerCase() === playerName.toLowerCase() &&
     (p.prop_type || 'points') === propType
@@ -699,11 +884,9 @@ function computePlayerBias(playerName, propType) {
  * @returns {number} Number of predictions that were cleared
  */
 export function resetPredictions() {
-  const existing = loadPredictions();
-  const count = existing.predictions?.length || 0;
-  savePredictions({ predictions: [] });
+  const count = loadPredictions().list.length;
+  write(() => _stmts.removeAll.run());
+  _cache = { list: [], byId: new Map() };
   console.log(`[PredictionTracking] Reset: cleared ${count} predictions`);
   return count;
 }
-
-

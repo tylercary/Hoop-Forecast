@@ -7,6 +7,7 @@ import express from 'express';
 import * as performanceService from '../services/performanceTrackingService.js';
 import { resetPredictions, getRawPredictions, getAllPredictions, archiveLegacyPredictions, listArchives } from '../services/predictionTrackingService.js';
 import { archiveGamePredictions } from '../services/gamePredictionTrackingService.js';
+import { runBackup, latestBackup, listBackups, getBackupStatus } from '../services/backupService.js';
 
 // Destructive routes need ADMIN_KEY (env) in the x-admin-key header; with no
 // ADMIN_KEY configured they are disabled.
@@ -185,6 +186,37 @@ router.post('/archive-legacy', async (req, res) => {
   } catch (error) {
     console.error('Error archiving predictions:', error);
     res.status(500).json({ error: 'Failed to archive predictions', message: error.message });
+  }
+});
+
+/**
+ * GET /api/performance/backup  (x-admin-key)
+ * Stream the latest SQLite backup of the prediction store so it can be pulled
+ * off the volume by hand or by a workflow. ?fresh=1 writes a new copy first;
+ * with no backup on the volume yet one is written anyway. ?list=1 returns
+ * what is on the volume instead of a file.
+ */
+router.get('/backup', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    if (req.query.list === '1') {
+      return res.json({ ...getBackupStatus(), backups: listBackups() });
+    }
+    let backup = req.query.fresh === '1' ? null : latestBackup();
+    if (!backup) {
+      await runBackup({ upload: false });
+      backup = latestBackup();
+    }
+    if (!backup) return res.status(500).json({ error: 'No backup available' });
+    res.set('Content-Type', 'application/octet-stream');
+    res.set('Content-Length', String(backup.size));
+    res.set('Content-Disposition', `attachment; filename="${backup.name}"`);
+    res.set('X-Backup-Name', backup.name);
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(backup.file);
+  } catch (error) {
+    console.error('Error serving backup:', error);
+    res.status(500).json({ error: 'Failed to produce backup', message: error.message });
   }
 });
 
