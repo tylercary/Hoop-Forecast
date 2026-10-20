@@ -53,9 +53,16 @@ function isoDate(value) {
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
-/** Records eligible for grading, normalised to the fields the grader needs. */
+/**
+ * Records eligible for grading, normalised to the fields the grader needs.
+ * One row per player + prop + game: an export can still hold a legacy-dated
+ * duplicate of a record (see predictionTrackingService.dedupeGamePredictions),
+ * and the newest graded record is the one that counts.
+ */
 export function eligibleRows(predictions, variant = 'edge') {
   const rows = [];
+  const seen = new Map(); // player|prop|date -> index in rows
+  const stamp = (p) => new Date(p.updated_at || p.created_at || 0).getTime();
   for (const p of predictions) {
     if (!p.evaluated || p.expired || p.dnp) continue;
     if (p.actual_value == null || p.betting_line == null || !(p.betting_line > 0)) continue;
@@ -64,7 +71,17 @@ export function eligibleRows(predictions, variant = 'edge') {
     const line = p.betting_line;
     const actual = p.actual_value;
     const date = isoDate(p.next_game && p.next_game.date) || isoDate(p.created_at) || '';
+    const key = `${(p.player_name || '').toLowerCase()}|${p.prop_type || 'points'}|${date}`;
+    if (seen.has(key)) {
+      const i = seen.get(key);
+      if (stamp(p) <= rows[i]._stamp) continue;
+      rows.splice(i, 1);
+      for (const [k, v] of seen) if (v > i) seen.set(k, v - 1);
+      seen.delete(key);
+    }
+    seen.set(key, rows.length);
     rows.push({
+      _stamp: stamp(p),
       id: p.id,
       player: p.player_name || null,
       opponent: p.next_game?.opponent || p.opponent || null,

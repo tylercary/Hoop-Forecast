@@ -17,7 +17,7 @@ import { evaluatePendingGamePredictions } from './services/gamePredictionTrackin
 import optionalAuth from './middleware/optionalAuth.js';
 import { resolveAllPendingPredictions } from './services/predictionCron.js';
 import { teamGameStatsSummary } from './services/teamContextService.js';
-import { archiveLegacyPredictions } from './services/predictionTrackingService.js';
+import { archiveLegacyPredictions, dedupeGamePredictions } from './services/predictionTrackingService.js';
 import { archiveGamePredictions } from './services/gamePredictionTrackingService.js';
 import { runBatchPredictions, runBatchGamePredictions, ensureSlatePredicted } from './services/batchPredictionCron.js';
 import { getOddsApiUsage } from './services/oddsEventCache.js';
@@ -110,6 +110,9 @@ async function runEvaluation() {
 try {
   archiveLegacyPredictions();
   archiveGamePredictions();
+  // One record per player/prop/game, ISO-dated: legacy "Oct 20, 2026" rows
+  // stored beside "2026-10-20" rows for the same game would be graded twice.
+  dedupeGamePredictions();
 } catch (err) {
   console.error('Legacy archive failed:', err.message);
 }

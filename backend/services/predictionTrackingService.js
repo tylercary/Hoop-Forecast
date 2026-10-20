@@ -439,13 +439,23 @@ export function getAccuracyStats() {
   };
 }
 
+/** Hours after tip-off before a game is considered final and gradable. */
+export const GRADE_AFTER_TIP_HOURS = 4;
+
 /**
  * Get predictions that need evaluation (games that have likely been played)
  * Auto-expires predictions older than 30 days as unevaluable
+ *
+ * A record with a tip-off time is pending once GRADE_AFTER_TIP_HOURS have
+ * passed since it (the game is over by then; ESPN posts the box score within
+ * minutes). Without one, the game date must be more than a day old. The date
+ * is a UTC calendar day, so a 10pm ET game stored as the next day would
+ * otherwise wait almost two days, and a 7pm ET game could be looked up while
+ * still in progress.
  */
-export function getPendingEvaluations() {
+export function getPendingEvaluations({ now: nowMs = Date.now() } = {}) {
   const data = loadPredictions();
-  const now = new Date();
+  const now = new Date(nowMs);
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -455,7 +465,8 @@ export function getPendingEvaluations() {
   for (const p of data.predictions) {
     if (p.evaluated || !p.next_game || !p.next_game.date) continue;
 
-    const gameDate = new Date(p.next_game.date);
+    const gameDate = new Date(`${normalizeGameDate(p.next_game.date)}T00:00:00Z`);
+    if (Number.isNaN(gameDate.getTime())) continue;
 
     // Auto-expire predictions older than 30 days
     if (gameDate < thirtyDaysAgo) {
@@ -470,7 +481,10 @@ export function getPendingEvaluations() {
       continue;
     }
 
-    if (gameDate < oneDayAgo) {
+    const tip = p.next_game.commence_time ? new Date(p.next_game.commence_time) : null;
+    if (tip && !Number.isNaN(tip.getTime())) {
+      if (now.getTime() - tip.getTime() >= GRADE_AFTER_TIP_HOURS * 60 * 60 * 1000) pending.push(p);
+    } else if (gameDate < oneDayAgo) {
       pending.push(p);
     }
   }
@@ -480,6 +494,48 @@ export function getPendingEvaluations() {
   }
 
   return pending;
+}
+
+/**
+ * One record per player + prop + game, dated in ISO.
+ *
+ * Records written before game dates were normalised can exist twice for one
+ * game ("Oct 20, 2026" beside "2026-10-20"); both would be graded and counted.
+ * This rewrites every next_game.date to YYYY-MM-DD and collapses duplicates:
+ * a graded record with an actual value wins, otherwise the newest (the same
+ * rule storePrediction applies). Idempotent; run at startup.
+ */
+export function dedupeGamePredictions() {
+  const data = loadPredictions();
+  let normalized = 0;
+  const groups = new Map();
+  for (const p of data.predictions) {
+    const iso = normalizeGameDate(p.next_game?.date);
+    if (iso && iso !== p.next_game.date) {
+      p.next_game.date = iso;
+      normalized++;
+    }
+    if (!iso || !p.player_name) continue;
+    const key = `${p.player_name.toLowerCase()}|${p.prop_type || 'points'}|${iso}`;
+    (groups.get(key) || groups.set(key, []).get(key)).push(p);
+  }
+  const removed = [];
+  const stamp = (p) => new Date(p.updated_at || p.created_at || 0).getTime();
+  const graded = (p) => p.evaluated && !p.dnp && !p.expired && p.actual_value != null;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => (graded(b) - graded(a)) || (stamp(b) - stamp(a)));
+    for (const dup of group.slice(1)) removed.push(dup);
+  }
+  if (removed.length) {
+    const drop = new Set(removed.map(p => p.id));
+    data.predictions = data.predictions.filter(p => !drop.has(p.id));
+  }
+  if (normalized || removed.length) {
+    savePredictions(data);
+    console.log(`[PredictionTracking] Normalised ${normalized} game dates, removed ${removed.length} duplicate records`);
+  }
+  return { normalized, removed: removed.map(p => ({ id: p.id, player: p.player_name, prop: p.prop_type, date: p.next_game?.date })) };
 }
 
 /**

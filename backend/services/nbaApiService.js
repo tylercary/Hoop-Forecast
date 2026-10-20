@@ -255,7 +255,18 @@ export async function getPlayerStatsFromESPN(playerName) {
       'Accept': 'application/json'
     };
 
-    const [currentResponse, previousResponse] = await Promise.allSettled([
+    // ESPN's default (no season param) lags at the turn of a season: on
+    // 2026-10-19, the day before opening night, it still served 2025-26 and
+    // the explicit previous-season request asked for 2025-26 as well, so the
+    // new season's games were never fetched (and grading would have marked
+    // every opening-night prediction DNP). Ask for the current season by its
+    // ESPN id explicitly; the default stays as a fallback.
+    const [thisSeasonResponse, currentResponse, previousResponse] = await Promise.allSettled([
+      axios.get(gamelogUrl, {
+        params: { season: getEspnCurrentSeason() },
+        headers: espnHeaders,
+        timeout: 15000
+      }),
       axios.get(gamelogUrl, { headers: espnHeaders, timeout: 15000 }),
       axios.get(gamelogUrl, {
         params: { season: getEspnPreviousSeason() },
@@ -264,22 +275,23 @@ export async function getPlayerStatsFromESPN(playerName) {
       })
     ]);
 
+    const thisSeasonData = thisSeasonResponse.status === 'fulfilled' ? thisSeasonResponse.value.data : null;
     const currentData = currentResponse.status === 'fulfilled' ? currentResponse.value.data : null;
     const previousData = previousResponse.status === 'fulfilled' ? previousResponse.value.data : null;
 
-    if (!currentData) {
+    if (!currentData && !thisSeasonData) {
       throw new Error(`Failed to fetch ESPN gamelog for ${playerName}`);
     }
 
     // Step 3: Parse games from ESPN response
-    const currentGames = parseEspnGamelog(currentData, getCurrentSeason());
+    const thisSeasonGames = thisSeasonData ? parseEspnGamelog(thisSeasonData, getCurrentSeason()) : [];
+    const currentGames = currentData ? parseEspnGamelog(currentData, getCurrentSeason()) : [];
     const previousGames = previousData ? parseEspnGamelog(previousData, getPreviousSeason(getCurrentSeason())) : [];
 
-    // Combine both responses, most recent first. Before a new season starts, ESPN's
-    // default season is still the previous one, so both responses can hold the same
+    // Combine the responses, most recent first. Two of them can hold the same
     // games — keep one per date (a player can't play twice in a day).
     const seenDates = new Set();
-    const allGames = [...currentGames, ...previousGames]
+    const allGames = [...thisSeasonGames, ...currentGames, ...previousGames]
       .filter(game => {
         if (!game.date) return true;
         if (seenDates.has(game.date)) return false;
@@ -427,6 +439,17 @@ function parseEspnGamelog(data, seasonLabel) {
  * Get ESPN season parameter for previous season
  * ESPN uses the end year (e.g., 2025 for the 2024-25 season)
  */
+/**
+ * ESPN season id of the current NBA season: the season's end year
+ * (2026-27 -> "2027"). From October the new season is current.
+ */
+function getEspnCurrentSeason() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  return String(month < 10 ? year : year + 1);
+}
+
 function getEspnPreviousSeason() {
   const now = new Date();
   const year = now.getFullYear();
