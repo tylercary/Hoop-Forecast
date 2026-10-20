@@ -1,7 +1,7 @@
 """
 Build per-prop training sets from evaluated predictions.
 
-Reads predictions.json, filters to evaluated predictions with feature vectors,
+Reads the prediction store (SQLite, or predictions.json), filters to evaluated predictions with feature vectors,
 and produces per-prop CSVs for XGBoost retraining.
 
 Usage: python3 backend/ml/build_training_set.py
@@ -12,9 +12,14 @@ import os
 import sys
 import hashlib
 import csv
+import sqlite3
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PREDICTIONS_FILE = os.path.join(SCRIPT_DIR, '..', 'data', 'predictions.json')
+DATA_DIR = os.environ.get('DATA_DIR') or os.path.join(SCRIPT_DIR, '..', 'data')
+PREDICTIONS_FILE = os.path.join(DATA_DIR, 'predictions.json')
+# The live store is SQLite (predictionTrackingService.js); the JSON file is
+# only used when it still exists (an export, or a store not yet migrated).
+PREDICTIONS_DB = os.path.join(DATA_DIR, 'predictions.sqlite')
 SCHEMA_FILE = os.path.join(SCRIPT_DIR, 'feature_schema.json')
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'data')
 
@@ -41,15 +46,23 @@ def load_feature_schema():
 
 
 def load_predictions():
-    """Load predictions from JSON file"""
-    if not os.path.exists(PREDICTIONS_FILE):
-        print(f"Error: {PREDICTIONS_FILE} not found")
-        sys.exit(1)
+    """Load predictions from the SQLite store, or from predictions.json if that is what exists"""
+    if os.path.exists(PREDICTIONS_FILE):
+        with open(PREDICTIONS_FILE, 'r') as f:
+            data = json.load(f)
+        return data.get('predictions', [])
 
-    with open(PREDICTIONS_FILE, 'r') as f:
-        data = json.load(f)
+    if os.path.exists(PREDICTIONS_DB):
+        uri = 'file:' + PREDICTIONS_DB.replace('?', '%3f') + '?mode=ro'
+        conn = sqlite3.connect(uri, uri=True)
+        try:
+            rows = conn.execute('SELECT data FROM predictions ORDER BY rowid').fetchall()
+        finally:
+            conn.close()
+        return [json.loads(r[0]) for r in rows]
 
-    return data.get('predictions', [])
+    print(f"Error: neither {PREDICTIONS_DB} nor {PREDICTIONS_FILE} found")
+    sys.exit(1)
 
 
 def leakage_check(feature_names):
