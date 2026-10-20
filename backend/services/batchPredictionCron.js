@@ -15,6 +15,7 @@ import { getGameOdds, getGameSpread } from './oddsService.js';
 import { summarizeBooks } from './marketFeatureService.js';
 import { storeGamePrediction } from './gamePredictionTrackingService.js';
 import { getAllEventOdds } from './oddsEventCache.js';
+import { getAllPredictions } from './predictionTrackingService.js';
 
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 
@@ -103,10 +104,34 @@ async function fetchPlayersWithLines() {
 }
 
 /**
+ * Player/prop/game-date keys already in the prediction store. storePrediction
+ * dedupes on exactly these, so re-predicting a tracked combo is wasted work
+ * (an ESPN game-log fetch and a model call) that stores nothing.
+ */
+function trackedKeys() {
+  const keys = new Set();
+  for (const p of getAllPredictions()) {
+    if (p.next_game?.date) keys.add(`${(p.player_name || '').toLowerCase()}|${p.prop_type}|${p.next_game.date}`);
+  }
+  return keys;
+}
+
+let batchInFlight = null;
+
+/**
  * Run batch predictions for all players with active lines.
  * Processes sequentially with delays to avoid API throttling.
+ * Concurrent callers share one run. Lines come from the shared odds cache,
+ * so a run never spends Odds API credits beyond the cache's own refresh.
  */
-export async function runBatchPredictions() {
+export function runBatchPredictions() {
+  if (!batchInFlight) {
+    batchInFlight = runBatchPredictionsNow().finally(() => { batchInFlight = null; });
+  }
+  return batchInFlight;
+}
+
+async function runBatchPredictionsNow() {
   console.log('[BatchPred] Starting batch prediction run...');
   const startTime = Date.now();
 
@@ -118,8 +143,16 @@ export async function runBatchPredictions() {
     return;
   }
 
+  // Only combos the store has not tracked for this game yet
+  const tracked = trackedKeys();
+  const total = players.length;
+  players = players.filter(p => !tracked.has(`${p.name.toLowerCase()}|${p.propType}|${p.nextGame?.date}`));
+  if (total && players.length < total) {
+    console.log(`[BatchPred] ${total - players.length} of ${total} player-prop combos already tracked`);
+  }
+
   if (!players.length) {
-    console.log('[BatchPred] No players with active lines found');
+    console.log(total ? '[BatchPred] Slate already predicted' : '[BatchPred] No players with active lines found');
     return;
   }
 
@@ -205,6 +238,31 @@ export async function runBatchPredictions() {
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`[BatchPred] Complete: ${predicted} predicted, ${failed} failed, ${elapsed}s elapsed`);
+}
+
+const SLATE_WINDOW_MS = 36 * 60 * 60 * 1000;
+
+/** Tracked, unevaluated predictions for games tipping off in the next 36 hours. */
+export function countUpcomingPredictions(now = Date.now()) {
+  let n = 0;
+  for (const p of getAllPredictions()) {
+    if (p.evaluated || p.expired || p.dnp || !p.next_game?.commence_time) continue;
+    const tip = new Date(p.next_game.commence_time).getTime();
+    if (tip > now && tip - now <= SLATE_WINDOW_MS) n++;
+  }
+  return n;
+}
+
+/**
+ * Make sure today's slate is predicted. Cheap when it already is: the run
+ * reads lines from the shared odds cache (no Odds API credits of its own) and
+ * skips every combo the store already tracks, so only new props are fetched
+ * from ESPN and run through the model. Concurrent callers share one run.
+ */
+export async function ensureSlatePredicted() {
+  const before = countUpcomingPredictions();
+  await runBatchPredictions();
+  return { before, after: countUpcomingPredictions() };
 }
 
 /**

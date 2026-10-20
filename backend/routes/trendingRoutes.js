@@ -11,6 +11,7 @@ import {
 } from '../utils/trendingHelpers.js';
 import { getTeamAbbrevFromFullName } from '../services/teamMappingService.js';
 import { getAllEventOdds } from '../services/oddsEventCache.js';
+import { getBestBets } from '../services/bestBetsService.js';
 
 dotenv.config();
 
@@ -200,6 +201,60 @@ router.get('/props', async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching trending props:', error.message);
     res.status(500).json({ error: 'Failed to fetch trending props' });
+  }
+});
+
+// Best bets: 10 minutes, or 1 minute while the slate is still being predicted
+const BEST_BETS_TTL = 600;
+const BEST_BETS_WARMING_TTL = 60;
+
+/**
+ * GET /api/trending/best-bets
+ * Today's slate picks where the edge model disagrees most with the line.
+ */
+router.get('/best-bets', async (req, res) => {
+  try {
+    const cached = trendingCache.get('best_bets');
+    if (cached) {
+      res.set('Cache-Control', `public, max-age=${BEST_BETS_WARMING_TTL}`);
+      return res.json(cached);
+    }
+
+    const result = await getBestBets();
+
+    // Headshots already on disk; fetch missing ones briefly, like trending
+    const { getImageUrl, imageExists, downloadPlayerImage } = await import('../services/imageStorageService.js');
+    const missing = [];
+    for (const pick of result.picks) {
+      try {
+        if (imageExists(pick.player)) pick.player_image = getImageUrl(pick.player);
+        else missing.push(pick);
+      } catch {
+        pick.player_image = null;
+      }
+    }
+    if (missing.length) {
+      const { searchPlayer } = await import('../services/nbaApiService.js');
+      await Promise.allSettled(missing.map(async (pick) => {
+        try {
+          const nbaPlayer = await Promise.race([
+            searchPlayer(pick.player),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+          ]);
+          if (nbaPlayer?.id) pick.player_image = await downloadPlayerImage(pick.player, nbaPlayer.id) || null;
+        } catch {
+          // Card shows initials
+        }
+      }));
+    }
+
+    const ttl = result.warming ? BEST_BETS_WARMING_TTL : BEST_BETS_TTL;
+    trendingCache.set('best_bets', result, ttl);
+    res.set('Cache-Control', `public, max-age=${BEST_BETS_WARMING_TTL}`);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error building best bets:', error.message);
+    res.status(500).json({ error: 'Failed to build best bets' });
   }
 });
 

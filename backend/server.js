@@ -16,7 +16,7 @@ import { getAccuracyStats } from './services/predictionTrackingService.js';
 import { evaluatePendingGamePredictions } from './services/gamePredictionTrackingService.js';
 import optionalAuth from './middleware/optionalAuth.js';
 import { resolveAllPendingPredictions } from './services/predictionCron.js';
-import { runBatchPredictions, runBatchGamePredictions } from './services/batchPredictionCron.js';
+import { runBatchPredictions, runBatchGamePredictions, ensureSlatePredicted } from './services/batchPredictionCron.js';
 import { getOddsApiUsage } from './services/oddsEventCache.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -155,9 +155,10 @@ setTimeout(runRetrain, 120000);
 setInterval(runRetrain, RETRAIN_INTERVAL);
 
 // Daily batch predictions — generate predictions for ALL players with active lines
-// Runs 5 minutes after startup, then every 12 hours
+// (only combos not yet tracked for their game). Every 12 hours; at startup the
+// slate is warmed once the odds cache is ready (see app.listen) so Best Bets
+// has rows right away, using the shared cache rather than fresh Odds API calls.
 const BATCH_PREDICT_INTERVAL = 12 * 60 * 60 * 1000;
-setTimeout(() => runBatchPredictions().catch(err => console.error('Batch prediction error:', err.message)), 300000);
 setInterval(() => runBatchPredictions().catch(err => console.error('Batch prediction error:', err.message)), BATCH_PREDICT_INTERVAL);
 
 // Game prediction batch — every 6 hours, generate game predictions for all
@@ -173,7 +174,8 @@ async function warmCaches() {
     console.log('Warming caches...');
     await Promise.allSettled([
       fetch(`${baseUrl}/api/player/with-lines`).catch(() => {}),
-      fetch(`${baseUrl}/api/trending/props`).catch(() => {})
+      fetch(`${baseUrl}/api/trending/props`).catch(() => {}),
+      fetch(`${baseUrl}/api/trending/best-bets`).catch(() => {})
     ]);
     console.log('Cache warm complete');
   } catch (err) {
@@ -190,6 +192,9 @@ app.listen(PORT, () => {
   // Warm caches 5s after startup, then every 10 minutes
   setTimeout(warmCaches, 5000);
   setInterval(warmCaches, WARM_INTERVAL);
+  // Predict the slate once the odds cache has been filled by the warm above.
+  // No-op when the store already holds today's rows (e.g. a quick restart).
+  setTimeout(() => ensureSlatePredicted().catch(err => console.error('Slate warm error:', err.message)), 20000);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`Port ${PORT} is already in use. Run: lsof -ti:${PORT} | xargs kill -9`);

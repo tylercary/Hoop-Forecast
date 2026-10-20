@@ -202,6 +202,7 @@ function AppHeader() {
 
   const navItems = [
     { path: '/', label: 'Home', icon: HomeIcon },
+    { path: '/', hash: '#best-bets', label: 'Best Bets', icon: Target },
     { path: '/games', label: 'Games', icon: Gamepad2 },
     { path: '/performance', label: 'Model Performance', icon: BarChart3 },
     { path: '/leaderboard', label: 'Leaderboard', icon: Trophy },
@@ -266,12 +267,12 @@ function AppHeader() {
                   className="absolute top-full left-4 mt-1 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden z-50"
                 >
                   {navItems.map((item) => {
-                    const isActive = location.pathname === item.path;
+                    const isActive = location.pathname === item.path && (location.hash || '') === (item.hash || '');
                     const Icon = item.icon;
                     return (
                       <button
-                        key={item.path}
-                        onClick={() => navigate(item.path)}
+                        key={item.path + (item.hash || '')}
+                        onClick={() => navigate(item.path + (item.hash || ''))}
                         className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
                           isActive
                             ? 'bg-amber-400/10 text-amber-400 font-semibold'
