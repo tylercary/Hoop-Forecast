@@ -100,7 +100,7 @@ export function indexEventBooks(data) {
 }
 
 /** Most common main line across non-DFS books; ties go to the line nearest the mean, then the lower. */
-function consensusLine(books) {
+export function consensusLine(books) {
   const main = mainLinePerBook(books).filter(b => !DFS_BOOKMAKERS.has(b.bookmaker_key));
   if (!main.length) return null;
   const counts = new Map();
