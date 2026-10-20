@@ -11,7 +11,7 @@
  * Reads only the in-memory prediction store and the shared odds cache; never
  * calls the Odds API on its own.
  */
-import { getAllPredictions } from './predictionTrackingService.js';
+import { getAllPredictions, normalizeGameDate } from './predictionTrackingService.js';
 import { getAllEventOdds, DFS_BOOKMAKERS } from './oddsEventCache.js';
 import { ensureSlatePredicted } from './batchPredictionCron.js';
 import { getTeamAbbrevFromFullName } from './teamMappingService.js';
@@ -155,9 +155,10 @@ export async function selectBestBets({ now = Date.now() } = {}) {
   for (const { record: p, tip } of upcoming) {
     if (p.model_variant !== 'edge') continue;
     if (!Number.isFinite(Number(p.betting_line))) continue;
-    const key = `${playerKey(p)}|${p.next_game?.date}`;
+    const key = `${playerKey(p)}|${normalizeGameDate(p.next_game?.date)}`;
     const prev = latest.get(key);
-    if (!prev || new Date(p.created_at) > new Date(prev.record.created_at)) latest.set(key, { record: p, tip });
+    const stamp = (r) => new Date(r.updated_at || r.created_at);
+    if (!prev || stamp(p) > stamp(prev.record)) latest.set(key, { record: p, tip });
   }
 
   const candidates = [...latest.values()].filter(({ record }) => clearsThreshold(record));

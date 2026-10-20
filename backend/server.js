@@ -155,10 +155,11 @@ setTimeout(runRetrain, 120000);
 setInterval(runRetrain, RETRAIN_INTERVAL);
 
 // Daily batch predictions — generate predictions for ALL players with active lines
-// (only combos not yet tracked for their game). Every 12 hours; at startup the
-// slate is warmed once the odds cache is ready (see app.listen) so Best Bets
-// has rows right away, using the shared cache rather than fresh Odds API calls.
-const BATCH_PREDICT_INTERVAL = 12 * 60 * 60 * 1000;
+// (combos whose stored prediction is older than 3 hours or whose line moved).
+// Every 2 hours; at startup the slate is warmed once the odds cache is ready
+// (see app.listen) so Best Bets has rows right away, using the shared cache
+// rather than fresh Odds API calls.
+const BATCH_PREDICT_INTERVAL = 2 * 60 * 60 * 1000;
 setInterval(() => runBatchPredictions().catch(err => console.error('Batch prediction error:', err.message)), BATCH_PREDICT_INTERVAL);
 
 // Game prediction batch — every 6 hours, generate game predictions for all

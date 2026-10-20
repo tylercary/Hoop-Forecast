@@ -108,15 +108,37 @@ async function fetchPlayersWithLines() {
  * dedupes on exactly these, so re-predicting a tracked combo is wasted work
  * (an ESPN game-log fetch and a model call) that stores nothing.
  */
-function trackedKeys() {
-  const keys = new Set();
+// A stored prediction counts as current for this long; after that (or when
+// the consensus line has moved) the batch re-predicts it, and storePrediction
+// replaces the stored numbers so Best Bets matches the player page
+const FRESH_MS = 3 * 60 * 60 * 1000;
+
+/** player|prop|game -> { line, at } for every unevaluated tracked prediction */
+function trackedRecords() {
+  const map = new Map();
   for (const p of getAllPredictions()) {
-    if (p.next_game?.date) keys.add(`${(p.player_name || '').toLowerCase()}|${p.prop_type}|${p.next_game.date}`);
+    if (!p.next_game?.date || p.evaluated) continue;
+    map.set(`${(p.player_name || '').toLowerCase()}|${p.prop_type}|${p.next_game.date}`, {
+      line: p.betting_line ?? null,
+      at: new Date(p.updated_at || p.created_at || 0).getTime()
+    });
   }
-  return keys;
+  return map;
+}
+
+function isCurrent(rec, line, now) {
+  if (!rec) return false;
+  const sameLine = rec.line == null || line == null || Math.abs(Number(rec.line) - Number(line)) < 0.01;
+  return sameLine && now - rec.at < FRESH_MS;
 }
 
 let batchInFlight = null;
+const batchListeners = new Set();
+/** Called after every batch run (Best Bets drops its cached answer). */
+export function onBatchPredictionsComplete(fn) {
+  batchListeners.add(fn);
+  return () => batchListeners.delete(fn);
+}
 
 /**
  * Run batch predictions for all players with active lines.
@@ -126,7 +148,12 @@ let batchInFlight = null;
  */
 export function runBatchPredictions() {
   if (!batchInFlight) {
-    batchInFlight = runBatchPredictionsNow().finally(() => { batchInFlight = null; });
+    batchInFlight = runBatchPredictionsNow().finally(() => {
+      batchInFlight = null;
+      for (const fn of batchListeners) {
+        try { fn(); } catch (err) { console.warn('[BatchPred] listener failed:', err.message); }
+      }
+    });
   }
   return batchInFlight;
 }
@@ -143,16 +170,17 @@ async function runBatchPredictionsNow() {
     return;
   }
 
-  // Only combos the store has not tracked for this game yet
-  const tracked = trackedKeys();
+  // Skip combos whose stored prediction is recent and at the same line
+  const tracked = trackedRecords();
+  const now = Date.now();
   const total = players.length;
-  players = players.filter(p => !tracked.has(`${p.name.toLowerCase()}|${p.propType}|${p.nextGame?.date}`));
+  players = players.filter(p => !isCurrent(tracked.get(`${p.name.toLowerCase()}|${p.propType}|${p.nextGame?.date}`), p.line, now));
   if (total && players.length < total) {
-    console.log(`[BatchPred] ${total - players.length} of ${total} player-prop combos already tracked`);
+    console.log(`[BatchPred] ${total - players.length} of ${total} player-prop combos are current`);
   }
 
   if (!players.length) {
-    console.log(total ? '[BatchPred] Slate already predicted' : '[BatchPred] No players with active lines found');
+    console.log(total ? '[BatchPred] Slate is current' : '[BatchPred] No players with active lines found');
     return;
   }
 

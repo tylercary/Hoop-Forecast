@@ -161,19 +161,42 @@ export function getRawPredictions({ offset = 0, limit = 1000, includeFeatures = 
  * @param {string} propType - Prop type (e.g., 'points', 'assists', 'rebounds')
  * @param {object|null} featureVector - Full ML feature vector used for prediction (for retraining)
  */
+/**
+ * Game dates arrive as ISO ("2026-10-20") from the batch and as "Oct 20, 2026"
+ * from the player page; one record per game needs one spelling.
+ */
+export function normalizeGameDate(value) {
+  if (!value) return null;
+  const str = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function storePrediction(playerName, prediction, gameHistory, nextGameInfo = {}, propType = 'points', featureVector = null) {
   const data = loadPredictions();
-  const gameDate = nextGameInfo.date || null;
+  const gameDate = normalizeGameDate(nextGameInfo.date);
 
-  // Deduplication: skip if same player + prop_type + game date already exists
-  const existing = data.predictions.find(p =>
+  // One record per player + prop + game. A later prediction for the same game
+  // (line moved, model retrained) REPLACES the stored numbers so everything
+  // that reads the store (Best Bets, grading) sees what the player page shows;
+  // the record keeps its id and created_at and counts its revisions. Once the
+  // game is graded the record is frozen.
+  const matches = gameDate == null ? [] : data.predictions.filter(p =>
     p.player_name?.toLowerCase() === playerName.toLowerCase() &&
     p.prop_type === propType &&
-    p.next_game?.date === gameDate &&
-    gameDate != null
+    normalizeGameDate(p.next_game?.date) === gameDate
   );
-  if (existing) {
-    return existing.id; // Already tracked, return existing ID
+  if (matches.some(p => p.evaluated)) {
+    return matches.find(p => p.evaluated).id;
+  }
+  // Legacy duplicates (two date spellings for one game): keep the newest
+  matches.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+  const existing = matches[0] || null;
+  for (const dup of matches.slice(1)) {
+    data.predictions.splice(data.predictions.indexOf(dup), 1);
   }
 
   // Get the predicted value for this prop type
@@ -229,10 +252,33 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     evaluated: false
   };
 
+  if (existing) {
+    const changed = existing.predicted_value !== predictionRecord.predicted_value ||
+      existing.betting_line !== predictionRecord.betting_line ||
+      existing.over_probability !== predictionRecord.over_probability ||
+      existing.recommendation !== predictionRecord.recommendation;
+    if (!changed) return existing.id;
+    const { id, created_at, actual_value, actual_points, accuracy, evaluated } = existing;
+    const revisions = (existing.revisions || 0) + 1;
+    Object.assign(existing, predictionRecord, {
+      id, created_at, actual_value, actual_points, accuracy, evaluated,
+      next_game: { ...existing.next_game, ...predictionRecord.next_game },
+      revisions,
+      updated_at: new Date().toISOString(),
+      first_prediction: existing.first_prediction || {
+        predicted_value: existing.predicted_value,
+        betting_line: existing.betting_line,
+        over_probability: existing.over_probability,
+        recommendation: existing.recommendation,
+        at: created_at
+      }
+    });
+    savePredictions(data);
+    return existing.id;
+  }
+
   data.predictions.push(predictionRecord);
   savePredictions(data);
-
-  const propLabel = propType === 'points' ? 'pts' : propType;
   return predictionRecord.id;
 }
 

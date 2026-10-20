@@ -12,6 +12,7 @@ import {
 import { getTeamAbbrevFromFullName } from '../services/teamMappingService.js';
 import { getAllEventOdds } from '../services/oddsEventCache.js';
 import { getBestBets } from '../services/bestBetsService.js';
+import { onBatchPredictionsComplete } from '../services/batchPredictionCron.js';
 
 dotenv.config();
 
@@ -22,6 +23,8 @@ const THE_ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
 // Cache trending props for 5 minutes
 const trendingCache = new NodeCache({ stdTTL: 300 });
+// A finished slate run may have re-predicted props; serve fresh best bets
+onBatchPredictionsComplete(() => trendingCache.del('best_bets'));
 
 /**
  * GET /api/trending/props
