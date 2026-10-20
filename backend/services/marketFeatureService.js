@@ -23,6 +23,29 @@ export function probToAmerican(p) {
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 /**
+ * Books post alternate lines too (ladders where the feed fills the unpriced
+ * side with -110). Keep each book's main line: the one it prices closest to
+ * even (ties and unpriced lines: the first listed). Duplicates collapse.
+ * @param {Array} books [{ bookmaker_key, line, over_odds, under_odds }]
+ * @returns {Array} one entry per book
+ */
+export function mainLinePerBook(books) {
+  const mainByBook = new Map();
+  const offEven = (b) => {
+    const po = americanToProb(b.over_odds);
+    const pu = americanToProb(b.under_odds);
+    return po == null || pu == null ? 1 : Math.abs(po - 0.5) + Math.abs(pu - 0.5);
+  };
+  for (const b of books || []) {
+    if (!b || !(Number(b.line) > 0)) continue;
+    const key = b.bookmaker_key || b.bookmaker || '?';
+    const cur = mainByBook.get(key);
+    if (!cur || offEven(b) < offEven(cur)) mainByBook.set(key, b);
+  }
+  return [...mainByBook.values()];
+}
+
+/**
  * Summarize the books behind one prop.
  * @param {object} propData  oddsService prop ({ line, over_odds, under_odds, bookmaker_key, all_bookmakers })
  * @returns {object|null} { line, over_odds, under_odds, over_prob_novig, n_books_priced,
@@ -44,20 +67,7 @@ export function summarizeMarket(propData) {
 export function summarizeBooks(books, line, bookmakerKey = null) {
   const all = (books || []).filter(b => b && Number(b.line) > 0);
   if (!all.length || !(line > 0)) return null;
-  // Books post alternate lines too; keep each book's main line, the one it
-  // prices closest to even (ties and unpriced lines: the first listed)
-  const mainByBook = new Map();
-  const offEven = (b) => {
-    const po = americanToProb(b.over_odds);
-    const pu = americanToProb(b.under_odds);
-    return po == null || pu == null ? 1 : Math.abs(po - 0.5) + Math.abs(pu - 0.5);
-  };
-  for (const b of all) {
-    const key = b.bookmaker_key || b.bookmaker || '?';
-    const cur = mainByBook.get(key);
-    if (!cur || offEven(b) < offEven(cur)) mainByBook.set(key, b);
-  }
-  const valid = [...mainByBook.values()];
+  const valid = mainLinePerBook(all);
   // Pick'em sites post fixed symmetric prices, so only sportsbooks price the line
   const priced = valid.filter(b => !DFS_BOOKMAKERS.has(b.bookmaker_key) &&
     Math.abs(Number(b.line) - line) < 0.01 && americanToProb(b.over_odds) != null && americanToProb(b.under_odds) != null);

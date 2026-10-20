@@ -16,6 +16,7 @@ import Comments from './Comments';
 import InjuriesTable from './InjuriesTable';
 import PropMetricCard from './PropMetricCard';
 import PredictionReasoning from './PredictionReasoning';
+import { getSportsbookDisplayName } from '../utils/sportsbookLogos';
 import { getGameSeason, getSeasonsInStats } from '../utils/seasons';
 import {
   calculateCoverProbability,
@@ -246,7 +247,9 @@ function PlayerDetail() {
               prediction_over_probability: response.data.over_probability || null,
               prediction_edge_strength: response.data.edge_strength || null,
               prediction_matchup_impact: response.data.matchup_impact || null,
-              prediction_opponent: response.data.opponent || null
+              prediction_opponent: response.data.opponent || null,
+              best_bet: response.data.best_bet ?? null,
+              book_edges: response.data.book_edges ?? null
             }
           },
           // Also update predictions object
@@ -1007,15 +1010,33 @@ function PlayerDetail() {
                   
                   // Only calculate EV and bet rating if we have valid prediction data
                   const hasPrediction = prediction != null && !isNaN(prediction) && !loadingPredictions[selectedProp];
+
+                  // Best available bet across books (server scores the edge model at
+                  // every book's line). When present, EV and the rating are for that
+                  // bet rather than the consensus line; book_edges present with no
+                  // best_bet means no book clears break-even.
+                  const bestBet = propData?.best_bet ?? propPredictions[selectedProp]?.best_bet ?? null;
+                  const bookEdges = propData?.book_edges ?? propPredictions[selectedProp]?.book_edges ?? null;
+                  const useBestBet = hasPrediction && bestBet != null && bestBet.ev != null;
+                  const bestBetLabel = useBestBet
+                    ? `${getSportsbookDisplayName(bestBet.bookmaker_key || bestBet.bookmaker)} · ${bestBet.side === 'over' ? 'o' : 'u'} ${Number(bestBet.line).toFixed(1)} (${bestBet.odds > 0 ? '+' : ''}${bestBet.odds})`
+                    : null;
+                  const noBookEdge = hasPrediction && !useBestBet && Array.isArray(bookEdges) && bookEdges.length > 0;
                   
                   // Calculate EV - ONLY if we have prediction
                   const oddsForEV = oddsToUse != null ? oddsToUse : -110; // Default to -110 if no odds
-                  const ev = (hasPrediction && coverProbability != null)
-                    ? calculateExpectedValue(coverProbability, oddsForEV)
-                    : null; // null instead of 0 when no data
+                  const ev = useBestBet
+                    ? bestBet.ev * 100
+                    : (hasPrediction && coverProbability != null)
+                      ? calculateExpectedValue(coverProbability, oddsForEV)
+                      : null; // null instead of 0 when no data
+                  // Probability of the bet the EV is for
+                  const betProbability = useBestBet ? bestBet.model_probability * 100 : coverProbability;
                   
                   // Calculate bet rating - ONLY if we have prediction
-                  const predictionDiff = (hasPrediction && line != null) ? prediction - line : null;
+                  const predictionDiff = (hasPrediction && line != null)
+                    ? prediction - (useBestBet ? Number(bestBet.line) : line)
+                    : null;
                   const confidence = hasPrediction 
                     ? (comparisonData.confidence || 
                        propPredictions[selectedProp]?.confidence ||
@@ -1027,8 +1048,8 @@ function PlayerDetail() {
                   const confidenceScore = typeof confidence === 'number'
                     ? confidence
                     : ({ High: 85, Medium: 70, Low: 55 }[confidence] ?? 50);
-                  const betRating = (hasPrediction && ev != null && coverProbability != null && predictionDiff != null && confidence != null)
-                    ? calculateBetRating(ev, coverProbability, predictionDiff, confidenceScore)
+                  const betRating = (hasPrediction && ev != null && betProbability != null && predictionDiff != null && confidence != null)
+                    ? calculateBetRating(ev, betProbability, predictionDiff, confidenceScore)
                     : null;
                   
                   // Calculate season prop record
@@ -1127,8 +1148,9 @@ function PlayerDetail() {
                         value={ev != null
                           ? `${ev > 0 ? '+' : ''}${ev.toFixed(1)}%`
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
+                        subtitle={useBestBet ? bestBetLabel : noBookEdge ? 'No edge at any book' : null}
                         color={ev != null ? getEVColor(ev) : 'text-slate-400'}
-                        infoTooltip="The expected value of the bet calculated from cover probability and current odds. Positive EV indicates a profitable bet over time."
+                        infoTooltip="The expected value of the bet calculated from the model's probability and the odds. The model is scored at every book's line, so this is the best available bet across books; positive EV indicates a profitable bet over time."
                         infoTooltipLabel="Expected Value"
                         valueSize="text-2xl"
                         index={3}
@@ -1145,8 +1167,9 @@ function PlayerDetail() {
                           </span>
                         ) : null}
                         value={betRating == null ? (loadingPredictions[selectedProp] ? 'Loading...' : 'N/A') : undefined}
+                        subtitle={useBestBet ? bestBetLabel : noBookEdge ? 'No edge at any book' : null}
                         color={betRating != null ? getBetRatingColor(betRating) : 'text-slate-400'}
-                        infoTooltip="Overall bet rating (A+ to F) based on expected value, model confidence, and prediction edge over the betting line."
+                        infoTooltip="Overall bet rating (A+ to F) based on expected value, model confidence, and prediction edge over the betting line, for the best available bet across books."
                         infoTooltipLabel="Bet Rating"
                         index={4}
                         locked={!user}

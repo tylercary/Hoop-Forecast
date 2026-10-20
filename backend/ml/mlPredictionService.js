@@ -433,23 +433,35 @@ function buildEdgeRow(features, prop, line, context = {}) {
  * Predict several prop types with one feature build and one Python process.
  * When `lines` ({ prop: line }) is given and the edge model is trained, the
  * same process also scores the pooled edge model for every lined prop.
- * edgeContext: { markets: { prop: market summary }, opponent, risk } (see buildEdgeRow)
+ * edgeContext: { markets: { prop: market summary }, opponent, risk, altLines: { prop: [line, ...] } }
+ * (see buildEdgeRow). altLines are the other lines books post for the prop;
+ * each one is an extra row in the same process and comes back in byLine.
  * @returns {Promise<{predictions: Object, errors: Object, features: Object, edge: Object}>}
- *   edge: { prop: { residual, probabilityMap } } for props the edge model scored
+ *   edge: { prop: { residual, probabilityMap, byLine: { [line]: residual } } } for props the edge model scored;
+ *   residual is for the prop's main (consensus) line
  */
 async function predictProps(gameLogs, propTypes, context = {}, lines = null, edgeContext = {}) {
   const features = buildMLFeatures(gameLogs, propTypes[0], context);
   const edgeMeta = lines ? getEdgeMetadata() : null;
-  const edgeProps = [];
+  const edgeKeys = []; // { prop, line, main } per row, in row order
   const edgeRows = [];
   if (edgeMeta) {
     for (const [prop, line] of Object.entries(lines)) {
-      const row = buildEdgeRow(features, prop, Number(line), {
+      const rowContext = {
         market: edgeContext.markets?.[prop] || null,
         opponent: edgeContext.opponent || null,
         risk: edgeContext.risk || null
-      });
-      if (row) { edgeProps.push(prop); edgeRows.push(row); }
+      };
+      const mainLine = Number(line);
+      const wanted = [mainLine];
+      for (const alt of edgeContext.altLines?.[prop] || []) {
+        const l = Number(alt);
+        if (l > 0 && !wanted.some(w => Math.abs(w - l) < 0.01)) wanted.push(l);
+      }
+      for (const l of wanted) {
+        const row = buildEdgeRow(features, prop, l, rowContext);
+        if (row) { edgeKeys.push({ prop, line: l, main: l === mainLine }); edgeRows.push(row); }
+      }
     }
   }
   const result = await callXGBoostPredictor(features, propTypes, edgeRows);
@@ -460,10 +472,14 @@ async function predictProps(gameLogs, propTypes, context = {}, lines = null, edg
   const edge = {};
   if (Array.isArray(result.edge)) {
     result.edge.forEach((residual, i) => {
-      if (residual != null && Number.isFinite(residual)) {
-        edge[edgeProps[i]] = { residual, probabilityMap: edgeMeta.probability_map };
-      }
+      if (residual == null || !Number.isFinite(residual)) return;
+      const { prop, line, main } = edgeKeys[i];
+      if (!edge[prop]) edge[prop] = { residual: null, probabilityMap: edgeMeta.probability_map, byLine: {} };
+      edge[prop].byLine[line] = residual;
+      if (main) edge[prop].residual = residual;
     });
+    // A prop whose main line could not be scored has no verdict
+    for (const prop of Object.keys(edge)) if (edge[prop].residual == null) delete edge[prop];
   }
   const summary = Object.entries(predictions).map(([p, v]) => `${p} ${v.toFixed(1)}`).join(', ');
   const edgeSummary = Object.entries(edge).map(([p, e]) => `${p} ${e.residual >= 0 ? '+' : ''}${e.residual.toFixed(1)}`).join(', ');

@@ -65,7 +65,9 @@ function getPropDisplayLabel(prop) {
 }
 
 // OddsRow Component - Single Over or Under row
-function OddsRow({ type, line, odds, isBest, hasIcon }) {
+// modelProbability: the model's P(this side) at this book's line (0-1), shown
+// in the tooltip; isBestBet marks the (book, line, side) with the best EV
+function OddsRow({ type, line, odds, isBest, hasIcon, modelProbability, isBestBet }) {
   const label = type === 'over' ? 'O' : 'U';
   // Best price gets a green outline; everything else stays neutral
   const bgColor = isBest
@@ -81,11 +83,28 @@ function OddsRow({ type, line, odds, isBest, hasIcon }) {
     );
   }
 
+  const probText = modelProbability != null ? `Model: ${(modelProbability * 100).toFixed(0)}% ${type} ${parseFloat(line).toFixed(1)}` : null;
+  const tooltip = isBestBet ? `Best bet across books · ${probText}` : probText;
+
   return (
-    <div className={`${bgColor} rounded-lg ${padding} h-10 flex items-center justify-center whitespace-nowrap`}>
+    <div
+      className={`${bgColor} rounded-lg ${padding} h-10 flex items-center justify-center whitespace-nowrap relative`}
+      title={tooltip || undefined}
+    >
+      {isBestBet && (
+        <span
+          className="absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]"
+          aria-label="Best bet"
+        />
+      )}
       <span className="text-white font-bold text-sm">
         {label} {parseFloat(line).toFixed(1)} <span className={`text-xs font-normal ${isBest ? 'text-emerald-300' : 'text-slate-400'}`}>({formatOdds(odds)})</span>
       </span>
+      {modelProbability != null && (
+        <span className={`ml-1.5 text-[10px] font-medium tabular-nums ${isBestBet ? 'text-amber-300' : 'text-slate-500'}`}>
+          {(modelProbability * 100).toFixed(0)}%
+        </span>
+      )}
     </div>
   );
 }
@@ -148,19 +167,27 @@ function PropOddsTable({ props, selectedProp }) {
     return null;
   }
 
-  // Remove duplicates by bookmaker key (keep first occurrence)
-  const seenKeys = new Set();
-  const uniqueBookmakers = [];
-  
+  // One entry per book: its main line, the one it prices closest to even
+  // (books also post alternate-line ladders; ties keep the first listed).
+  // Same rule the server uses to score the best bet across books.
+  const impliedProb = (odds) => {
+    const o = Number(odds);
+    if (!Number.isFinite(o) || o === 0) return null;
+    return o < 0 ? -o / (-o + 100) : 100 / (o + 100);
+  };
+  const offEven = (bm) => {
+    const po = impliedProb(bm.over_odds);
+    const pu = impliedProb(bm.under_odds);
+    return po == null || pu == null ? 1 : Math.abs(po - 0.5) + Math.abs(pu - 0.5);
+  };
+  const mainByBook = new Map();
   for (const bm of allBookmakers) {
     const key = (bm.bookmaker_key || bm.bookmaker || '').toLowerCase().replace(/\s+/g, '').replace(/_/g, '');
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      uniqueBookmakers.push(bm);
-    }
+    const cur = mainByBook.get(key);
+    if (!cur || offEven(bm) < offEven(cur)) mainByBook.set(key, bm);
   }
   
-  allBookmakers = uniqueBookmakers;
+  allBookmakers = [...mainByBook.values()];
 
   // Sort by priority order
   allBookmakers.sort((a, b) => {
@@ -215,6 +242,16 @@ function PropOddsTable({ props, selectedProp }) {
 
   const bestOverBookmaker = allBookmakers.find(bm => bm.over_odds === bestOverOdds);
   const bestUnderBookmaker = allBookmakers.find(bm => bm.under_odds === bestUnderOdds);
+
+  // Model probability per (book, line, side) and the best bet across books,
+  // from the server's edge-model scoring (propData.book_edges / best_bet)
+  const bookKey = (bm) => normalizeSportsbookName(bm?.bookmaker_key || bm?.bookmaker || '');
+  const sameLine = (a, b) => a != null && b != null && Math.abs(parseFloat(a) - parseFloat(b)) < 0.01;
+  const edgeFor = (bm, side) => (propData.book_edges || []).find(e =>
+    e.side === side && bookKey(e) === bookKey(bm) && sameLine(e.line, bm.line)) || null;
+  const bestBet = propData.best_bet || null;
+  const isBestBetRow = (bm, side) => bestBet != null && !bestBet.dfs &&
+    bestBet.side === side && bookKey(bestBet) === bookKey(bm) && sameLine(bestBet.line, bm.line);
 
   return (
     <motion.div
@@ -290,9 +327,13 @@ function PropOddsTable({ props, selectedProp }) {
               <div key={`${bookmaker.bookmaker_key || bookmaker.bookmaker}-${idx}`} className="flex-shrink-0 w-36 flex flex-col">
                 <SportsbookHeader bookmaker={bookmaker.bookmaker_key || bookmaker.bookmaker} className="mb-2" />
                 <div className="mb-1.5">
-                  <OddsRow type="over" line={bookmaker.line} odds={bookmaker.over_odds} isBest={isOverBest} />
+                  <OddsRow type="over" line={bookmaker.line} odds={bookmaker.over_odds} isBest={isOverBest}
+                    modelProbability={edgeFor(bookmaker, 'over')?.model_probability ?? null}
+                    isBestBet={isBestBetRow(bookmaker, 'over')} />
                 </div>
-                <OddsRow type="under" line={bookmaker.line} odds={bookmaker.under_odds} isBest={isUnderBest} />
+                <OddsRow type="under" line={bookmaker.line} odds={bookmaker.under_odds} isBest={isUnderBest}
+                  modelProbability={edgeFor(bookmaker, 'under')?.model_probability ?? null}
+                  isBestBet={isBestBetRow(bookmaker, 'under')} />
               </div>
             );
           })}

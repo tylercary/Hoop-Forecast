@@ -28,6 +28,7 @@ export function getPropCalibration(propType) { return getCalibration(propType); 
 import { predictProps as mlPredictProps } from '../ml/mlPredictionService.js';
 import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './opponentMatchupService.js';
 import { opponentContext, ensureTeamGameStatsFresh } from './teamContextService.js';
+import { distinctLines, scoreBookEdges } from './bestBetService.js';
 
 dotenv.config();
 
@@ -686,7 +687,10 @@ function isoGameDate(nextGameInfo) {
  * @param {Object} lines       { propType: vegasLine } for every prop to predict
  * @param {Object} nextGameInfo { date, opponent, isHome, team, commence_time? }
  * @param {Object} injuryData
- * @param {Object} [options]   { markets: { propType: marketFeatureService summary }, gameSpread: oddsService.getGameSpread result }
+ * @param {Object} [options]   { markets: { propType: marketFeatureService summary }, gameSpread: oddsService.getGameSpread result,
+ *                               books: { propType: odds prop with all_bookmakers } }
+ *   When books are given, the edge model is also scored at every line those
+ *   books post, and each result carries best_bet / book_edges (bestBetService).
  * @returns {Promise<Object>}  { propType: predictionResult }
  */
 export async function predictPropsFromGames(games, playerName, lines, nextGameInfo = null, injuryData = null, options = {}) {
@@ -732,8 +736,15 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
     nextGameDate: nextGameInfo?.commence_time || nextGameInfo?.date || null
   };
   const formatted = propTypes.map(p => PROP_TYPE_MAP[p] || p.toUpperCase());
+  // Every line the books post for a prop is scored in the same process as
+  // the consensus line, so the best bet across books costs no extra spawn
+  const altLines = {};
+  for (const propType of propTypes) {
+    const books = options.books?.[propType];
+    if (books) altLines[propType] = distinctLines({ ...books, line: lines[propType] });
+  }
   const { predictions: rawPredictions, errors: modelErrors, features: mlFeatureVector, edge: edgeByProp = {} } =
-    await mlPredictProps(games, formatted, modelContext, lines, { markets: options.markets || {}, opponent: opponentCtx, risk });
+    await mlPredictProps(games, formatted, modelContext, lines, { markets: options.markets || {}, opponent: opponentCtx, risk, altLines });
 
   const results = {};
   for (const propType of propTypes) {
@@ -758,7 +769,8 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
       results[propType] = finalizePrediction({
         rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData,
         matchupEdge, opponentAbbrev, mlFeatureVector, edge: edgeByProp[propType] || null,
-        market: options.markets?.[propType] || null, edgeContext: edgeContextRecord
+        market: options.markets?.[propType] || null, edgeContext: edgeContextRecord,
+        books: options.books?.[propType] || null
       });
     } catch (error) {
       console.error(`[PIPELINE-${propTypeFormatted}] Prediction failed:`, error);
@@ -770,8 +782,8 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
 /**
  * Predict one prop (kept for single-prop callers; uses the batch path).
  */
-export async function predictPropFromGames(games, playerName, propType = 'points', nextGameInfo = null, injuryData = null, bettingLine = null) {
-  const results = await predictPropsFromGames(games, playerName, { [propType]: bettingLine }, nextGameInfo, injuryData);
+export async function predictPropFromGames(games, playerName, propType = 'points', nextGameInfo = null, injuryData = null, bettingLine = null, options = {}) {
+  const results = await predictPropsFromGames(games, playerName, { [propType]: bettingLine }, nextGameInfo, injuryData, options);
   if (!results[propType]) {
     throw new Error(`Prediction failed for ${propType}`);
   }
@@ -800,7 +812,7 @@ function edgeOverUnder(overProbability) {
   };
 }
 
-function finalizePrediction({ rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData, matchupEdge, opponentAbbrev, mlFeatureVector, edge = null, market = null, edgeContext = null }) {
+function finalizePrediction({ rawPrediction, features, propType, playerName, games, nextGameInfo, injuryData, matchupEdge, opponentAbbrev, mlFeatureVector, edge = null, market = null, edgeContext = null, books = null }) {
   const statsForAnalysis = {
     overall_avg: features.seasonAvg,
     recent_3_avg: features.recentAvg3,
@@ -865,6 +877,13 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
   const useEdge = hasLine && edge && Number.isFinite(edge.residual) && edge.probabilityMap;
   let ouResult;
   let edgeResidual = null;
+  // Best bet across books: only the edge model can be scored at other lines.
+  // The consensus-line verdict above stays the tracked prediction.
+  let bookEdges = null;
+  if (useEdge && books) {
+    const residualByLine = { ...(edge.byLine || {}), [features.vegasLine]: edge.residual };
+    bookEdges = scoreBookEdges({ ...books, line: features.vegasLine }, residualByLine, edge.probabilityMap);
+  }
 
   if (useEdge) {
     // Edge model: trained on evaluated history to predict actual - line, with
@@ -935,6 +954,10 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     betting_line: features.vegasLine,
     market,
     edge_context: edgeContext,
+    // Best available bet across books and the per-(book, line, side) table
+    // behind it; null / [] when books were not supplied or the edge model is off
+    best_bet: bookEdges?.best_bet ?? null,
+    book_edges: bookEdges?.book_edges ?? null,
     games_used: games.length,
     method: 'xgboost_model',
     prop_type: propType,

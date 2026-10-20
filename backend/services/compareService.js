@@ -17,7 +17,7 @@ import { summarizeMarket } from './marketFeatureService.js';
  * @param {number|null} vegasLine - Vegas line for this specific prop (REQUIRED)
  * @returns {Promise<object>} Prediction result with recommendation
  */
-export async function generatePropPrediction(games, playerName, propType, nextGameInfo, injuryData, vegasLine) {
+export async function generatePropPrediction(games, playerName, propType, nextGameInfo, injuryData, vegasLine, propData = null) {
   try {
     // Validate inputs
     if (!games || games.length < 3) {
@@ -47,7 +47,8 @@ export async function generatePropPrediction(games, playerName, propType, nextGa
       propType,
       nextGameInfo,
       injuryData,
-      vegasLine
+      vegasLine,
+      propData ? { markets: { [propType]: summarizeMarket(propData) }, books: { [propType]: propData } } : {}
     );
 
     if (!prediction) {
@@ -92,7 +93,9 @@ export async function generatePropPrediction(games, playerName, propType, nextGa
       analysis: prediction.analysis || null,
       stats: prediction.stats || null,
       model_value: prediction.model_value ?? null,
-      opponent: prediction.opponent || null
+      opponent: prediction.opponent || null,
+      best_bet: prediction.best_bet ?? null,
+      book_edges: prediction.book_edges ?? null
     };
   } catch (error) {
     console.error(`❌ Error generating prediction for ${propType}:`, error.message);
@@ -125,12 +128,14 @@ export async function generateAllPropPredictions(games, playerName, allProps, ne
   // line travel along as the market summary the edge model and tracker use
   const lines = {};
   const markets = {};
+  const books = {};
   for (const propType of propTypes) {
     const prop = allProps[propType];
     if (!prop || prop.status === 'unavailable' || !prop.line) predictions[propType] = unavailable;
     else {
       lines[propType] = prop.line;
       markets[propType] = summarizeMarket(prop);
+      books[propType] = prop;
     }
   }
   if (Object.keys(lines).length === 0 || !games || games.length < 3) {
@@ -141,7 +146,7 @@ export async function generateAllPropPredictions(games, playerName, allProps, ne
   // One feature build and one model process for every prop
   let results = {};
   try {
-    results = await predictPropsFromGames(games, playerName, lines, nextGameInfo, injuryData, { markets, gameSpread: options.gameSpread || null });
+    results = await predictPropsFromGames(games, playerName, lines, nextGameInfo, injuryData, { markets, books, gameSpread: options.gameSpread || null });
   } catch (error) {
     console.error('❌ Error generating prop predictions:', error.message);
   }
@@ -162,7 +167,9 @@ export async function generateAllPropPredictions(games, playerName, allProps, ne
       analysis: prediction.analysis || null,
       stats: prediction.stats || null,
       model_value: prediction.model_value ?? null,
-      betting_line: vegasLine
+      betting_line: vegasLine,
+      best_bet: prediction.best_bet ?? null,
+      book_edges: prediction.book_edges ?? null
     };
   }
   return predictions;

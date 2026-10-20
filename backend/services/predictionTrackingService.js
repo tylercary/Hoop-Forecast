@@ -209,6 +209,9 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     market: prediction.market || null,
     // Opponent and risk context the edge model saw (unifiedPredictionService)
     edge_context: prediction.edge_context || null,
+    // Best available bet across books when the prediction was made (bestBetService);
+    // the tracked predicted_value and recommendation stay the consensus-line ones
+    best_bet: prediction.best_bet || null,
     game_history_hash: hashParts,
     next_game: {
       date: gameDate,

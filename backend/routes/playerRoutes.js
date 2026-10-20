@@ -13,6 +13,7 @@ import {
 } from '../services/databaseService.js';
 import { getImageUrl, imageExists, downloadPlayerImage } from '../services/imageStorageService.js';
 import { getAllEventOdds, DFS_BOOKMAKERS } from '../services/oddsEventCache.js';
+import { distinctLines, linesHash } from '../services/bestBetService.js';
 import {
   getAccuracyStats,
   updatePredictionOutcome,
@@ -247,7 +248,8 @@ router.get('/:id/prediction/:propType', async (req, res) => {
     } catch (oddsError) {
       // Continue without a line - compareService reports it as unavailable
     }
-    const cacheKey = `${gamesHash}_${injuryHash}_${propType}_${bettingLine ?? 'noline'}`;
+    const propOdds = oddsResult?.[propType] || null;
+    const cacheKey = `${gamesHash}_${injuryHash}_${propType}_${bettingLine ?? 'noline'}_${linesHash(distinctLines(propOdds))}`;
     
     // Check cache first
     let prediction = predictionsCache.get(playerName, cacheKey);
@@ -299,7 +301,8 @@ router.get('/:id/prediction/:propType', async (req, res) => {
           propType,
           nextGameInfo,
           injuryData,
-          bettingLine  // ONLY use The Odds API line for this specific prop
+          bettingLine,  // ONLY use The Odds API line for this specific prop
+          propOdds      // the books behind it, for the best bet across books
         );
         
         // Convert to format expected by frontend
@@ -317,7 +320,9 @@ router.get('/:id/prediction/:propType', async (req, res) => {
           over_probability: propPrediction.over_probability ?? null,
           analysis: propPrediction.analysis || null,
           stats: propPrediction.stats || null,
-          status: propPrediction.status || null
+          status: propPrediction.status || null,
+          best_bet: propPrediction.best_bet ?? null,
+          book_edges: propPrediction.book_edges ?? null
         };
         
         if (prediction) {
@@ -584,7 +589,9 @@ router.get('/:id/compare', async (req, res) => {
     // cached by games + injuries + its line (the projection is anchored to the line).
     let prediction = null;
     const allPredictions = {};
-    const cacheKeyFor = (propType) => `${gamesHash}_${injuryHash}_${propType}_${allProps?.[propType]?.line ?? 'noline'}`;
+    // The lines the books post are part of the key too: the best bet across
+    // books changes whenever any book moves its line
+    const cacheKeyFor = (propType) => `${gamesHash}_${injuryHash}_${propType}_${allProps?.[propType]?.line ?? 'noline'}_${linesHash(distinctLines(allProps?.[propType]))}`;
     const toClientShape = (propType, p) => ({
       [`predicted_${propType}`]: p.predicted_value,
       predicted_value: p.predicted_value,
@@ -598,7 +605,9 @@ router.get('/:id/compare', async (req, res) => {
       recommendation: p.recommendation,
       over_probability: p.over_probability ?? null,
       analysis: p.analysis || null,
-      stats: p.stats || null
+      stats: p.stats || null,
+      best_bet: p.best_bet ?? null,
+      book_edges: p.book_edges ?? null
     });
 
     const propsNeedingPrediction = {};
@@ -734,7 +743,10 @@ router.get('/:id/compare', async (req, res) => {
               prediction_recommendation: prediction.recommendation || null,
               prediction_over_probability: prediction.over_probability ?? null,
               prediction_model_value: prediction.model_value ?? null,
-              prediction_stats: prediction.stats || null
+              prediction_stats: prediction.stats || null,
+              // Best bet across books and the per-(book, line, side) table behind it
+              best_bet: prediction.best_bet ?? null,
+              book_edges: prediction.book_edges ?? null
             } : {})
           };
         }
