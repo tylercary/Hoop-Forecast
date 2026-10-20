@@ -75,3 +75,6 @@ backend/data/backfill_gamelogs.json
 # Prediction store (SQLite on the data volume) and its backups
 backend/data/predictions.json.migrated*
 backend/data/backups/
+# Odds API historical snapshots (backfillHistoricalOdds.mjs) and the enriched export
+backend/data/odds_history/
+backend/data/predictions_export_fv_market.json
