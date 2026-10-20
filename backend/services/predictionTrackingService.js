@@ -328,6 +328,10 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
         betting_line: existing.betting_line,
         over_probability: existing.over_probability,
         recommendation: existing.recommendation,
+        // Pick-time market and best price, so closing line value is measured
+        // from the first time the pick was shown (closingLineService)
+        market: existing.market || null,
+        best_bet: existing.best_bet || null,
         at: created_at
       }
     });
@@ -338,6 +342,21 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
   data.predictions.push(predictionRecord);
   savePredictions(data);
   return predictionRecord.id;
+}
+
+/**
+ * Record the closing market for a prediction (closingLineService). The first
+ * snapshot wins: a record's `closing` is never overwritten, so the job can run
+ * as often as it likes. Returns true when the snapshot was stored.
+ */
+export function setClosingSnapshot(predictionId, closing) {
+  if (!closing) return false;
+  const data = loadPredictions();
+  const prediction = data.predictions.find(p => p.id === predictionId);
+  if (!prediction || prediction.closing || prediction.evaluated) return false;
+  prediction.closing = closing;
+  savePredictions(data);
+  return true;
 }
 
 /**
