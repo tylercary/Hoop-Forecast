@@ -30,7 +30,7 @@ jobs:
 
           # Odds API budget: fail when the backend has paused background refreshes
           # for the day (daily credit budget spent) or the monthly key is nearly
-          # out (below 15% of 100,000 credits), so the owner hears about it before
+          # out (below 15% of 5,000,000 credits), so the owner hears about it before
           # props disappear from the site.
           health=$(curl -s --max-time 60 "$API/health")
           paused=$(echo "$health" | jq -r '.oddsApi.budget.paused // false')
@@ -43,8 +43,8 @@ jobs:
           else
             echo "OK    Odds API budget ($spent of $budget credits today)"
           fi
-          if [ -n "$remaining" ] && [ "$remaining" -lt 15000 ] 2>/dev/null; then
-            echo "::error::Odds API key nearly exhausted: $remaining credits remaining this month (below 15% of 100,000); props will stop updating when it hits 0"
+          if [ -n "$remaining" ] && [ "$remaining" -lt 750000 ] 2>/dev/null; then
+            echo "::error::Odds API key nearly exhausted: $remaining credits remaining this month (below 15% of 5,000,000); props will stop updating when it hits 0"
             failed=1
           else
             echo "OK    Odds API credits remaining (${remaining:-unknown})"

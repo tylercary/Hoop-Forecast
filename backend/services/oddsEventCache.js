@@ -8,7 +8,7 @@
  *
  * Credits: a request costs (markets returned) x (region units), and every 10
  * named bookmakers count as one region unit. 16 books = 2 units, so one
- * refresh of a game is 8 markets x 2 = 16 credits on a 100k/month key.
+ * refresh of a game is 8 markets x 2 = 16 credits on a 5M/month key.
  *
  * Spend is kept predictable three ways:
  *
@@ -26,7 +26,9 @@
  *     so a deploy only refetches what the schedule says is stale.
  *
  *  3. Daily budget. Credits are summed per day (rolling over at 08:00 UTC, so
- *     an NBA night is one day) from the x-requests-last header. Past ODDS_DAILY_BUDGET (default 2800) background refreshes stop;
+ *     an NBA night is one day) from the x-requests-last header. Past
+ *     ODDS_DAILY_BUDGET (default 120,000, about 70% of a 5M/month key spread
+ *     over 30 days) background refreshes stop;
  *     a user viewing a game within an hour of tip-off still gets a refresh,
  *     everything else is served stale. /api/health shows the budget state and
  *     the last 14 days of spend.
@@ -97,7 +99,7 @@ const QUOTA_BACKOFF_MS = 15 * MIN;
 
 const DAILY_BUDGET = (() => {
   const v = Number(process.env.ODDS_DAILY_BUDGET);
-  return Number.isFinite(v) && v > 0 ? v : 2800;
+  return Number.isFinite(v) && v > 0 ? v : 120000;
 })();
 const SPEND_HISTORY_DAYS = 14;
 
