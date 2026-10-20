@@ -1535,6 +1535,7 @@ function PlayerDetail() {
             <PropOddsTable 
               props={comparisonData?.props || {}}
               selectedProp={selectedProp}
+              showModel={!!user}
             />
           )}
 

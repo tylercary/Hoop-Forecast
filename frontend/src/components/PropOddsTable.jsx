@@ -140,7 +140,9 @@ function SportsbookCard({ bookmaker, bestOverOdds, bestUnderOdds, sportsbookInfo
 }
 
 // Main PropOddsContainer Component
-function PropOddsTable({ props, selectedProp }) {
+// showModel: only signed-in users see the model's per-book probabilities and
+// the best-bet marker (the same gate as the projection tiles)
+function PropOddsTable({ props, selectedProp, showModel = false }) {
   if (!props || !selectedProp || !props[selectedProp]) {
     return null;
   }
@@ -247,9 +249,9 @@ function PropOddsTable({ props, selectedProp }) {
   // from the server's edge-model scoring (propData.book_edges / best_bet)
   const bookKey = (bm) => normalizeSportsbookName(bm?.bookmaker_key || bm?.bookmaker || '');
   const sameLine = (a, b) => a != null && b != null && Math.abs(parseFloat(a) - parseFloat(b)) < 0.01;
-  const edgeFor = (bm, side) => (propData.book_edges || []).find(e =>
-    e.side === side && bookKey(e) === bookKey(bm) && sameLine(e.line, bm.line)) || null;
-  const bestBet = propData.best_bet || null;
+  const edgeFor = (bm, side) => showModel ? ((propData.book_edges || []).find(e =>
+    e.side === side && bookKey(e) === bookKey(bm) && sameLine(e.line, bm.line)) || null) : null;
+  const bestBet = showModel ? (propData.best_bet || null) : null;
   const isBestBetRow = (bm, side) => bestBet != null && !bestBet.dfs &&
     bestBet.side === side && bookKey(bestBet) === bookKey(bm) && sameLine(bestBet.line, bm.line);
 
