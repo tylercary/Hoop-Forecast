@@ -39,6 +39,11 @@
  *
  * Also kept: in-flight dedupe (concurrent callers share one request),
  * stale-on-error, and a 15-minute backoff after a quota/auth error.
+ *
+ * Line moves: when a refresh of a game within LINE_MOVE_WINDOW_MS (6h) of tip
+ * changes a player's consensus line, or a prop appears or disappears, the
+ * 'lines-changed' listeners (onLinesChanged) get the diff so the batch
+ * predictor can re-run just those players instead of waiting for the slate.
  */
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -91,6 +96,8 @@ export const REFRESH_SCHEDULE = [
 export const VIEW_MAX_AGE = { nearWithin: 6 * HOUR, near: 3 * MIN, far: 10 * MIN };
 // How often the refresh loop walks the slate
 export const REFRESH_LOOP_INTERVAL_MS = 1 * MIN;
+// Refreshes of games this close to tip-off report line moves to onLinesChanged
+export const LINE_MOVE_WINDOW_MS = 6 * HOUR;
 // While the budget is exhausted, only views of games this close to tip-off refresh
 export const PAUSED_VIEW_WINDOW_MS = 1 * HOUR;
 const EVENTS_TTL_MS = 10 * MIN;
@@ -453,6 +460,7 @@ export async function getEventOdds(event, { maxAgeMs = 0, view = false } = {}) {
       oddsCache.set(event.id, { event, data, fetchedAt: Date.now() });
       scheduleSave();
       const tip = tipTime(event);
+      if (cached && tip != null && tip - now <= LINE_MOVE_WINDOW_MS) emitLineChanges(event, cached.data, data);
       console.log(`[OddsCache] refreshed ${label} (${plan.reason}${view ? ', view' : ''}; tip in ${fmtDuration(tip - now)}, floor ${fmtDuration(refreshFloorMs(event, now))}; ` +
         `cost ${usage.lastCost ?? '?'}, today ${spentToday()}/${DAILY_BUDGET}, remaining ${usage.remaining ?? '?'})`);
       return data;
@@ -534,4 +542,124 @@ export function startOddsRefreshLoop({ intervalMs = REFRESH_LOOP_INTERVAL_MS, in
 export function stopOddsRefreshLoop() {
   if (refreshLoop) clearInterval(refreshLoop);
   refreshLoop = null;
+}
+
+// ---------------------------------------------------------------------------
+// Line-move detection
+// ---------------------------------------------------------------------------
+
+export const PROP_BY_MARKET = {
+  player_points: 'points',
+  player_rebounds: 'rebounds',
+  player_assists: 'assists',
+  player_threes: 'threes',
+  player_points_rebounds_assists: 'pra',
+  player_points_rebounds: 'pr',
+  player_points_assists: 'pa',
+  player_rebounds_assists: 'ra'
+};
+
+const impliedProb = (odds) => {
+  const o = Number(odds);
+  if (!Number.isFinite(o) || o === 0) return null;
+  return o < 0 ? -o / (-o + 100) : 100 / (o + 100);
+};
+
+/**
+ * Consensus main line per player-prop from one event's raw Odds API payload:
+ * "player|prop" -> { player, prop, line }. Each non-DFS book's main line is the
+ * one priced nearest to even on both sides (alternates are further off), and
+ * the consensus is the most common main line across books (ties: nearest the
+ * mean, then the lower). DFS pick'em sites only count when no sportsbook
+ * posts the prop.
+ */
+export function consensusLines(data) {
+  // key -> Map(book -> { line, offEven })
+  const perBook = new Map();
+  for (const bookmaker of data?.bookmakers || []) {
+    for (const market of bookmaker.markets || []) {
+      const prop = PROP_BY_MARKET[market.key];
+      if (!prop) continue;
+      const byPlayerLine = new Map(); // "player|line" -> { player, line, over, under }
+      for (const outcome of market.outcomes || []) {
+        const line = parseFloat(outcome.point);
+        const side = (outcome.name || '').toLowerCase();
+        if (!outcome.description || !Number.isFinite(line) || line <= 0) continue;
+        if (side !== 'over' && side !== 'under') continue;
+        const k = `${outcome.description}|${line}`;
+        const entry = byPlayerLine.get(k) || { player: outcome.description, line, over: null, under: null };
+        entry[side] = impliedProb(outcome.price);
+        byPlayerLine.set(k, entry);
+      }
+      for (const e of byPlayerLine.values()) {
+        const key = `${e.player.toLowerCase().trim()}|${prop}`;
+        const offEven = e.over == null || e.under == null ? 1 : Math.abs(e.over - 0.5) + Math.abs(e.under - 0.5);
+        if (!perBook.has(key)) perBook.set(key, { player: e.player, prop, books: new Map() });
+        const books = perBook.get(key).books;
+        const cur = books.get(bookmaker.key);
+        if (!cur || offEven < cur.offEven) books.set(bookmaker.key, { line: e.line, offEven });
+      }
+    }
+  }
+
+  const result = new Map();
+  for (const [key, { player, prop, books }] of perBook) {
+    let mains = [...books.entries()].filter(([book]) => !DFS_BOOKMAKERS.has(book)).map(([, b]) => b.line);
+    if (!mains.length) mains = [...books.values()].map(b => b.line);
+    const counts = new Map();
+    for (const line of mains) counts.set(line, (counts.get(line) || 0) + 1);
+    const mean = mains.reduce((s, l) => s + l, 0) / mains.length;
+    const line = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || Math.abs(a[0] - mean) - Math.abs(b[0] - mean) || a[0] - b[0])[0][0];
+    result.set(key, { player, prop, line });
+  }
+  return result;
+}
+
+/**
+ * What changed between two payloads of the same event:
+ * [{ player, prop, oldLine, newLine }], with null for a prop that was not
+ * posted on that side. Empty when nothing moved.
+ */
+export function diffEventLines(oldData, newData) {
+  const before = consensusLines(oldData);
+  const after = consensusLines(newData);
+  const changes = [];
+  for (const [key, b] of before) {
+    const a = after.get(key);
+    if (!a) changes.push({ player: b.player, prop: b.prop, oldLine: b.line, newLine: null });
+    else if (Math.abs(a.line - b.line) >= 0.01) changes.push({ player: a.player, prop: a.prop, oldLine: b.line, newLine: a.line });
+  }
+  for (const [key, a] of after) {
+    if (!before.has(key)) changes.push({ player: a.player, prop: a.prop, oldLine: null, newLine: a.line });
+  }
+  return changes;
+}
+
+const lineListeners = new Set();
+
+/**
+ * Subscribe to line moves: fn({ event, changes }) after a refresh of a game
+ * within LINE_MOVE_WINDOW_MS of tip-off changed at least one consensus line
+ * (changes as in diffEventLines). Returns an unsubscribe function.
+ */
+export function onLinesChanged(fn) {
+  lineListeners.add(fn);
+  return () => lineListeners.delete(fn);
+}
+
+function emitLineChanges(event, oldData, newData) {
+  let changes;
+  try {
+    changes = diffEventLines(oldData, newData);
+  } catch (err) {
+    console.warn('[OddsCache] line diff failed:', err.message);
+    return;
+  }
+  if (!changes.length) return;
+  const players = new Set(changes.map(c => c.player)).size;
+  console.log(`[OddsCache] ${changes.length} line changes across ${players} players for ${event.away_team} @ ${event.home_team}`);
+  for (const fn of lineListeners) {
+    try { fn({ event, changes }); } catch (err) { console.warn('[OddsCache] lines-changed listener failed:', err.message); }
+  }
 }

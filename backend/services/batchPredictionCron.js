@@ -14,7 +14,8 @@ import { predictGameOutcome } from './gameOutcomePredictionService.js';
 import { getGameOdds, getGameSpread } from './oddsService.js';
 import { summarizeBooks } from './marketFeatureService.js';
 import { storeGamePrediction } from './gamePredictionTrackingService.js';
-import { getAllEventOdds } from './oddsEventCache.js';
+import { getAllEventOdds, onLinesChanged } from './oddsEventCache.js';
+import { createLineMoveQueue } from './lineMoveQueue.js';
 import { getAllPredictions } from './predictionTrackingService.js';
 
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
@@ -134,7 +135,7 @@ function isCurrent(rec, line, now) {
 
 let batchInFlight = null;
 const batchListeners = new Set();
-/** Called after every batch run (Best Bets drops its cached answer). */
+/** Called after every slate run and every line-move run (Best Bets drops its cached answer). */
 export function onBatchPredictionsComplete(fn) {
   batchListeners.add(fn);
   return () => batchListeners.delete(fn);
@@ -150,12 +151,16 @@ export function runBatchPredictions() {
   if (!batchInFlight) {
     batchInFlight = runBatchPredictionsNow().finally(() => {
       batchInFlight = null;
-      for (const fn of batchListeners) {
-        try { fn(); } catch (err) { console.warn('[BatchPred] listener failed:', err.message); }
-      }
+      notifyBatchListeners();
     });
   }
   return batchInFlight;
+}
+
+function notifyBatchListeners() {
+  for (const fn of batchListeners) {
+    try { fn(); } catch (err) { console.warn('[BatchPred] listener failed:', err.message); }
+  }
 }
 
 async function runBatchPredictionsNow() {
@@ -201,72 +206,147 @@ async function runBatchPredictionsNow() {
   let failed = 0;
 
   for (const [name, entries] of byPlayer) {
-    try {
-      const statsResult = await getPlayerStats(name);
-      // Small delay between player API calls
-      await new Promise(r => setTimeout(r, 500));
-
-      const games = statsResult?.games;
-      if (!games || games.length < 10) {
-        failed += entries.length;
-        continue;
-      }
-
-      const first = entries[0];
-
-      // Resolve team abbreviations from Odds API full names and fetch injuries
-      let injuryData = null;
-      let gameSpread = null;
-      const nextGame = { ...first.nextGame };
-      const homeAbbrev = getTeamAbbrevFromFullName(first.nextGame?.home_team);
-      const awayAbbrev = getTeamAbbrevFromFullName(first.nextGame?.away_team);
-
-      if (homeAbbrev && awayAbbrev) {
-        // The player's team comes from ESPN's player record (game logs carry no team)
-        const playerTeam = statsResult?.player?.team || games[0]?.team || games[0]?.teamAbbrev || null;
-        const isHome = playerTeam === homeAbbrev;
-        const playerTeamAbbrev = isHome ? homeAbbrev : awayAbbrev;
-        const opponentAbbrev = isHome ? awayAbbrev : homeAbbrev;
-        Object.assign(nextGame, { opponent: opponentAbbrev, isHome, team: playerTeamAbbrev });
-        gameSpread = await getGameSpread(first.nextGame.home_team, first.nextGame.away_team);
-
-        // Cache injuries per matchup (both teams share the same injury report)
-        const matchupKey = [playerTeamAbbrev, opponentAbbrev].sort().join('|');
-        if (!injuryCache.has(matchupKey)) {
-          try {
-            const injuries = await getMatchupInjuries(playerTeamAbbrev, opponentAbbrev);
-            injuryCache.set(matchupKey, injuries);
-          } catch {
-            injuryCache.set(matchupKey, null);
-          }
-        }
-
-        const cachedInjuries = injuryCache.get(matchupKey);
-        if (cachedInjuries) {
-          // Ensure correct orientation: playerTeam injuries vs opponent injuries
-          const sortedKey = [playerTeamAbbrev, opponentAbbrev].sort();
-          const isReversed = sortedKey[0] !== playerTeamAbbrev;
-          injuryData = isReversed
-            ? { playerTeamInjuries: cachedInjuries.opponentInjuries, opponentInjuries: cachedInjuries.playerTeamInjuries }
-            : cachedInjuries;
-        }
-      }
-
-      // One model call for all of this player's props — stores each via storePrediction
-      const lines = Object.fromEntries(entries.map(e => [e.propType, e.line]));
-      const markets = Object.fromEntries(entries.map(e => [e.propType, e.market || null]));
-      const results = await predictPropsFromGames(games, name, lines, nextGame, injuryData, { markets, gameSpread });
-      const done = Object.keys(results).length;
-      predicted += done;
-      failed += entries.length - done;
-    } catch (err) {
-      failed += entries.length;
-    }
+    const r = await predictPlayer(name, entries, injuryCache);
+    predicted += r.predicted;
+    failed += r.failed;
+    // Small delay between player API calls
+    await new Promise(r => setTimeout(r, 500));
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`[BatchPred] Complete: ${predicted} predicted, ${failed} failed, ${elapsed}s elapsed`);
 }
+
+/**
+ * Predict every prop of one player in one model call: one ESPN game-log
+ * fetch, one injury lookup (cached per matchup), one model process. Each
+ * result is stored via storePrediction (upsert).
+ * @returns {{ predicted: number, failed: number }}
+ */
+async function predictPlayer(name, entries, injuryCache = new Map()) {
+  let predicted = 0;
+  let failed = 0;
+  try {
+    const statsResult = await getPlayerStats(name);
+
+    const games = statsResult?.games;
+    if (!games || games.length < 10) {
+      return { predicted, failed: entries.length };
+    }
+
+    const first = entries[0];
+
+    // Resolve team abbreviations from Odds API full names and fetch injuries
+    let injuryData = null;
+    let gameSpread = null;
+    const nextGame = { ...first.nextGame };
+    const homeAbbrev = getTeamAbbrevFromFullName(first.nextGame?.home_team);
+    const awayAbbrev = getTeamAbbrevFromFullName(first.nextGame?.away_team);
+
+    if (homeAbbrev && awayAbbrev) {
+      // The player's team comes from ESPN's player record (game logs carry no team)
+      const playerTeam = statsResult?.player?.team || games[0]?.team || games[0]?.teamAbbrev || null;
+      const isHome = playerTeam === homeAbbrev;
+      const playerTeamAbbrev = isHome ? homeAbbrev : awayAbbrev;
+      const opponentAbbrev = isHome ? awayAbbrev : homeAbbrev;
+      Object.assign(nextGame, { opponent: opponentAbbrev, isHome, team: playerTeamAbbrev });
+      gameSpread = await getGameSpread(first.nextGame.home_team, first.nextGame.away_team);
+
+      // Cache injuries per matchup (both teams share the same injury report)
+      const matchupKey = [playerTeamAbbrev, opponentAbbrev].sort().join('|');
+      if (!injuryCache.has(matchupKey)) {
+        try {
+          const injuries = await getMatchupInjuries(playerTeamAbbrev, opponentAbbrev);
+          injuryCache.set(matchupKey, injuries);
+        } catch {
+          injuryCache.set(matchupKey, null);
+        }
+      }
+
+      const cachedInjuries = injuryCache.get(matchupKey);
+      if (cachedInjuries) {
+        // Ensure correct orientation: playerTeam injuries vs opponent injuries
+        const sortedKey = [playerTeamAbbrev, opponentAbbrev].sort();
+        const isReversed = sortedKey[0] !== playerTeamAbbrev;
+        injuryData = isReversed
+          ? { playerTeamInjuries: cachedInjuries.opponentInjuries, opponentInjuries: cachedInjuries.playerTeamInjuries }
+          : cachedInjuries;
+      }
+    }
+
+    // One model call for all of this player's props — stores each via storePrediction
+    const lines = Object.fromEntries(entries.map(e => [e.propType, e.line]));
+    const markets = Object.fromEntries(entries.map(e => [e.propType, e.market || null]));
+    const results = await predictPropsFromGames(games, name, lines, nextGame, injuryData, { markets, gameSpread });
+    const done = Object.keys(results).length;
+    predicted += done;
+    failed += entries.length - done;
+  } catch (err) {
+    failed += entries.length;
+  }
+  return { predicted, failed };
+}
+
+// ---------------------------------------------------------------------------
+// Line moves: re-predict just the affected players
+// ---------------------------------------------------------------------------
+
+const LINE_MOVE_DEBOUNCE_MS = 30 * 1000;
+const LINE_MOVE_CONCURRENCY = 2;
+
+/**
+ * Re-predict the named players from the lines now in the odds cache, two at
+ * a time, then tell the batch listeners (Best Bets drops its cached answer,
+ * exactly as after a slate run). Waits for a slate run in progress first so
+ * the two never fight over the same players.
+ * @returns {{ players: number, predicted: number, failed: number }}
+ */
+export async function runLineMoveRepredictions(names) {
+  const wanted = new Set((names || []).map(n => n.toLowerCase()));
+  if (!wanted.size) return { players: 0, predicted: 0, failed: 0 };
+  if (batchInFlight) await batchInFlight.catch(() => {});
+  const startTime = Date.now();
+
+  let players;
+  try {
+    players = (await fetchPlayersWithLines()).filter(p => wanted.has(p.name.toLowerCase()));
+  } catch (err) {
+    console.error('[LineMove] Failed to read lines from the cache:', err.message);
+    return { players: 0, predicted: 0, failed: 0 };
+  }
+  const byPlayer = new Map();
+  for (const entry of players) {
+    if (!byPlayer.has(entry.name)) byPlayer.set(entry.name, []);
+    byPlayer.get(entry.name).push(entry);
+  }
+
+  const injuryCache = new Map();
+  const queue = [...byPlayer.entries()];
+  const totals = { players: byPlayer.size, predicted: 0, failed: 0 };
+  async function worker() {
+    while (queue.length) {
+      const [name, entries] = queue.shift();
+      const r = await predictPlayer(name, entries, injuryCache);
+      totals.predicted += r.predicted;
+      totals.failed += r.failed;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(LINE_MOVE_CONCURRENCY, queue.length) }, worker));
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`[LineMove] Re-predicted ${totals.predicted} props for ${totals.players} players (${totals.failed} failed, ${elapsed}s) after line moves`);
+  notifyBatchListeners();
+  return totals;
+}
+
+const lineMoveQueue = createLineMoveQueue({ run: runLineMoveRepredictions, delayMs: LINE_MOVE_DEBOUNCE_MS });
+
+// A refresh of a game within 6h of tip moved lines: queue the players
+onLinesChanged(({ event, changes }) => {
+  const names = [...new Set(changes.map(c => c.player))];
+  console.log(`[LineMove] ${names.length} players queued from ${event.away_team} @ ${event.home_team} (run in ${LINE_MOVE_DEBOUNCE_MS / 1000}s)`);
+  lineMoveQueue.add(names);
+});
 
 const SLATE_WINDOW_MS = 36 * 60 * 60 * 1000;
 
