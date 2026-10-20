@@ -74,7 +74,8 @@ export function imageExists(playerName) {
  */
 export async function downloadPlayerImage(playerName, nbaPlayerId) {
   try {
-    const imageUrl = `https://cdn.nba.com/headshots/nba/latest/260x190/${nbaPlayerId}.png`;
+    // Full-size original; the refresh script stores sharper 520x380 copies for everyone on a roster
+    const imageUrl = `https://cdn.nba.com/headshots/nba/latest/1040x760/${nbaPlayerId}.png`;
     const imagePath = getLocalImagePath(playerName);
     
     // Skip if image already exists

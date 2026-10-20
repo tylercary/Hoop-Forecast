@@ -7,7 +7,7 @@ function PlayerImageWithFallback({ playerName, playerId, headshot }) {
   const [imageError, setImageError] = useState(false);
   const normalizedName = playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim();
   const localImageUrl = resolveImageUrl(`/images/players/${normalizedName}.png`);
-  const cdnImageUrl = playerId ? `https://cdn.nba.com/headshots/nba/latest/260x190/${playerId}.png` : null;
+  const cdnImageUrl = playerId ? `https://cdn.nba.com/headshots/nba/latest/1040x760/${playerId}.png` : null;
   const initials = playerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   // Build ordered fallback chain, skipping nulls

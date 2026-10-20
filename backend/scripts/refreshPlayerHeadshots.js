@@ -9,6 +9,9 @@
  * Existing files saved under a different spelling of a player's name
  * (e.g. "nicolas_claxton" vs NBA.com's "Nic Claxton") are refreshed too.
  *
+ * Images are fetched at NBA.com's 1040x760 and stored at 520x380 (palette
+ * PNG, ~40 KB) via scripts/resize_headshot.py, which needs python3 + Pillow.
+ *
  * Usage:
  *   node backend/scripts/refreshPlayerHeadshots.js            # Refresh all
  *   node backend/scripts/refreshPlayerHeadshots.js --dry-run  # Report only
@@ -17,6 +20,7 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { getLocalImagePath } from '../services/imageStorageService.js';
 
@@ -80,13 +84,32 @@ function matchAlias(stem, players) {
   return candidates.length === 1 ? candidates[0] : null;
 }
 
+const RESIZE_SCRIPT = path.join(__dirname, 'resize_headshot.py');
+
+/** 520x380 palette PNG from any PNG buffer (see resize_headshot.py). */
+function resizeHeadshot(buffer) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('python3', [RESIZE_SCRIPT]);
+    const out = [];
+    let err = '';
+    child.stdout.on('data', (d) => out.push(d));
+    child.stderr.on('data', (d) => { err += d.toString(); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) return reject(new Error(`resize failed: ${err.trim() || code}`));
+      resolve(Buffer.concat(out));
+    });
+    child.stdin.end(buffer);
+  });
+}
+
 async function downloadHeadshot(nbaId) {
-  const response = await axios.get(`https://cdn.nba.com/headshots/nba/latest/260x190/${nbaId}.png`, {
+  const response = await axios.get(`https://cdn.nba.com/headshots/nba/latest/1040x760/${nbaId}.png`, {
     responseType: 'arraybuffer',
-    timeout: 15000,
+    timeout: 20000,
     headers: { 'User-Agent': NBA_HEADERS['User-Agent'] }
   });
-  return Buffer.from(response.data);
+  return resizeHeadshot(Buffer.from(response.data));
 }
 
 async function main() {
