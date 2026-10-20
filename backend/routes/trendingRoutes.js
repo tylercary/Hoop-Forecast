@@ -208,7 +208,8 @@ router.get('/props', async (req, res) => {
 });
 
 // Best bets: 10 minutes, or 1 minute while the slate is still being predicted
-const BEST_BETS_TTL = 600;
+// Short: the player page re-predicts (and re-stores) props as users open them
+const BEST_BETS_TTL = 120;
 const BEST_BETS_WARMING_TTL = 60;
 
 /**

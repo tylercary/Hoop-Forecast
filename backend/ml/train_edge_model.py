@@ -77,7 +77,9 @@ MODELS_DIR = os.path.join(SCRIPT_DIR, 'models')
 DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data')
 DEFAULT_IN = os.path.join(DATA_DIR, 'predictions_export_fv.json')
 DEFAULT_GAMELOGS = os.path.join(DATA_DIR, 'backfill_gamelogs.json')      # backend/scripts/backfillGameLogs.mjs
-DEFAULT_TEAM_STATS = os.path.join(DATA_DIR, 'team_game_stats.json')      # backend/scripts/refreshTeamGameStats.mjs
+_TEAM_STATS_LIVE = os.path.join(DATA_DIR, 'team_game_stats.json')        # backend/scripts/refreshTeamGameStats.mjs
+_TEAM_STATS_SEED = os.path.join(SCRIPT_DIR, 'team_game_stats.seed.json')  # committed copy
+DEFAULT_TEAM_STATS = _TEAM_STATS_LIVE if os.path.exists(_TEAM_STATS_LIVE) else _TEAM_STATS_SEED
 DECISION_FILE = os.path.join(DATA_DIR, 'edge_promotion.json')
 
 MODEL_FILE = 'edge_xgb_model.json'

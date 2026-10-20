@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fetch team box-score rows from ESPN into backend/data/team_game_stats.json.
+ * Fetch team box-score rows from ESPN into <DATA_DIR>/team_game_stats.json
+ * (default backend/data; the committed seed is backend/ml/team_game_stats.seed.json).
  *
  *   node backend/scripts/refreshTeamGameStats.mjs [season ...]
  *

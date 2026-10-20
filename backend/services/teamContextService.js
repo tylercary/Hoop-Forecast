@@ -3,7 +3,7 @@
  * what it allowed) fetched from ESPN, and the opponent-allowance numbers the
  * edge model reads from them as of a date.
  *
- * The rows live in backend/data/team_game_stats.json, keyed by season. The
+ * The rows live in <DATA_DIR>/team_game_stats.json (seeded from backend/ml/team_game_stats.seed.json), keyed by season. The
  * file is committed as a baseline and refreshed in place (new final games
  * only) by refreshTeamGameStats(), which the prediction cron and
  * backend/scripts/refreshTeamGameStats.mjs call.
@@ -20,7 +20,12 @@ import { fileURLToPath } from 'url';
 import { getEspnTeamId, mapEspnToNbaAbbrev } from './nbaApiService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const TEAM_GAME_STATS_FILE = path.join(__dirname, '..', 'data', 'team_game_stats.json');
+// Live copy lives with the other runtime data (on Railway that is the mounted
+// volume, which hides the image's backend/data); a seed ships in backend/ml so
+// a fresh volume still knows last season.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+export const TEAM_GAME_STATS_FILE = path.join(DATA_DIR, 'team_game_stats.json');
+export const TEAM_GAME_STATS_SEED = path.join(__dirname, '..', 'ml', 'team_game_stats.seed.json');
 
 const ESPN_SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 const ESPN_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', Accept: 'application/json' };
@@ -53,15 +58,36 @@ function espnSeasonYear(season) {
   return parseInt(season.split('-')[0], 10) + 1;
 }
 
+function readStats(file) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return parsed && parsed.seasons && Object.keys(parsed.seasons).length ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function loadTeamGameStats({ force = false } = {}) {
   if (_data && !force) return _data;
-  try {
-    _data = JSON.parse(fs.readFileSync(TEAM_GAME_STATS_FILE, 'utf8'));
-  } catch {
-    _data = { updated_at: null, seasons: {} };
+  let source = 'data';
+  let data = readStats(TEAM_GAME_STATS_FILE);
+  if (!data) {
+    data = readStats(TEAM_GAME_STATS_SEED);
+    source = data ? 'seed' : 'none';
   }
+  _data = data || { updated_at: null, seasons: {} };
   _loadedAt = Date.now();
+  const seasons = Object.entries(_data.seasons).map(([k, v]) => `${k}: ${(v.games || []).length / 2} games`).join(', ');
+  console.log(`[TeamContext] team game stats from ${source}${seasons ? ` (${seasons})` : ' (empty)'}`);
   return _data;
+}
+
+/** For /api/health: where the opponent context comes from and how much it knows. */
+export function teamGameStatsSummary() {
+  const data = loadTeamGameStats();
+  const seasons = {};
+  for (const [k, v] of Object.entries(data.seasons || {})) seasons[k] = (v.games || []).length / 2;
+  return { updated_at: data.updated_at, seasons };
 }
 
 function saveTeamGameStats(data) {

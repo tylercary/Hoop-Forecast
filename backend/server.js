@@ -16,6 +16,7 @@ import { getAccuracyStats } from './services/predictionTrackingService.js';
 import { evaluatePendingGamePredictions } from './services/gamePredictionTrackingService.js';
 import optionalAuth from './middleware/optionalAuth.js';
 import { resolveAllPendingPredictions } from './services/predictionCron.js';
+import { teamGameStatsSummary } from './services/teamContextService.js';
 import { runBatchPredictions, runBatchGamePredictions, ensureSlatePredicted } from './services/batchPredictionCron.js';
 import { getOddsApiUsage } from './services/oddsEventCache.js';
 
@@ -63,7 +64,8 @@ app.get('/api/health', (req, res) => {
     message: 'HoopForecast API is running',
     commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || null,
     startedAt,
-    oddsApi: getOddsApiUsage()
+    oddsApi: getOddsApiUsage(),
+    teamStats: teamGameStatsSummary()
   });
 });
 
