@@ -132,6 +132,64 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 }
 process.on('beforeExit', flushPredictionsSync);
 
+/**
+ * Move every prediction that did not come from the edge model out of the live
+ * store into an archive file next to it. The Model Performance page and Best
+ * Bets then describe only the current model; the archive stays available to
+ * the export endpoint (source=archive) so training can still use it.
+ * Idempotent: with nothing to move it writes nothing.
+ */
+export function archiveLegacyPredictions({ keepVariant = 'edge' } = {}) {
+  const data = loadPredictions();
+  const keep = [];
+  const archive = [];
+  for (const p of data.predictions) {
+    (p.model_variant === keepVariant ? keep : archive).push(p);
+  }
+  if (archive.length === 0) return { archived: 0, kept: keep.length, file: null };
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const file = join(PREDICTIONS_DIR, `predictions_archive_${stamp}.json`);
+  fs.writeFileSync(file, JSON.stringify({
+    archived_at: new Date().toISOString(),
+    reason: `records not from the '${keepVariant}' model`,
+    predictions: archive
+  }), 'utf8');
+  data.predictions = keep;
+  savePredictions(data);
+  flushPredictionsSync();
+  console.log(`[PredictionTracking] Archived ${archive.length} legacy predictions to ${file}; ${keep.length} kept`);
+  return { archived: archive.length, kept: keep.length, file };
+}
+
+/** Archive files written by archiveLegacyPredictions, oldest first. */
+export function listArchives() {
+  try {
+    return fs.readdirSync(PREDICTIONS_DIR)
+      .filter(f => /^predictions_archive_.*\.json$/.test(f))
+      .sort()
+      .map(f => join(PREDICTIONS_DIR, f));
+  } catch {
+    return [];
+  }
+}
+
+let _archiveCache = null;
+/** Every archived prediction (read once per process). */
+export function getArchivedPredictions() {
+  if (_archiveCache) return _archiveCache;
+  const all = [];
+  for (const file of listArchives()) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+      all.push(...(parsed.predictions || []));
+    } catch (error) {
+      console.warn(`[PredictionTracking] Could not read archive ${file}:`, error.message);
+    }
+  }
+  _archiveCache = all;
+  return all;
+}
+
 /** Every stored prediction (live array; callers must not mutate it). */
 export function getAllPredictions() {
   return loadPredictions().predictions;
@@ -141,15 +199,15 @@ export function getAllPredictions() {
  * Raw records for export/analysis, paginated. Feature vectors are large and
  * only included on request.
  */
-export function getRawPredictions({ offset = 0, limit = 1000, includeFeatures = false, evaluatedOnly = false } = {}) {
-  const all = loadPredictions().predictions;
-  const source = evaluatedOnly ? all.filter(p => p.evaluated && !p.expired && !p.dnp && p.actual_value != null) : all;
-  const page = source.slice(offset, offset + limit).map(p => {
+export function getRawPredictions({ offset = 0, limit = 1000, includeFeatures = false, evaluatedOnly = false, source = 'live' } = {}) {
+  const all = source === 'archive' ? getArchivedPredictions() : loadPredictions().predictions;
+  const pool = evaluatedOnly ? all.filter(p => p.evaluated && !p.expired && !p.dnp && p.actual_value != null) : all;
+  const page = pool.slice(offset, offset + limit).map(p => {
     if (includeFeatures) return p;
     const { feature_vector, ...rest } = p;
     return { ...rest, has_feature_vector: !!feature_vector };
   });
-  return { total: source.length, offset, limit, predictions: page };
+  return { total: pool.length, offset, limit, source, predictions: page };
 }
 
 /**

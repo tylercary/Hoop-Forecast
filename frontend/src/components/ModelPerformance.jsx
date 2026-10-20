@@ -1,27 +1,77 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import api from '../utils/api';
-import { TrendingUp, TrendingDown, Target, BarChart3, CheckCircle, XCircle, Clock, ArrowUp, ArrowDown, Shield, Zap } from 'lucide-react';
+import { Target, BarChart3, CheckCircle, XCircle, Clock, MinusCircle, Zap, Scale, Coins, ArrowUp, ArrowDown } from 'lucide-react';
+
+/**
+ * Model Performance: the edge model's live track record, graded after every
+ * game. Everything here comes from GET /api/performance/edge, the same grading
+ * the weekly retrain job uses, so the site and the report cannot disagree.
+ *
+ * A "pick" is a prop where the model's probability cleared the thresholds
+ * (>= 56% over / <= 44% under). A "lean" is everything else: the side of the
+ * line the projection sits on, shown but not recommended.
+ */
+
+const PROP_LABELS = {
+  points: 'Points', rebounds: 'Rebounds', assists: 'Assists', threes: '3-Pointers',
+  pra: 'PRA', pr: 'Pts + Reb', pa: 'Pts + Ast', ra: 'Reb + Ast'
+};
+const propLabel = (p) => PROP_LABELS[p] || p;
+
+const pct = (rate, digits = 1) => (rate == null ? '-' : `${(rate * 100).toFixed(digits)}%`);
+const signed = (n, digits = 2) => (n == null ? '-' : `${n > 0 ? '+' : ''}${n.toFixed(digits)}`);
+const formatOdds = (o) => (o == null ? '-' : o > 0 ? `+${o}` : `${o}`);
+const BREAK_EVEN = 0.524;
+
+const rateColor = (rate, n = 1) => {
+  if (rate == null || n === 0) return 'text-slate-400';
+  if (rate >= 0.56) return 'text-emerald-400';
+  if (rate >= BREAK_EVEN) return 'text-amber-400';
+  return 'text-rose-400';
+};
+const unitsColor = (u) => (u == null ? 'text-slate-400' : u > 0 ? 'text-emerald-400' : u < 0 ? 'text-rose-400' : 'text-slate-300');
+const barColor = (rate) => (rate >= 0.56 ? 'bg-emerald-400' : rate >= BREAK_EVEN ? 'bg-amber-400' : 'bg-rose-400');
+
+const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-');
+const fmtTip = (iso) => (iso ? new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : null);
+
+function Tile({ title, value, sub, color = 'text-white', icon: Icon, iconColor = 'text-slate-400', delay = 0, accent = false }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay, duration: 0.2 }}
+      className={`rounded-lg p-4 bg-slate-800/70 border ${accent ? 'border-amber-500/30' : 'border-slate-700/60'}`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-[11px] font-semibold uppercase tracking-wide ${accent ? 'text-amber-400' : 'text-slate-400'}`}>{title}</span>
+        {Icon && <Icon className={iconColor} size={18} />}
+      </div>
+      <div className={`text-2xl sm:text-3xl font-bold tabular-nums ${color}`}>{value}</div>
+      {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
+    </motion.div>
+  );
+}
+
+function ResultBadge({ result }) {
+  if (result === 'hit') return <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold"><CheckCircle size={14} /> HIT</span>;
+  if (result === 'miss') return <span className="inline-flex items-center gap-1 text-rose-400 text-xs font-semibold"><XCircle size={14} /> MISS</span>;
+  return <span className="inline-flex items-center gap-1 text-slate-400 text-xs font-semibold"><MinusCircle size={14} /> PUSH</span>;
+}
 
 function ModelPerformance() {
-  const [performance, setPerformance] = useState(null);
-  const [gamePerformance, setGamePerformance] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchPerformance();
-  }, []);
+  useEffect(() => { fetchPerformance(); }, []);
 
   const fetchPerformance = async () => {
     try {
       setLoading(true);
-      const [propRes, gameRes] = await Promise.allSettled([
-        api.get('/performance'),
-        api.get('/performance/games')
-      ]);
-      if (propRes.status === 'fulfilled') setPerformance(propRes.value.data);
-      if (gameRes.status === 'fulfilled') setGamePerformance(gameRes.value.data);
+      const res = await api.get('/performance/edge');
+      setData(res.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching performance:', err);
@@ -33,467 +83,292 @@ function ModelPerformance() {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-6 border border-slate-700">
+      <div className="panel p-6">
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
-          <span className="ml-4 text-slate-400">Loading performance metrics...</span>
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-400"></div>
+          <span className="ml-4 text-slate-400">Loading model performance...</span>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !data) {
     return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-6 border border-slate-700">
-        <p className="text-rose-400 text-center py-4">
-          ⚠️ {error}
-        </p>
-        <button
-          onClick={fetchPerformance}
-          className="mt-4 mx-auto block px-4 py-2 bg-amber-400 text-slate-900 rounded-lg hover:bg-amber-300 transition-colors font-semibold"
-        >
+      <div className="panel p-6">
+        <p className="text-rose-400 text-center py-4">Could not load performance{error ? `: ${error}` : ''}</p>
+        <button onClick={fetchPerformance} className="mt-2 mx-auto block px-4 py-2 bg-amber-400 text-slate-900 rounded-lg hover:bg-amber-300 transition-colors font-semibold">
           Retry
         </button>
       </div>
     );
   }
 
-  if (!performance || !performance.overall || (performance.overall.total === 0 && performance.overall.pending === 0)) {
-    return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
-        <h3 className="text-2xl font-bold text-white mb-4 flex items-center justify-center">
-          <Target className="mr-2 text-amber-400" size={28} />
-          Model Performance
-        </h3>
-        <div className="text-center py-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-800 mb-4">
-            <BarChart3 className="text-slate-600" size={40} />
-          </div>
-          <p className="text-slate-400 text-lg mb-2">
-            No tracked predictions yet
-          </p>
-          <p className="text-slate-500 text-sm">
-            Performance metrics will appear once predictions are tracked and resolved.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const { overall, by_prop: byProp = {}, by_week: byWeek = {}, recent = [], pending = { n: 0, picks: 0 }, thresholds } = data;
+  const recs = overall?.recommendations || { n: 0, hits: 0 };
+  const leans = overall?.leans || { n: 0, hits: 0 };
+  const graded = overall?.n || 0;
+  const since = overall?.date_range?.[0];
 
-  if (performance.overall.total === 0 && performance.overall.pending > 0) {
-    return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
-        <h3 className="text-2xl font-bold text-white mb-4 flex items-center justify-center">
-          <Target className="mr-2 text-amber-400" size={28} />
+  const header = (
+    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6">
+      <div>
+        <h3 className="panel-title text-2xl flex items-center gap-2">
+          <Target className="text-amber-400" size={26} />
           Model Performance
         </h3>
-        <div className="text-center py-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-amber-400/10 mb-4">
-            <Clock className="text-amber-400" size={40} />
+        <p className="panel-subtitle mt-1">
+          Live record of the edge model{since ? ` since ${fmtDate(since)}` : ''} · picks need {thresholds?.over ?? 56}% or better · graded after every game
+        </p>
+      </div>
+      {pending?.n > 0 && (
+        <div className="text-xs text-slate-400 flex items-center gap-1.5">
+          <Clock size={14} className="text-amber-400" />
+          {pending.n} awaiting results{pending.picks ? ` (${pending.picks} picks)` : ''}{pending.next_tip ? ` · next tip ${fmtTip(pending.next_tip)}` : ''}
+        </div>
+      )}
+    </div>
+  );
+
+  if (graded === 0) {
+    return (
+      <div className="panel p-6">
+        {header}
+        <div className="text-center py-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800 mb-4">
+            <BarChart3 className="text-slate-500" size={32} />
           </div>
-          <p className="text-white text-lg font-semibold mb-2">
-            {performance.overall.pending} predictions pending
-          </p>
+          <p className="text-white text-lg font-semibold mb-1">No graded picks yet</p>
           <p className="text-slate-400 text-sm">
-            Results will appear after today's games are completed and evaluated.
+            {pending?.n > 0
+              ? `${pending.n} predictions are waiting on tonight's games. Results appear here once each game is final.`
+              : 'Results appear here once the first games with predictions are final.'}
           </p>
         </div>
       </div>
     );
   }
 
-  const { overall, byPropType, recentPredictions, highConfidence } = performance;
+  // Calibration of the pick buckets: what the model said vs what happened
+  const bucketOver = overall.prob_buckets?.[`>=${thresholds?.over ?? 56}`];
+  const bucketUnder = overall.prob_buckets?.[`<=${thresholds?.under ?? 44}`];
+  const calibrationLine = [
+    bucketOver ? `overs said ${pct(bucketOver.stated_over, 0)}, hit ${pct(bucketOver.actual_over, 0)}` : null,
+    bucketUnder ? `unders said ${pct(1 - bucketUnder.stated_over, 0)}, hit ${pct(1 - bucketUnder.actual_over, 0)}` : null
+  ].filter(Boolean).join(' · ');
 
-  // Get color based on hit rate
-  const getHitRateColor = (hitRate) => {
-    if (hitRate >= 60) return 'text-emerald-400';
-    if (hitRate >= 50) return 'text-amber-400';
-    return 'text-rose-400';
-  };
-
-  // Get icon based on result
-  const getResultIcon = (result) => {
-    if (result === 'hit') return <CheckCircle className="text-emerald-400" size={20} />;
-    if (result === 'miss') return <XCircle className="text-rose-400" size={20} />;
-    return <Clock className="text-slate-400" size={20} />;
-  };
-
-  // Format prop type label
-  const formatPropType = (propType) => {
-    const labels = {
-      points: 'Points',
-      assists: 'Assists',
-      rebounds: 'Rebounds',
-      steals: 'Steals',
-      blocks: 'Blocks',
-      threes: '3-Pointers',
-      threes_made: '3-Pointers',
-      points_rebounds: 'Pts + Reb',
-      points_assists: 'Pts + Ast',
-      rebounds_assists: 'Reb + Ast',
-      points_rebounds_assists: 'PRA',
-      pra: 'PRA',
-      pr: 'Pts + Reb',
-      pa: 'Pts + Ast',
-      ra: 'Reb + Ast'
-    };
-    return labels[propType] || propType;
-  };
-
-  // Sort prop types by total predictions
-  const sortedPropTypes = Object.entries(byPropType).sort((a, b) => b[1].total - a[1].total);
+  const sortedProps = Object.entries(byProp).sort((a, b) => (b[1].recommendations?.n || 0) - (a[1].recommendations?.n || 0) || b[1].n - a[1].n);
+  const weeks = Object.entries(byWeek).sort(([a], [b]) => b.localeCompare(a)).slice(0, 12);
+  const bins = Object.entries(overall.prob_bins || {}).filter(([, v]) => v.n >= 10);
+  const confidence = overall.by_confidence || {};
 
   return (
     <div className="space-y-6">
-      {/* Overall Performance */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-6 border border-slate-700"
-      >
-        <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
-          <Target className="mr-2 text-amber-400" size={28} />
-          Model Performance
-        </h3>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          {/* Overall Hit Rate */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="bg-slate-800 rounded-lg p-4 border border-slate-700"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400 font-medium">All Picks</span>
-              <TrendingUp className="text-emerald-400" size={20} />
-            </div>
-            <div className={`text-3xl font-bold ${getHitRateColor(overall.hitRate)} mb-1`}>
-              {overall.hitRate}%
-            </div>
-            <div className="text-xs text-slate-500">
-              {overall.hits}/{overall.total} predictions
-            </div>
-          </motion.div>
-
-          {/* High Confidence Hit Rate */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.12 }}
-            className="bg-slate-800 rounded-lg p-4 border border-amber-500/30"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-amber-400 font-medium">Top Picks</span>
-              <Zap className="text-amber-400" size={20} />
-            </div>
-            <div className={`text-3xl font-bold ${highConfidence?.total > 0 ? getHitRateColor(highConfidence.hitRate) : 'text-slate-500'} mb-1`}>
-              {highConfidence?.total > 0 ? `${highConfidence.hitRate}%` : '-'}
-            </div>
-            <div className="text-xs text-slate-500">
-              {highConfidence?.total > 0 ? `${highConfidence.hits}/${highConfidence.total} high confidence` : 'No data yet'}
-            </div>
-          </motion.div>
-
-          {/* Total Predictions */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.15 }}
-            className="bg-slate-800 rounded-lg p-4 border border-slate-700"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400 font-medium">Total</span>
-              <BarChart3 className="text-blue-400" size={20} />
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {overall.total}
-            </div>
-            <div className="text-xs text-slate-500">
-              Resolved predictions
-            </div>
-          </motion.div>
-
-          {/* Avg Error */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="bg-slate-800 rounded-lg p-4 border border-slate-700"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400 font-medium">Avg Error</span>
-              <TrendingDown className="text-orange-400" size={20} />
-            </div>
-            <div className="text-3xl font-bold text-orange-400 mb-1">
-              {overall.avgError != null ? overall.avgError : '-'}
-            </div>
-            <div className="text-xs text-slate-500">
-              {overall.hits} hits / {overall.misses} misses
-            </div>
-          </motion.div>
-
-          {/* Pending */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.25 }}
-            className="bg-slate-800 rounded-lg p-4 border border-slate-700"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400 font-medium">Pending</span>
-              <Clock className="text-amber-400" size={20} />
-            </div>
-            <div className="text-3xl font-bold text-amber-400 mb-1">
-              {overall.pending}
-            </div>
-            <div className="text-xs text-slate-500">
-              Awaiting results
-            </div>
-          </motion.div>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="panel p-6">
+        {header}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+          <Tile
+            title="Picks"
+            value={recs.n ? pct(recs.hit_rate) : '-'}
+            sub={recs.n ? `${recs.hits}-${recs.n - recs.hits}${recs.pushes ? `-${recs.pushes}` : ''} · break-even 52.4%` : 'No picks graded yet'}
+            color={rateColor(recs.hit_rate, recs.n)}
+            icon={Zap} iconColor="text-amber-400" accent delay={0.05}
+          />
+          <Tile
+            title="Units"
+            value={recs.bets ? signed(recs.units) : '-'}
+            sub={recs.bets ? `${pct(recs.roi)} ROI · 1u per pick at the best price` : 'Flat 1u per pick'}
+            color={unitsColor(recs.units)}
+            icon={Coins} iconColor="text-amber-400" delay={0.1}
+          />
+          <Tile
+            title="Leans"
+            value={leans.n ? pct(leans.hit_rate) : '-'}
+            sub={leans.n ? `${leans.hits}-${leans.n - leans.hits} · projection's side, no pick` : 'No leans graded yet'}
+            color={rateColor(leans.hit_rate, leans.n)}
+            icon={Scale} iconColor="text-slate-400" delay={0.15}
+          />
+          <Tile
+            title="Calibration"
+            value={overall.calibration_slope != null ? overall.calibration_slope.toFixed(2) : '-'}
+            sub={overall.calibration_slope != null ? '1.00 = probabilities match reality' : 'Needs 30+ graded props'}
+            color={overall.calibration_slope == null ? 'text-slate-400' : overall.calibration_slope >= 0.7 ? 'text-emerald-400' : overall.calibration_slope >= 0.4 ? 'text-amber-400' : 'text-rose-400'}
+            icon={BarChart3} iconColor="text-slate-400" delay={0.2}
+          />
+          <Tile
+            title="Graded"
+            value={graded}
+            sub={`${overall.pushes || 0} pushes · line went over ${pct(overall.over_rate, 0)} of the time`}
+            color="text-white"
+            icon={CheckCircle} iconColor="text-slate-400" delay={0.25}
+          />
         </div>
+        {calibrationLine && <p className="text-xs text-slate-500 mt-3">{calibrationLine}</p>}
       </motion.div>
 
-      {/* Performance by Prop Type */}
-      {sortedPropTypes.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-6 border border-slate-700"
-        >
-          <h4 className="text-xl font-bold text-white mb-4">Performance by Prop Type</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedPropTypes.map(([propType, stats], index) => (
-              <motion.div
-                key={propType}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.35 + index * 0.05 }}
-                className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-colors"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-300 font-medium">{formatPropType(propType)}</span>
-                  <span className={`text-xl font-bold ${getHitRateColor(stats.hitRate)}`}>
-                    {stats.hitRate.toFixed(1)}%
-                  </span>
+      {Object.keys(confidence).length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="panel p-6">
+          <h4 className="panel-title mb-1">Picks by confidence</h4>
+          <p className="panel-subtitle mb-4">High means the model sat 9+ points from 50/50; Medium 5+; Low under 5</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {['High', 'Medium', 'Low'].filter(t => confidence[t]).map((tier) => {
+              const c = confidence[tier];
+              return (
+                <div key={tier} className="rounded-lg p-4 bg-slate-800/70 border border-slate-700/60 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-200">{tier}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{c.hits}-{c.n - c.hits} · {signed(c.units)}u</div>
+                  </div>
+                  <div className={`text-2xl font-bold tabular-nums ${rateColor(c.hit_rate, c.n)}`}>{pct(c.hit_rate)}</div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{stats.hits} hits / {stats.total} total</span>
-                </div>
-                {/* Progress bar */}
-                <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stats.hitRate}%` }}
-                    transition={{ delay: 0.5 + index * 0.05, duration: 0.6 }}
-                    className={`h-full ${
-                      stats.hitRate >= 60 ? 'bg-emerald-400' :
-                      stats.hitRate >= 50 ? 'bg-amber-400' : 'bg-rose-400'
-                    }`}
-                  />
-                </div>
-              </motion.div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       )}
 
-      {/* Game Predictions Performance */}
-      {gamePerformance && (gamePerformance.total > 0 || gamePerformance.pending > 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-6 border border-slate-700"
-        >
-          <h4 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Shield className="text-blue-400" size={22} />
-            Game Predictions
-          </h4>
-
-          {gamePerformance.total > 0 ? (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                  <span className="text-sm text-slate-400">Winner Accuracy</span>
-                  <div className={`text-2xl font-bold mt-1 ${getHitRateColor(gamePerformance.winnerAccuracy)}`}>
-                    {gamePerformance.winnerAccuracy}%
+      {sortedProps.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="panel p-6">
+          <h4 className="panel-title mb-1">By prop</h4>
+          <p className="panel-subtitle mb-4">Pick record per market; leans shown where the model has not made a pick yet</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {sortedProps.map(([prop, s], i) => {
+              const r = s.recommendations || { n: 0 };
+              const usePicks = r.n > 0;
+              const block = usePicks ? r : (s.leans || { n: 0 });
+              return (
+                <motion.div key={prop} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.03 }}
+                  className="rounded-lg p-4 bg-slate-800/70 border border-slate-700/60">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-slate-200">{propLabel(prop)}</span>
+                    <span className={`text-lg font-bold tabular-nums ${rateColor(block.hit_rate, block.n)}`}>{block.n ? pct(block.hit_rate) : '-'}</span>
                   </div>
-                  <span className="text-xs text-slate-500">{gamePerformance.total} games</span>
-                </div>
-                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                  <span className="text-sm text-slate-400">Spread Accuracy</span>
-                  <div className={`text-2xl font-bold mt-1 ${getHitRateColor(gamePerformance.spreadAccuracy)}`}>
-                    {gamePerformance.spreadAccuracy}%
+                  <div className="text-xs text-slate-500">
+                    {block.n ? `${block.hits}-${block.n - block.hits} ${usePicks ? 'picks' : 'leans'}` : 'nothing graded'}
+                    {usePicks && r.units != null ? ` · ${signed(r.units)}u` : ''}
                   </div>
-                </div>
-                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                  <span className="text-sm text-slate-400">Avg Spread Error</span>
-                  <div className="text-2xl font-bold mt-1 text-orange-400">
-                    {gamePerformance.avgSpreadError} pts
+                  <div className="mt-2 h-1.5 bg-slate-700/60 rounded-full overflow-hidden">
+                    {block.n > 0 && (
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${(block.hit_rate || 0) * 100}%` }} transition={{ delay: 0.3 + i * 0.03, duration: 0.5 }}
+                        className={`h-full ${barColor(block.hit_rate || 0)}`} />
+                    )}
                   </div>
-                </div>
-                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                  <span className="text-sm text-slate-400">Avg Total Error</span>
-                  <div className="text-2xl font-bold mt-1 text-orange-400">
-                    {gamePerformance.avgTotalError} pts
-                  </div>
-                </div>
-              </div>
-
-              {gamePerformance.recentPredictions?.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-700">
-                        <th className="text-left text-slate-400 font-medium py-2 px-2">Winner</th>
-                        <th className="text-left text-slate-400 font-medium py-2 px-2">Matchup</th>
-                        <th className="text-right text-slate-400 font-medium py-2 px-2">Pred Spread</th>
-                        <th className="text-right text-slate-400 font-medium py-2 px-2">Score</th>
-                        <th className="text-right text-slate-400 font-medium py-2 px-2">Spread Err</th>
-                        <th className="text-right text-slate-400 font-medium py-2 px-2">Total Err</th>
-                        <th className="text-left text-slate-400 font-medium py-2 px-2">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {gamePerformance.recentPredictions.map((gp, i) => (
-                        <tr key={gp.gameId || i} className="border-b border-slate-800 hover:bg-slate-800/50">
-                          <td className="py-2 px-2">
-                            {gp.winnerCorrect ? (
-                              <span className="flex items-center gap-1 text-emerald-400 text-xs font-semibold">
-                                <CheckCircle size={14} /> HIT
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-rose-400 text-xs font-semibold">
-                                <XCircle size={14} /> MISS
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2 text-white font-medium">{gp.matchup}</td>
-                          <td className="py-2 px-2 text-right text-slate-300 font-medium">
-                            {gp.predictedSpread > 0 ? `+${gp.predictedSpread}` : gp.predictedSpread}
-                          </td>
-                          <td className="py-2 px-2 text-right text-white font-semibold">{gp.actualScore || '-'}</td>
-                          <td className="py-2 px-2 text-right text-orange-400">{gp.spreadError}</td>
-                          <td className="py-2 px-2 text-right text-orange-400">{gp.totalError}</td>
-                          <td className="py-2 px-2 text-slate-500 text-xs">
-                            {gp.gameDate ? new Date(gp.gameDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-6">
-              <Clock className="mx-auto text-amber-400 mb-2" size={32} />
-              <p className="text-white font-semibold">{gamePerformance.pending} game predictions pending</p>
-              <p className="text-slate-400 text-sm">Results will appear after games are completed</p>
-            </div>
-          )}
+                </motion.div>
+              );
+            })}
+          </div>
         </motion.div>
       )}
 
-      {/* Recent Predictions */}
-      {recentPredictions && recentPredictions.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-6 border border-slate-700"
-        >
-          <h4 className="text-xl font-bold text-white mb-4">Recent Player Predictions</h4>
-          <div className="overflow-x-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {weeks.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="panel p-6">
+            <h4 className="panel-title mb-1">Week by week</h4>
+            <p className="panel-subtitle mb-4">Drift shows up here first</p>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left text-slate-400 font-medium py-2 px-2">Result</th>
-                  <th className="text-left text-slate-400 font-medium py-2 px-2">Player</th>
-                  <th className="text-left text-slate-400 font-medium py-2 px-2">Prop</th>
-                  <th className="text-right text-slate-400 font-medium py-2 px-2">Line</th>
-                  <th className="text-right text-slate-400 font-medium py-2 px-2">Pick</th>
-                  <th className="text-right text-slate-400 font-medium py-2 px-2">Prob</th>
-                  <th className="text-right text-slate-400 font-medium py-2 px-2">Actual</th>
-                  <th className="text-left text-slate-400 font-medium py-2 px-2">Date</th>
+                <tr className="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-700/60">
+                  <th className="text-left py-2">Week</th>
+                  <th className="text-right py-2">Picks</th>
+                  <th className="text-right py-2">Hit rate</th>
+                  <th className="text-right py-2">Units</th>
+                  <th className="text-right py-2">Leans</th>
                 </tr>
               </thead>
               <tbody>
-                {recentPredictions.slice(0, 15).map((pred, index) => {
-                  const isHit = pred.result === 'hit';
-                  const line = pred.bettingLine;
-                  const pickedOver = pred.prediction != null && line != null && pred.prediction > line;
-                  const overProb = pred.overProbability;
-                  // Show the relevant probability (if picked over, show over%; if under, show 100 - over%)
-                  const displayProb = overProb != null
-                    ? (pickedOver ? overProb : (100 - overProb))
-                    : null;
-                  const isHighConf = pred.edgeStrength >= 8 || pred.confidence === 'High';
-
+                {weeks.map(([week, s]) => {
+                  const r = s.recommendations || { n: 0 };
+                  const l = s.leans || { n: 0 };
                   return (
-                    <motion.tr
-                      key={pred.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.45 + index * 0.03 }}
-                      className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${isHighConf ? 'bg-amber-400/5' : ''}`}
-                    >
-                      <td className="py-2 px-2">
-                        {isHit ? (
-                          <span className="flex items-center gap-1 text-emerald-400 text-xs font-semibold">
-                            <CheckCircle size={14} /> HIT
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-rose-400 text-xs font-semibold">
-                            <XCircle size={14} /> MISS
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-white font-medium">
-                        {pred.playerName}
-                        {isHighConf && <Zap size={12} className="inline ml-1 text-amber-400" />}
-                      </td>
-                      <td className="py-2 px-2 text-slate-300">{formatPropType(pred.propType)}</td>
-                      <td className="py-2 px-2 text-right text-slate-300 font-medium">
-                        {line != null ? line.toFixed(1) : '-'}
-                      </td>
-                      <td className="py-2 px-2 text-right font-semibold">
-                        {line != null ? (
-                          <span className={pickedOver ? 'text-emerald-400' : 'text-rose-400'}>
-                            {pickedOver ? (
-                              <span className="flex items-center justify-end gap-1">
-                                <ArrowUp size={14} /> O {pred.prediction?.toFixed(1)}
-                              </span>
-                            ) : (
-                              <span className="flex items-center justify-end gap-1">
-                                <ArrowDown size={14} /> U {pred.prediction?.toFixed(1)}
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-amber-400">{pred.prediction?.toFixed(1) ?? '-'}</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-right">
-                        {displayProb != null ? (
-                          <span className={`text-xs font-medium ${displayProb >= 60 ? 'text-emerald-400' : displayProb >= 55 ? 'text-amber-400' : 'text-slate-400'}`}>
-                            {displayProb.toFixed(0)}%
-                          </span>
-                        ) : (
-                          <span className="text-slate-600 text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-right text-white font-semibold">
-                        {pred.actual != null ? pred.actual.toFixed(1) : '-'}
-                      </td>
-                      <td className="py-2 px-2 text-slate-500 text-xs">
-                        {pred.gameDate ? new Date(pred.gameDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
-                      </td>
-                    </motion.tr>
+                    <tr key={week} className="border-b border-slate-800/80">
+                      <td className="py-2 text-slate-300">{week.replace('-W', ' · wk ')}</td>
+                      <td className="py-2 text-right text-slate-300 tabular-nums">{r.n ? `${r.hits}-${r.n - r.hits}` : '-'}</td>
+                      <td className={`py-2 text-right font-semibold tabular-nums ${rateColor(r.hit_rate, r.n)}`}>{r.n ? pct(r.hit_rate) : '-'}</td>
+                      <td className={`py-2 text-right tabular-nums ${unitsColor(r.units)}`}>{r.bets ? signed(r.units) : '-'}</td>
+                      <td className={`py-2 text-right tabular-nums ${rateColor(l.hit_rate, l.n)}`}>{l.n ? `${pct(l.hit_rate, 0)} (${l.n})` : '-'}</td>
+                    </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+
+        {bins.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="panel p-6">
+            <h4 className="panel-title mb-1">Said vs happened</h4>
+            <p className="panel-subtitle mb-4">Stated over probability against how often the over actually hit</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-700/60">
+                  <th className="text-left py-2">Model said</th>
+                  <th className="text-right py-2">Over hit</th>
+                  <th className="text-right py-2">Props</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bins.map(([bin, v]) => {
+                  const gap = v.actual_over - v.stated_over;
+                  return (
+                    <tr key={bin} className="border-b border-slate-800/80">
+                      <td className="py-2 text-slate-300">{bin}%</td>
+                      <td className={`py-2 text-right font-semibold tabular-nums ${Math.abs(gap) <= 0.05 ? 'text-emerald-400' : Math.abs(gap) <= 0.1 ? 'text-amber-400' : 'text-rose-400'}`}>{pct(v.actual_over, 0)}</td>
+                      <td className="py-2 text-right text-slate-400 tabular-nums">{v.n}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+      </div>
+
+      {recent.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="panel p-6">
+          <h4 className="panel-title mb-1">Recent graded props</h4>
+          <p className="panel-subtitle mb-4">Picks are highlighted; leans are shown for the record</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-700/60">
+                  <th className="text-left py-2 px-2">Result</th>
+                  <th className="text-left py-2 px-2">Player</th>
+                  <th className="text-left py-2 px-2">Prop</th>
+                  <th className="text-right py-2 px-2">Line</th>
+                  <th className="text-right py-2 px-2">Side</th>
+                  <th className="text-right py-2 px-2">Prob</th>
+                  <th className="text-right py-2 px-2">Actual</th>
+                  <th className="text-right py-2 px-2">Price</th>
+                  <th className="text-right py-2 px-2">Units</th>
+                  <th className="text-left py-2 px-2">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((r, i) => (
+                  <motion.tr key={r.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 + i * 0.015 }}
+                    className={`border-b border-slate-800/80 hover:bg-slate-800/40 transition-colors ${r.pick ? 'bg-amber-400/5' : ''}`}>
+                    <td className="py-2 px-2"><ResultBadge result={r.result} /></td>
+                    <td className="py-2 px-2 text-white font-medium whitespace-nowrap">
+                      {r.player}{r.pick && <Zap size={12} className="inline ml-1 text-amber-400" />}
+                      {r.opponent && <span className="text-slate-500 text-xs ml-1">vs {r.opponent}</span>}
+                    </td>
+                    <td className="py-2 px-2 text-slate-300">{propLabel(r.prop)}</td>
+                    <td className="py-2 px-2 text-right text-slate-300 tabular-nums">{r.line?.toFixed(1)}</td>
+                    <td className="py-2 px-2 text-right font-semibold">
+                      {r.side ? (
+                        <span className={`inline-flex items-center justify-end gap-1 ${r.side === 'OVER' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {r.side === 'OVER' ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                          {r.side === 'OVER' ? 'O' : 'U'} {r.projection?.toFixed(1)}
+                          {!r.pick && <span className="text-[10px] font-normal text-slate-500 ml-1">lean</span>}
+                        </span>
+                      ) : <span className="text-slate-500">-</span>}
+                    </td>
+                    <td className={`py-2 px-2 text-right text-xs font-medium tabular-nums ${r.prob >= 56 ? 'text-emerald-400' : r.prob >= 52.4 ? 'text-amber-400' : 'text-slate-400'}`}>{r.prob != null ? `${r.prob.toFixed(0)}%` : '-'}</td>
+                    <td className="py-2 px-2 text-right text-white font-semibold tabular-nums">{r.actual != null ? r.actual : '-'}</td>
+                    <td className="py-2 px-2 text-right text-slate-400 text-xs whitespace-nowrap">{r.pick ? `${formatOdds(r.odds)}${r.book ? ` ${r.book}` : ''}` : '-'}</td>
+                    <td className={`py-2 px-2 text-right tabular-nums text-xs ${unitsColor(r.units)}`}>{r.units != null ? signed(r.units) : '-'}</td>
+                    <td className="py-2 px-2 text-slate-500 text-xs whitespace-nowrap">{fmtDate(r.date)}</td>
+                  </motion.tr>
+                ))}
               </tbody>
             </table>
           </div>

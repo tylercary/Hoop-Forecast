@@ -65,6 +65,9 @@ export function eligibleRows(predictions, variant = 'edge') {
     const actual = p.actual_value;
     const date = isoDate(p.next_game && p.next_game.date) || isoDate(p.created_at) || '';
     rows.push({
+      id: p.id,
+      player: p.player_name || null,
+      opponent: p.next_game?.opponent || p.opponent || null,
       prop: p.prop_type || 'points',
       date,
       week: isoWeek(date),
@@ -75,6 +78,11 @@ export function eligibleRows(predictions, variant = 'edge') {
       rec: p.recommendation === 'OVER' || p.recommendation === 'UNDER' ? p.recommendation : null,
       prob: typeof p.over_probability === 'number' ? p.over_probability : null,
       residual: typeof p.edge_residual === 'number' ? p.edge_residual : null,
+      confidence: p.confidence || null,
+      // Price the pick could have been taken at (best book when stored, else -110)
+      odds: p.best_bet && (p.best_bet.side || '').toUpperCase() === p.recommendation && Number.isFinite(Number(p.best_bet.odds))
+        ? Number(p.best_bet.odds) : -110,
+      book: p.best_bet && (p.best_bet.side || '').toUpperCase() === p.recommendation ? (p.best_bet.bookmaker || null) : null,
       variant: variantOf(p),
     });
   }
@@ -92,6 +100,21 @@ export function calibrationSlope(rows) {
   }
   if (n < 30 || den === 0) return null;
   return num / den;
+}
+
+/** Profit on a 1-unit stake at American odds, or -1 on a loss. */
+function unitsFor(won, odds) {
+  if (won == null) return 0; // push
+  if (!won) return -1;
+  const o = Number(odds) || -110;
+  return o > 0 ? o / 100 : 100 / -o;
+}
+
+/** Units won and ROI for a set of recommendation rows (pushes return the stake). */
+function roiBlock(recRows) {
+  const staked = recRows.length;
+  const units = recRows.reduce((s, r) => s + unitsFor(r.over == null ? null : ((r.rec === 'OVER') === (r.over === 1)), r.odds), 0);
+  return { bets: staked, units: round(units, 2), roi: staked ? round(units / staked) : null };
 }
 
 function hitBlock(pairs) {
@@ -113,7 +136,13 @@ export function summarize(rows) {
     pushes: rows.filter(r => r.rec && r.over == null).length,
     over: hitBlock(recPairs.filter(([a]) => a === 1)),
     under: hitBlock(recPairs.filter(([a]) => a === 0)),
+    ...roiBlock(rows.filter(r => r.rec)),
   };
+  const byConfidence = {};
+  for (const tier of ['High', 'Medium', 'Low']) {
+    const sub = recs.filter(r => r.confidence === tier);
+    if (sub.length) byConfidence[tier] = { ...hitBlock(sub.map(r => [r.rec === 'OVER' ? 1 : 0, r.over])), ...roiBlock(rows.filter(r => r.rec && r.confidence === tier)) };
+  }
 
   // Leans: no pick; the UI shows the projection's side of the line
   const leans = decided.filter(r => !r.rec && r.proj != null && r.proj !== r.line);
@@ -159,6 +188,7 @@ export function summarize(rows) {
     date_range: dates.length ? [dates[0], dates[dates.length - 1]] : null,
     over_rate: decided.length ? round(mean(decided.map(r => r.over))) : null,
     recommendations,
+    by_confidence: byConfidence,
     leans: leanBlock,
     prob_buckets: finish(probBuckets),
     prob_bins: finish(probBins),
@@ -190,14 +220,37 @@ export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
     const v = variantOf(p);
     variants[v] = (variants[v] || 0) + 1;
   }
+  // Still waiting on a result (the current model only)
+  const pending = predictions.filter(p => !p.evaluated && (variant === 'all' || variantOf(p) === variant));
+  const pendingPicks = pending.filter(p => p.recommendation === 'OVER' || p.recommendation === 'UNDER');
+  const nextTip = pending.map(p => p.next_game?.commence_time).filter(Boolean).sort()[0] || null;
+
+  // Latest graded rows, newest game first, picks before leans within a day
+  const recent = [...rows]
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.rec ? 1 : 0) - (a.rec ? 1 : 0))
+    .slice(0, 40)
+    .map(r => {
+      const side = r.rec ? r.rec : (r.proj != null && r.proj !== r.line ? (r.proj > r.line ? 'OVER' : 'UNDER') : null);
+      const won = r.over == null ? null : side == null ? null : (side === 'OVER') === (r.over === 1);
+      return {
+        id: r.id, player: r.player, opponent: r.opponent, prop: r.prop, date: r.date, line: r.line,
+        side, pick: !!r.rec, prob: r.prob == null ? null : (side === 'UNDER' ? round(100 - r.prob, 1) : round(r.prob, 1)),
+        projection: r.proj, actual: r.actual, result: r.over == null ? 'push' : won ? 'hit' : 'miss',
+        confidence: r.confidence, odds: r.rec ? r.odds : null, book: r.rec ? r.book : null,
+        units: r.rec ? round(unitsFor(won, r.odds), 2) : null
+      };
+    });
+
   return {
     generated_at: new Date().toISOString(),
     variant,
     thresholds: { over: PICK_OVER, under: PICK_UNDER },
     evaluated_by_variant: variants,
+    pending: { n: pending.length, picks: pendingPicks.length, next_tip: nextTip },
     overall: summarize(rows),
     by_prop: byProp,
     by_week: byWeek,
+    recent,
   };
 }
 

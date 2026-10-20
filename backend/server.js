@@ -17,6 +17,8 @@ import { evaluatePendingGamePredictions } from './services/gamePredictionTrackin
 import optionalAuth from './middleware/optionalAuth.js';
 import { resolveAllPendingPredictions } from './services/predictionCron.js';
 import { teamGameStatsSummary } from './services/teamContextService.js';
+import { archiveLegacyPredictions } from './services/predictionTrackingService.js';
+import { archiveGamePredictions } from './services/gamePredictionTrackingService.js';
 import { runBatchPredictions, runBatchGamePredictions, ensureSlatePredicted } from './services/batchPredictionCron.js';
 import { getOddsApiUsage } from './services/oddsEventCache.js';
 
@@ -101,6 +103,17 @@ async function runEvaluation() {
 }
 
 // Run initial evaluation 30s after startup, then every 6 hours
+// One-time reset for the edge model (2026-10-20): predictions from earlier
+// models and all old game predictions leave the live store for archive files,
+// so the performance page and Best Bets describe only the current model.
+// Idempotent; the archives remain readable via /api/performance/export?source=archive.
+try {
+  archiveLegacyPredictions();
+  archiveGamePredictions();
+} catch (err) {
+  console.error('Legacy archive failed:', err.message);
+}
+
 setTimeout(runEvaluation, 30000);
 setInterval(runEvaluation, EVAL_INTERVAL);
 

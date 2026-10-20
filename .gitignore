@@ -50,6 +50,8 @@ backend/data/predictions.json
 backend/data/predictions.json.tmp
 backend/data/game_predictions.json
 backend/data/predictions_export*.json
+backend/data/predictions_archive_*.json
+backend/data/game_predictions_archive_*.json
 backend/data/edge_*
 backend/ml/models/*.candidate.json
 *.db

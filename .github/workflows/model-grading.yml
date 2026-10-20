@@ -39,7 +39,7 @@ jobs:
         run: pip install --quiet numpy pandas scikit-learn xgboost
 
       - name: Pull evaluated predictions from production
-        run: node backend/scripts/pullPredictions.mjs --features --out "$EXPORT"
+        run: node backend/scripts/pullPredictions.mjs --features --with-archive --out "$EXPORT"
 
       - name: Install backend dependencies
         run: npm --prefix backend ci --omit=dev

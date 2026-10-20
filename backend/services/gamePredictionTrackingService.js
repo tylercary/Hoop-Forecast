@@ -44,6 +44,22 @@ function saveGamePredictions(data) {
 }
 
 /**
+ * Move every stored game prediction into an archive file (one-time reset so
+ * the performance page starts clean with the current models).
+ */
+export function archiveGamePredictions() {
+  const data = loadGamePredictions();
+  const n = data.predictions.length;
+  if (n === 0) return { archived: 0, file: null };
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const file = join(DATA_DIR, `game_predictions_archive_${stamp}.json`);
+  fs.writeFileSync(file, JSON.stringify({ archived_at: new Date().toISOString(), predictions: data.predictions }), 'utf8');
+  saveGamePredictions({ predictions: [] });
+  console.log(`[GamePredTracking] Archived ${n} game predictions to ${file}`);
+  return { archived: n, file };
+}
+
+/**
  * Store a game prediction for future evaluation
  */
 export function storeGamePrediction(prediction, gameId, homeTeam, awayTeam, gameDate) {

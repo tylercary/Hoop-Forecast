@@ -5,7 +5,19 @@
 
 import express from 'express';
 import * as performanceService from '../services/performanceTrackingService.js';
-import { resetPredictions, getRawPredictions, getAllPredictions } from '../services/predictionTrackingService.js';
+import { resetPredictions, getRawPredictions, getAllPredictions, archiveLegacyPredictions, listArchives } from '../services/predictionTrackingService.js';
+import { archiveGamePredictions } from '../services/gamePredictionTrackingService.js';
+
+// Destructive routes need ADMIN_KEY (env) in the x-admin-key header; with no
+// ADMIN_KEY configured they are disabled.
+function requireAdmin(req, res) {
+  const key = process.env.ADMIN_KEY;
+  if (!key || req.get('x-admin-key') !== key) {
+    res.status(403).json({ error: 'Admin key required' });
+    return false;
+  }
+  return true;
+}
 import { gradeEdgePredictions } from '../services/edgeGradingService.js';
 import { getGamePredictionStats } from '../services/gamePredictionTrackingService.js';
 
@@ -75,7 +87,8 @@ router.get('/export', (req, res) => {
     const limit = Math.min(5000, Math.max(1, parseInt(req.query.limit, 10) || 1000));
     const includeFeatures = req.query.features === '1';
     const evaluatedOnly = req.query.evaluated !== '0';
-    res.json(getRawPredictions({ offset, limit, includeFeatures, evaluatedOnly }));
+    const source = req.query.source === 'archive' ? 'archive' : 'live';
+    res.json(getRawPredictions({ offset, limit, includeFeatures, evaluatedOnly, source }));
   } catch (error) {
     console.error('Error exporting predictions:', error);
     res.status(500).json({ error: 'Failed to export predictions', message: error.message });
@@ -149,12 +162,29 @@ router.post('/cleanup', async (req, res) => {
  * Reset all predictions (for model version changes)
  */
 router.post('/reset', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     const cleared = resetPredictions();
     res.json({ message: 'Predictions reset successfully', cleared });
   } catch (error) {
     console.error('Error resetting predictions:', error);
     res.status(500).json({ error: 'Failed to reset predictions', message: error.message });
+  }
+});
+
+/**
+ * POST /api/performance/archive-legacy  (x-admin-key)
+ * Move every non-edge prediction and all game predictions into archive files.
+ */
+router.post('/archive-legacy', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const props = archiveLegacyPredictions();
+    const games = archiveGamePredictions();
+    res.json({ props, games, archives: listArchives() });
+  } catch (error) {
+    console.error('Error archiving predictions:', error);
+    res.status(500).json({ error: 'Failed to archive predictions', message: error.message });
   }
 });
 
