@@ -69,16 +69,19 @@ function readStats(file) {
 
 export function loadTeamGameStats({ force = false } = {}) {
   if (_data && !force) return _data;
-  let source = 'data';
-  let data = readStats(TEAM_GAME_STATS_FILE);
-  if (!data) {
-    data = readStats(TEAM_GAME_STATS_SEED);
-    source = data ? 'seed' : 'none';
+  // Seed first, then the live copy on top season by season: a live file that
+  // only knows the current (empty) season must not hide last season's games.
+  const seed = readStats(TEAM_GAME_STATS_SEED);
+  const live = readStats(TEAM_GAME_STATS_FILE);
+  const seasons = { ...(seed?.seasons || {}) };
+  for (const [season, bucket] of Object.entries(live?.seasons || {})) {
+    if ((bucket.games || []).length || !seasons[season]) seasons[season] = bucket;
   }
-  _data = data || { updated_at: null, seasons: {} };
+  const source = live && seed ? 'seed+data' : live ? 'data' : seed ? 'seed' : 'none';
+  _data = { updated_at: live?.updated_at || seed?.updated_at || null, seasons };
   _loadedAt = Date.now();
-  const seasons = Object.entries(_data.seasons).map(([k, v]) => `${k}: ${(v.games || []).length / 2} games`).join(', ');
-  console.log(`[TeamContext] team game stats from ${source}${seasons ? ` (${seasons})` : ' (empty)'}`);
+  const summary = Object.entries(_data.seasons).map(([k, v]) => `${k}: ${(v.games || []).length / 2} games`).join(', ');
+  console.log(`[TeamContext] team game stats from ${source}${summary ? ` (${summary})` : ' (empty)'}`);
   return _data;
 }
 
