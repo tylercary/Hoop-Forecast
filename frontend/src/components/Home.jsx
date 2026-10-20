@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api, { resolveImageUrl } from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
 import TrendingPropCard from './TrendingPropCard';
+import BestBets from './BestBets';
 
 // Module-level cache to persist data across component remounts (e.g., back navigation)
 const dataCache = {
@@ -446,6 +447,9 @@ function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="border-t border-white/5 mb-8"></div>
       </div>
+
+      {/* Best Bets: where the edge model disagrees most with the line */}
+      <BestBets onSelectPlayer={handleSelectPlayer} />
 
       {/* Trending Props Section - Horizontal Scroll */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12">
