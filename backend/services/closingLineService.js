@@ -205,9 +205,9 @@ export async function runClosingSnapshots({ now = Date.now() } = {}) {
     for (const p of candidates) seen.add(p.id);
     const tip = new Date(event.commence_time).getTime();
 
-    // One refresh per game at most; the player page and the background
-    // schedule (every 15 min in the last hour before tip) usually already
-    // have fresh data in the cache. After tip-off the cache serves its last
+    // One refresh per game at most; the cache's refresh loop (every 5 min in
+    // the last hour, every 2 min in the last 15) normally already holds a
+    // read a couple of minutes old. After tip-off the cache serves its last
     // pre-tip snapshot and never refetches.
     const data = await getEventOdds(event, { maxAgeMs: CLOSING_REFRESH_MAX_AGE_MS });
     if (!data?.bookmakers?.length) continue;

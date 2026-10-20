@@ -1,6 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getUpcomingEvents, getEventOdds, getCachedEventOdds, PLAYER_VIEW_MAX_AGE_MS } from './oddsEventCache.js';
+import { getUpcomingEvents, getEventOdds, getCachedEventOdds } from './oddsEventCache.js';
 
 dotenv.config();
 
@@ -530,9 +530,9 @@ export async function getPlayerOdds(playerId, playerName, gameInfo = {}) {
     }
 
     if (targetEvent) {
-      // The game being viewed: refresh if the cached odds are more than a few
-      // minutes old (a view may read fresher than the background schedule)
-      const data = await getEventOdds(targetEvent, { maxAgeMs: PLAYER_VIEW_MAX_AGE_MS, view: true });
+      // The game being viewed: a view may read fresher than the background
+      // schedule (3 min within 6h of tip, 10 min otherwise)
+      const data = await getEventOdds(targetEvent, { view: true });
       const props = data?.bookmakers ? parseAllMarkets(data, playerName) : {};
       return Object.keys(props).length > 0
         ? withGameInfo(props, targetEvent)

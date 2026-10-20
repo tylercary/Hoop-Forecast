@@ -13,13 +13,17 @@
  * Spend is kept predictable three ways:
  *
  *  1. Tip-off-aware refresh. How often a game is refreshed in the background
- *     depends on how far away it is (REFRESH_SCHEDULE): every 6h when the game
- *     is more than 12h out, down to every 15 min in the last hour (the closing
- *     snapshot needs a read no older than 15 min then). After tip-off the props
- *     are off the board, so the event is never refreshed again and the last
- *     snapshot is served. The player page may ask for a fresher read of the
- *     single game it shows ({ view: true }, 10 min); background callers can
- *     never go below the schedule's floor.
+ *     depends on how far away it is (REFRESH_SCHEDULE): every 3h when the game
+ *     is more than a day out, tightening to every 5 min in the last hour and
+ *     every 2 min in the last 15 min, so the closing snapshot reads a market
+ *     that is as close to the true close as possible. A refresh loop
+ *     (startOddsRefreshLoop, from server.js) walks the slate every minute and
+ *     refreshes whatever is past its floor, so the schedule is kept whether or
+ *     not anyone is browsing. After tip-off the props are off the board, so the
+ *     event is never refreshed again and the last snapshot is served. The
+ *     player page may read the single game it shows fresher than the schedule
+ *     ({ view: true }: 3 min within 6h of tip, 10 min otherwise); background
+ *     callers can never go below the schedule's floor.
  *
  *  2. Restart-safe. Events, per-event odds, usage and the spend history are
  *     written to DATA_DIR/odds_cache.json (debounced) and loaded at startup,
@@ -76,16 +80,17 @@ const HOUR = 60 * MIN;
  * (ms until tip) covers the event applies. Past tip-off nothing refreshes.
  */
 export const REFRESH_SCHEDULE = [
-  { within: 1 * HOUR, every: 15 * MIN },   // last hour before tip
-  { within: 3 * HOUR, every: 45 * MIN },   // 1-3h out
-  { within: 12 * HOUR, every: 2 * HOUR },  // 3-12h out
-  { within: Infinity, every: 6 * HOUR }    // more than 12h out
+  { within: 15 * MIN, every: 2 * MIN },    // last 15 min: the closing market
+  { within: 1 * HOUR, every: 5 * MIN },    // last hour
+  { within: 2 * HOUR, every: 10 * MIN },   // 1-2h out
+  { within: 6 * HOUR, every: 20 * MIN },   // 2-6h out
+  { within: 24 * HOUR, every: 60 * MIN },  // 6-24h out
+  { within: Infinity, every: 3 * HOUR }    // more than a day out
 ];
-// Kept for callers that still import it: the loosest background floor. The
-// real floor is per event (refreshFloorMs).
-export const ODDS_TTL_MS = REFRESH_SCHEDULE[REFRESH_SCHEDULE.length - 1].every;
-// A player page may refresh the single game it shows if the cache is older than this
-export const PLAYER_VIEW_MAX_AGE_MS = 10 * MIN;
+// The game a user is looking at may be read fresher than the schedule
+export const VIEW_MAX_AGE = { nearWithin: 6 * HOUR, near: 3 * MIN, far: 10 * MIN };
+// How often the refresh loop walks the slate
+export const REFRESH_LOOP_INTERVAL_MS = 1 * MIN;
 // While the budget is exhausted, only views of games this close to tip-off refresh
 export const PAUSED_VIEW_WINDOW_MS = 1 * HOUR;
 const EVENTS_TTL_MS = 10 * MIN;
@@ -141,6 +146,12 @@ export function refreshFloorMs(event, now = Date.now()) {
   return REFRESH_SCHEDULE.find(r => untilTip <= r.within).every;
 }
 
+/** Max age for the game a user is viewing: tighter as tip-off nears. */
+export function viewMaxAgeMs(event, now = Date.now()) {
+  const tip = tipTime(event);
+  return tip != null && tip - now <= VIEW_MAX_AGE.nearWithin ? VIEW_MAX_AGE.near : VIEW_MAX_AGE.far;
+}
+
 // Budget days roll over at 08:00 UTC (3-4am Eastern), so a whole NBA night,
 // West-coast late games included, lands in one day's spend.
 export const DAY_ROLLOVER_UTC_HOURS = 8;
@@ -148,13 +159,15 @@ export const dayKey = (now = Date.now()) => new Date(now - DAY_ROLLOVER_UTC_HOUR
 
 /**
  * Decide what getEventOdds should do for one event, given the cache state.
+ * maxAgeMs 0 (the default) means the schedule's floor for background callers
+ * and viewMaxAgeMs for views; a larger value only ever loosens that.
  * Returns { action: 'cached' | 'fetch' | 'stale', reason, maxAgeMs }.
  *   cached: a copy young enough for this caller exists
  *   fetch:  call the API
  *   stale:  do not call the API; serve whatever is cached (maybe nothing)
  */
 export function planRefresh(event, cached, {
-  maxAgeMs = ODDS_TTL_MS,
+  maxAgeMs = 0,
   view = false,
   now = Date.now(),
   quotaBlockedUntil: blockedUntil = 0,
@@ -165,8 +178,9 @@ export function planRefresh(event, cached, {
 
   if (floor === Infinity) return { action: cached ? 'cached' : 'stale', reason: 'tipped-off', maxAgeMs: floor };
 
-  // Views may read fresher than the schedule; background work never does
-  const effectiveMaxAge = view ? maxAgeMs : Math.max(maxAgeMs, floor);
+  // Views may read fresher than the schedule; background work never does.
+  // maxAgeMs = 0 means "whatever the schedule says".
+  const effectiveMaxAge = view ? (maxAgeMs || viewMaxAgeMs(event, now)) : Math.max(maxAgeMs, floor);
   if (cached && age < effectiveMaxAge) return { action: 'cached', reason: 'fresh', maxAgeMs: effectiveMaxAge };
   if (now < blockedUntil) return { action: 'stale', reason: 'quota-backoff', maxAgeMs: effectiveMaxAge };
   if (paused) {
@@ -373,6 +387,14 @@ async function fetchUpcomingEvents() {
 // Per-event odds
 // ---------------------------------------------------------------------------
 
+async function upcomingUnstartedEvents() {
+  const now = Date.now();
+  return (await getUpcomingEvents()).filter(e => {
+    const tip = tipTime(e);
+    return tip == null || tip > now;
+  });
+}
+
 /** Cached odds for one event, or null. Never calls the API. */
 export function getCachedEventOdds(eventId) {
   return oddsCache.get(eventId)?.data || null;
@@ -405,17 +427,19 @@ async function fetchEventOdds(event) {
  *
  * @param {object} event   an event from getUpcomingEvents (id, commence_time, teams)
  * @param {object} opts
- * @param {number} opts.maxAgeMs  serve cached data younger than this. Background
- *   callers are held to the tip-off schedule's floor whatever they pass.
+ * @param {number} opts.maxAgeMs  serve cached data younger than this; 0 (the
+ *   default) means the tip-off schedule's floor. Background callers are held to
+ *   the floor whatever they pass.
  * @param {boolean} opts.view     the game a user is looking at right now: may
- *   read fresher than the schedule (down to maxAgeMs), and is the only caller
- *   still refreshed while the daily budget is exhausted (within 1h of tip).
+ *   read fresher than the schedule (viewMaxAgeMs, or maxAgeMs when given), and
+ *   is the only caller still refreshed while the daily budget is exhausted
+ *   (within 1h of tip).
  *
  * Concurrent callers share one request. Returns stale data rather than
  * nothing when the API fails or calls are paused, and never calls the API
  * for a game that has tipped off.
  */
-export async function getEventOdds(event, { maxAgeMs = ODDS_TTL_MS, view = false } = {}) {
+export async function getEventOdds(event, { maxAgeMs = 0, view = false } = {}) {
   if (!API_KEY || !event?.id) return null;
   const now = Date.now();
   const cached = oddsCache.get(event.id);
@@ -450,12 +474,8 @@ export async function getEventOdds(event, { maxAgeMs = ODDS_TTL_MS, view = false
  * (or a tighter maxAgeMs, never below the schedule) says it is stale. Fetches
  * a few events at a time to stay clear of the API's rate limit.
  */
-export async function getAllEventOdds({ maxAgeMs = ODDS_TTL_MS } = {}) {
-  const now = Date.now();
-  const events = (await getUpcomingEvents()).filter(e => {
-    const tip = tipTime(e);
-    return tip == null || tip > now;
-  });
+export async function getAllEventOdds({ maxAgeMs = 0 } = {}) {
+  const events = await upcomingUnstartedEvents();
   const results = new Array(events.length);
   let next = 0;
 
@@ -470,4 +490,48 @@ export async function getAllEventOdds({ maxAgeMs = ODDS_TTL_MS } = {}) {
 
   await Promise.all(Array.from({ length: Math.min(FETCH_CONCURRENCY, events.length) }, worker));
   return results.filter(r => r?.data?.bookmakers?.length);
+}
+
+// ---------------------------------------------------------------------------
+// Background refresh loop
+// ---------------------------------------------------------------------------
+
+let refreshLoop = null;
+let refreshTickInFlight = null;
+
+/**
+ * One pass over the slate: refresh every unstarted game whose cached odds are
+ * older than its schedule floor (getEventOdds decides; budget pause, quota
+ * backoff and in-flight dedupe all apply). Safe to call at any time.
+ */
+export async function refreshSlateOnce() {
+  if (!API_KEY) return 0;
+  if (refreshTickInFlight) return refreshTickInFlight;
+  refreshTickInFlight = (async () => {
+    const before = usage.used;
+    await getAllEventOdds();
+    return usage.used != null && before != null ? usage.used - before : 0;
+  })()
+    .catch(err => { console.error('[OddsCache] refresh loop error:', err.message); return 0; })
+    .finally(() => { refreshTickInFlight = null; });
+  return refreshTickInFlight;
+}
+
+/**
+ * Keep the slate on schedule whether or not anyone is browsing: walk it every
+ * REFRESH_LOOP_INTERVAL_MS. Called once from server.js; a second call is a no-op.
+ */
+export function startOddsRefreshLoop({ intervalMs = REFRESH_LOOP_INTERVAL_MS, initialDelayMs = 5000 } = {}) {
+  if (refreshLoop || !API_KEY) return;
+  const first = setTimeout(() => { refreshSlateOnce(); }, initialDelayMs);
+  first.unref?.();
+  refreshLoop = setInterval(() => { refreshSlateOnce(); }, intervalMs);
+  refreshLoop.unref?.();
+  console.log(`[OddsCache] refresh loop started (every ${Math.round(intervalMs / 1000)}s; floors ${REFRESH_SCHEDULE.map(r => `${fmtDuration(r.every)} within ${fmtDuration(r.within)}`).join(', ')})`);
+}
+
+/** Stop the refresh loop (tests). */
+export function stopOddsRefreshLoop() {
+  if (refreshLoop) clearInterval(refreshLoop);
+  refreshLoop = null;
 }

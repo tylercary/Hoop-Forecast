@@ -20,7 +20,7 @@ import { teamGameStatsSummary } from './services/teamContextService.js';
 import { archiveLegacyPredictions, dedupeGamePredictions } from './services/predictionTrackingService.js';
 import { archiveGamePredictions } from './services/gamePredictionTrackingService.js';
 import { runBatchPredictions, runBatchGamePredictions, ensureSlatePredicted } from './services/batchPredictionCron.js';
-import { getOddsApiUsage } from './services/oddsEventCache.js';
+import { getOddsApiUsage, startOddsRefreshLoop } from './services/oddsEventCache.js';
 import { runClosingSnapshotsOnce, CLOSING_JOB_INTERVAL_MS } from './services/closingLineService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -214,12 +214,16 @@ async function warmCaches() {
   }
 }
 
-// Refresh caches every 10 minutes
+// Refresh the derived route caches every 10 minutes (the odds themselves
+// follow the refresh loop above)
 const WARM_INTERVAL = 10 * 60 * 1000;
 
 // Start server with error handling
 app.listen(PORT, () => {
   console.log(`HoopForecast API running on http://localhost:${PORT}`);
+  // Keep every slate game's odds on the tip-off schedule (down to every 2 min
+  // in the last 15 minutes before tip) whether or not anyone is browsing
+  startOddsRefreshLoop();
   // Warm caches 5s after startup, then every 10 minutes
   setTimeout(warmCaches, 5000);
   setInterval(warmCaches, WARM_INTERVAL);
