@@ -27,6 +27,28 @@ jobs:
           }
           check "Website" "https://hoopforecast.com"
           check "API health" "$API/health"
+
+          # Odds API budget: fail when the backend has paused background refreshes
+          # for the day (daily credit budget spent) or the monthly key is nearly
+          # out (below 15% of 100,000 credits), so the owner hears about it before
+          # props disappear from the site.
+          health=$(curl -s --max-time 60 "$API/health")
+          paused=$(echo "$health" | jq -r '.oddsApi.budget.paused // false')
+          spent=$(echo "$health" | jq -r '.oddsApi.budget.spent_today // "?"')
+          budget=$(echo "$health" | jq -r '.oddsApi.budget.daily_budget // "?"')
+          remaining=$(echo "$health" | jq -r '.oddsApi.remaining // empty')
+          if [ "$paused" = "true" ]; then
+            echo "::error::Odds API daily budget exhausted: $spent of $budget credits spent today; background odds refreshes are paused until the budget day rolls over at 08:00 UTC (raise ODDS_DAILY_BUDGET on Railway or wait)"
+            failed=1
+          else
+            echo "OK    Odds API budget ($spent of $budget credits today)"
+          fi
+          if [ -n "$remaining" ] && [ "$remaining" -lt 15000 ] 2>/dev/null; then
+            echo "::error::Odds API key nearly exhausted: $remaining credits remaining this month (below 15% of 100,000); props will stop updating when it hits 0"
+            failed=1
+          else
+            echo "OK    Odds API credits remaining (${remaining:-unknown})"
+          fi
           # Trending props needs The Odds API, so this catches an expired or deactivated key
           check "Trending props" "$API/trending/props"
           check "Today's games" "$API/games/today"

@@ -49,6 +49,8 @@ backend/data/cache/
 backend/data/predictions.json
 backend/data/predictions.json.tmp
 backend/data/game_predictions.json
+backend/data/odds_cache.json
+backend/data/odds_cache.json.tmp
 backend/data/predictions_export*.json
 backend/data/predictions_archive_*.json
 backend/data/game_predictions_archive_*.json

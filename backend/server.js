@@ -196,7 +196,9 @@ setInterval(() => runBatchGamePredictions().catch(err => console.error('Batch ga
 setTimeout(() => runClosingSnapshotsOnce(), 45000);
 setInterval(() => runClosingSnapshotsOnce(), CLOSING_JOB_INTERVAL_MS);
 
-// Pre-warm caches on startup so the first user request is fast
+// Pre-warm caches on startup so the first user request is fast. The odds
+// cache is loaded from DATA_DIR/odds_cache.json first, so this only pays for
+// games whose cached odds are older than the tip-off schedule allows.
 async function warmCaches() {
   try {
     const baseUrl = `http://localhost:${PORT}`;
