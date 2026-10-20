@@ -21,6 +21,7 @@ import { archiveLegacyPredictions, dedupeGamePredictions } from './services/pred
 import { archiveGamePredictions } from './services/gamePredictionTrackingService.js';
 import { runBatchPredictions, runBatchGamePredictions, ensureSlatePredicted } from './services/batchPredictionCron.js';
 import { getOddsApiUsage } from './services/oddsEventCache.js';
+import { runClosingSnapshotsOnce, CLOSING_JOB_INTERVAL_MS } from './services/closingLineService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -185,6 +186,15 @@ setInterval(() => runBatchPredictions().catch(err => console.error('Batch predic
 const BATCH_GAME_INTERVAL = 6 * 60 * 60 * 1000;
 setTimeout(() => runBatchGamePredictions().catch(err => console.error('Batch game prediction error:', err.message)), 180000);
 setInterval(() => runBatchGamePredictions().catch(err => console.error('Batch game prediction error:', err.message)), BATCH_GAME_INTERVAL);
+
+// Closing line snapshots — every 5 minutes, record the market for tracked
+// predictions whose game tips off within the next 20 minutes (and once more
+// right after tip-off as a safety net). Idempotent: a record's `closing` is
+// set once. Reads the shared odds cache; refreshes a game at most once when
+// its cached odds are older than 15 minutes. The first run waits for the
+// startup cache warm so it does not pay for the slate twice.
+setTimeout(() => runClosingSnapshotsOnce(), 45000);
+setInterval(() => runClosingSnapshotsOnce(), CLOSING_JOB_INTERVAL_MS);
 
 // Pre-warm caches on startup so the first user request is fast
 async function warmCaches() {

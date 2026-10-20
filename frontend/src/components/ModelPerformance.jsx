@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import api from '../utils/api';
-import { Target, BarChart3, CheckCircle, XCircle, Clock, MinusCircle, Zap, Scale, Coins, ArrowUp, ArrowDown } from 'lucide-react';
+import { Target, BarChart3, CheckCircle, XCircle, Clock, MinusCircle, Zap, Scale, Coins, ArrowUp, ArrowDown, TrendingUp } from 'lucide-react';
 
 /**
  * Model Performance: the edge model's live track record, graded after every
@@ -11,6 +11,11 @@ import { Target, BarChart3, CheckCircle, XCircle, Clock, MinusCircle, Zap, Scale
  * A "pick" is a prop where the model's probability cleared the thresholds
  * (>= 56% over / <= 44% under). A "lean" is everything else: the side of the
  * line the projection sits on, shown but not recommended.
+ *
+ * Closing line value (CLV) is available before results are: the backend
+ * snapshots the market just before tip-off, and price CLV is how many no-vig
+ * probability points the pick's side gained by the close. Positive means the
+ * books moved toward the pick.
  */
 
 const PROP_LABELS = {
@@ -31,6 +36,36 @@ const rateColor = (rate, n = 1) => {
   return 'text-rose-400';
 };
 const unitsColor = (u) => (u == null ? 'text-slate-400' : u > 0 ? 'text-emerald-400' : u < 0 ? 'text-rose-400' : 'text-slate-300');
+const clvColor = (pts) => (pts == null ? 'text-slate-400' : pts >= 0.05 ? 'text-emerald-400' : pts <= -0.05 ? 'text-rose-400' : 'text-slate-300');
+const fmtClvLine = (l) => (l == null ? '' : `${l > 0 ? '+' : ''}${l.toFixed(1)}`);
+
+/**
+ * The CLV side the tile describes: picks when any have a snapshot, else leans.
+ * Returns null until the first snapshot lands.
+ */
+function clvSummary(clv) {
+  if (!clv || !clv.n) return null;
+  if (clv.picks?.n) return { ...clv.picks, label: 'picks' };
+  if (clv.leans?.n) return { ...clv.leans, label: 'leans' };
+  return null;
+}
+
+function ClvTile({ clv, delay = 0 }) {
+  const s = clvSummary(clv);
+  return (
+    <Tile
+      title="Closing line value"
+      value={s && s.mean_points != null
+        ? <>{signed(s.mean_points, 1)}<span className="text-sm font-semibold text-slate-400 ml-1">pts</span></>
+        : s ? fmtClvLine(s.mean_line) || '-' : '-'}
+      sub={s
+        ? `${s.beat_close != null ? `${pct(s.beat_close, 0)} beat the close` : 'price not captured yet'} · ${s.n} ${s.label}${s.mean_line != null ? ` · line ${fmtClvLine(s.mean_line)}` : ''}`
+        : 'Captured at tip-off; shows before results'}
+      color={s ? clvColor(s.mean_points ?? s.mean_line) : 'text-slate-400'}
+      icon={TrendingUp} iconColor="text-slate-400" delay={delay}
+    />
+  );
+}
 const barColor = (rate) => (rate >= 0.56 ? 'bg-emerald-400' : rate >= BREAK_EVEN ? 'bg-amber-400' : 'bg-rose-400');
 
 const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-');
@@ -108,6 +143,8 @@ function ModelPerformance() {
   const leans = overall?.leans || { n: 0, hits: 0 };
   const graded = overall?.n || 0;
   const since = overall?.date_range?.[0];
+  const clv = overall?.clv || null;
+  const hasClv = !!(clv && clv.n);
 
   const header = (
     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6">
@@ -144,6 +181,11 @@ function ModelPerformance() {
               : 'Results appear here once the first games with predictions are final.'}
           </p>
         </div>
+        {hasClv && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+            <ClvTile clv={clv} delay={0.05} />
+          </div>
+        )}
       </div>
     );
   }
@@ -165,7 +207,7 @@ function ModelPerformance() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="panel p-6">
         {header}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           <Tile
             title="Picks"
             value={recs.n ? pct(recs.hit_rate) : '-'}
@@ -194,12 +236,13 @@ function ModelPerformance() {
             color={overall.calibration_slope == null ? 'text-slate-400' : overall.calibration_slope >= 0.7 ? 'text-emerald-400' : overall.calibration_slope >= 0.4 ? 'text-amber-400' : 'text-rose-400'}
             icon={BarChart3} iconColor="text-slate-400" delay={0.2}
           />
+          <ClvTile clv={clv} delay={0.25} />
           <Tile
             title="Graded"
             value={graded}
             sub={`${overall.pushes || 0} pushes · line went over ${pct(overall.over_rate, 0)} of the time`}
             color="text-white"
-            icon={CheckCircle} iconColor="text-slate-400" delay={0.25}
+            icon={CheckCircle} iconColor="text-slate-400" delay={0.3}
           />
         </div>
         {calibrationLine && <p className="text-xs text-slate-500 mt-3">{calibrationLine}</p>}
@@ -325,7 +368,7 @@ function ModelPerformance() {
       {recent.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="panel p-6">
           <h4 className="panel-title mb-1">Recent graded props</h4>
-          <p className="panel-subtitle mb-4">Picks are highlighted; leans are shown for the record</p>
+          <p className="panel-subtitle mb-4">Picks are highlighted; leans are shown for the record · CLV is the side's no-vig price gain by the close, in points</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -339,6 +382,7 @@ function ModelPerformance() {
                   <th className="text-right py-2 px-2">Actual</th>
                   <th className="text-right py-2 px-2">Price</th>
                   <th className="text-right py-2 px-2">Units</th>
+                  <th className="text-right py-2 px-2">CLV</th>
                   <th className="text-left py-2 px-2">Date</th>
                 </tr>
               </thead>
@@ -366,6 +410,11 @@ function ModelPerformance() {
                     <td className="py-2 px-2 text-right text-white font-semibold tabular-nums">{r.actual != null ? r.actual : '-'}</td>
                     <td className="py-2 px-2 text-right text-slate-400 text-xs whitespace-nowrap">{r.pick ? `${formatOdds(r.odds)}${r.book ? ` ${r.book}` : ''}` : '-'}</td>
                     <td className={`py-2 px-2 text-right tabular-nums text-xs ${unitsColor(r.units)}`}>{r.units != null ? signed(r.units) : '-'}</td>
+                    <td className={`py-2 px-2 text-right tabular-nums text-xs whitespace-nowrap ${clvColor(r.clv_points ?? r.clv_line)}`}
+                      title={r.clv_line != null ? `Line moved ${fmtClvLine(r.clv_line)} toward the pick by the close${r.beat_close != null ? r.beat_close ? ' · beat the close' : ' · did not beat the close' : ''}` : undefined}>
+                      {r.clv_points != null ? `${r.clv_points > 0 ? '+' : ''}${r.clv_points.toFixed(1)}` : r.clv_line != null ? fmtClvLine(r.clv_line) : '-'}
+                      {r.beat_close === true && <CheckCircle size={11} className="inline ml-1 text-emerald-400" />}
+                    </td>
                     <td className="py-2 px-2 text-slate-500 text-xs whitespace-nowrap">{fmtDate(r.date)}</td>
                   </motion.tr>
                 ))}

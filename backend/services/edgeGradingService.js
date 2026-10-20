@@ -20,7 +20,18 @@
  *   - calibration slope of outcome on stated probability (1 = calibrated,
  *     <1 = overconfident), as in backend/scripts/calibrateProps.mjs
  *   - log loss and Brier score of the stated probability
+ *   - closing line value (clv) for every row with a `closing` snapshot
+ *     (closingLineService), graded or not: line CLV (closing line minus the
+ *     pick-time line, signed so positive means the market moved toward the
+ *     pick), price CLV in no-vig probability points for the pick's side, and
+ *     whether the pick beat the close (its side's closing no-vig probability
+ *     is above the implied probability of the price it was shown at). Pick-time
+ *     values come from the record's `market` / `best_bet`, or from
+ *     `first_prediction` when the record was revised, so CLV is measured from
+ *     the first time the pick was shown.
  */
+
+import { americanToProb } from './marketFeatureService.js';
 
 export const PROPS = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
 export const PICK_OVER = 56;
@@ -141,6 +152,106 @@ function hitBlock(pairs) {
   return { n, hits, hit_rate: n ? round(hits / n) : null };
 }
 
+/** No-vig over probability the closing snapshot recorded at a line, or null. */
+function closingOverProbAt(closing, line) {
+  if (!closing || !(line > 0)) return null;
+  const hit = (closing.lines || []).find(l => Math.abs(Number(l.line) - line) < 0.01);
+  if (hit && hit.over_prob_novig != null) return hit.over_prob_novig;
+  if (Math.abs(Number(closing.line) - line) < 0.01) return closing.over_prob_novig ?? null;
+  return null;
+}
+
+/**
+ * Closing line value for one record, or null without a usable snapshot.
+ * @returns {{ side, pick, clv_line, clv_points, beat_close, pick_line, close_line, odds }|null}
+ */
+export function closingLineValue(p) {
+  const closing = p.closing;
+  if (!closing || !(closing.line > 0)) return null;
+  const rec = p.recommendation === 'OVER' || p.recommendation === 'UNDER' ? p.recommendation : null;
+  // Measure from the first time this side was shown: the first prediction when
+  // the record was revised and the pick did not change, else the record itself
+  const first = p.first_prediction;
+  const useFirst = first && first.betting_line > 0 &&
+    ((first.recommendation === 'OVER' || first.recommendation === 'UNDER' ? first.recommendation : null) === rec);
+  const pickLine = Number(useFirst ? first.betting_line : p.betting_line);
+  if (!(pickLine > 0)) return null;
+  const proj = p.predicted_value ?? p.predicted_points;
+  const side = rec || (proj != null && proj !== pickLine ? (proj > pickLine ? 'OVER' : 'UNDER') : null);
+  if (!side) return null;
+  const market = useFirst
+    ? (first.market || (Math.abs(Number(p.market?.line) - pickLine) < 0.01 ? p.market : null))
+    : p.market;
+  const bestBet = useFirst ? (first.best_bet ?? (first.market ? null : p.best_bet)) : p.best_bet;
+
+  const closeLine = Number(closing.line);
+  const clvLine = side === 'OVER' ? closeLine - pickLine : pickLine - closeLine;
+
+  // Price CLV: the side's no-vig probability at the pick line, close vs pick time
+  const sideProb = (overProb) => (overProb == null ? null : side === 'OVER' ? overProb : 1 - overProb);
+  const pickNoVig = market && Math.abs(Number(market.line) - pickLine) < 0.01 ? sideProb(market.over_prob_novig) : null;
+  const closeNoVigAtPick = sideProb(closingOverProbAt(closing, pickLine));
+  const clvPoints = pickNoVig != null && closeNoVigAtPick != null ? (closeNoVigAtPick - pickNoVig) * 100 : null;
+
+  // Beat the close: the price shown (best book at its line when stored, else the
+  // consensus price at the pick line) against the closing fair price at that line
+  let odds = null, oddsLine = pickLine;
+  if (bestBet && (bestBet.side || '').toUpperCase() === side && Number.isFinite(Number(bestBet.odds)) && bestBet.line > 0) {
+    odds = Number(bestBet.odds); oddsLine = Number(bestBet.line);
+  } else if (market && Math.abs(Number(market.line) - pickLine) < 0.01) {
+    odds = side === 'OVER' ? market.over_odds : market.under_odds;
+  }
+  const implied = americanToProb(odds);
+  const closeNoVigAtOdds = sideProb(closingOverProbAt(closing, oddsLine));
+  const beatClose = implied != null && closeNoVigAtOdds != null ? closeNoVigAtOdds > implied : null;
+
+  return {
+    side, pick: !!rec,
+    clv_line: round(clvLine, 2),
+    clv_points: round(clvPoints, 2),
+    beat_close: beatClose,
+    pick_line: pickLine, close_line: closeLine, odds
+  };
+}
+
+/** Rows with a closing snapshot (graded or not), for CLV. */
+export function clvRows(predictions, variant = 'edge') {
+  const rows = [];
+  for (const p of predictions) {
+    if (p.expired || p.dnp || !p.closing) continue;
+    if (variant !== 'all' && variantOf(p) !== variant) continue;
+    const clv = closingLineValue(p);
+    if (!clv) continue;
+    const date = isoDate(p.next_game && p.next_game.date) || isoDate(p.created_at) || '';
+    rows.push({ id: p.id, prop: p.prop_type || 'points', date, week: isoWeek(date), evaluated: !!p.evaluated, ...clv });
+  }
+  return rows;
+}
+
+function clvSideBlock(rows) {
+  const withLine = rows.filter(r => r.clv_line != null);
+  const withPoints = rows.filter(r => r.clv_points != null);
+  const withBeat = rows.filter(r => r.beat_close != null);
+  return {
+    n: rows.length,
+    n_priced: withPoints.length,
+    mean_line: round(mean(withLine.map(r => r.clv_line)), 3),
+    mean_points: round(mean(withPoints.map(r => r.clv_points)), 2),
+    beat_close: withBeat.length ? round(withBeat.filter(r => r.beat_close).length / withBeat.length) : null,
+    beat_close_n: withBeat.length,
+  };
+}
+
+/** CLV block for a slice: picks and leans separately, plus the row count. */
+export function clvBlock(rows) {
+  return {
+    n: rows.length,
+    graded: rows.filter(r => r.evaluated).length,
+    picks: clvSideBlock(rows.filter(r => r.pick)),
+    leans: clvSideBlock(rows.filter(r => !r.pick)),
+  };
+}
+
 /** One grading block for a set of rows. */
 export function summarize(rows) {
   const decided = rows.filter(r => r.over != null);
@@ -222,14 +333,17 @@ export function summarize(rows) {
  */
 export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
   const rows = eligibleRows(predictions, variant);
+  const clv = clvRows(predictions, variant);
+  const clvById = new Map(clv.map(r => [r.id, r]));
   const byProp = {};
   for (const prop of PROPS) {
     const sub = rows.filter(r => r.prop === prop);
-    if (sub.length) byProp[prop] = summarize(sub);
+    const subClv = clv.filter(r => r.prop === prop);
+    if (sub.length || subClv.length) byProp[prop] = { ...summarize(sub), clv: clvBlock(subClv) };
   }
-  const weeks = [...new Set(rows.map(r => r.week).filter(Boolean))].sort();
+  const weeks = [...new Set([...rows, ...clv].map(r => r.week).filter(Boolean))].sort();
   const byWeek = {};
-  for (const w of weeks) byWeek[w] = summarize(rows.filter(r => r.week === w));
+  for (const w of weeks) byWeek[w] = { ...summarize(rows.filter(r => r.week === w)), clv: clvBlock(clv.filter(r => r.week === w)) };
 
   const variants = {};
   for (const p of predictions) {
@@ -254,7 +368,10 @@ export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
         side, pick: !!r.rec, prob: r.prob == null ? null : (side === 'UNDER' ? round(100 - r.prob, 1) : round(r.prob, 1)),
         projection: r.proj, actual: r.actual, result: r.over == null ? 'push' : won ? 'hit' : 'miss',
         confidence: r.confidence, odds: r.rec ? r.odds : null, book: r.rec ? r.book : null,
-        units: r.rec ? round(unitsFor(won, r.odds), 2) : null
+        units: r.rec ? round(unitsFor(won, r.odds), 2) : null,
+        clv_line: clvById.get(r.id)?.clv_line ?? null,
+        clv_points: clvById.get(r.id)?.clv_points ?? null,
+        beat_close: clvById.get(r.id)?.beat_close ?? null,
       };
     });
 
@@ -264,7 +381,7 @@ export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
     thresholds: { over: PICK_OVER, under: PICK_UNDER },
     evaluated_by_variant: variants,
     pending: { n: pending.length, picks: pendingPicks.length, next_tip: nextTip },
-    overall: summarize(rows),
+    overall: { ...summarize(rows), clv: clvBlock(clv) },
     by_prop: byProp,
     by_week: byWeek,
     recent,
@@ -299,6 +416,12 @@ export function formatGradingReport(summary) {
   for (const [k, v] of Object.entries(o.prob_bins)) lines.push(`  ${k.padEnd(6)} n=${String(v.n).padStart(6)}  stated ${pct(v.stated_over)}  actual ${pct(v.actual_over)}`);
   lines.push('');
   lines.push(`Leans by projection side: over-side ${o.leans.over_side.n} ${pct(o.leans.over_side.hit_rate)} | under-side ${o.leans.under_side.n} ${pct(o.leans.under_side.hit_rate)}`);
+  const c = o.clv;
+  if (c && c.n) {
+    const pts = (x) => (x == null ? '-' : `${x > 0 ? '+' : ''}${x.toFixed(2)}`);
+    lines.push('');
+    lines.push(`Closing line value (${c.n} snapshots, ${c.graded} graded): picks n=${c.picks.n} line ${pts(c.picks.mean_line)} price ${pts(c.picks.mean_points)}pts beat-close ${pct(c.picks.beat_close)} | leans n=${c.leans.n} line ${pts(c.leans.mean_line)} price ${pts(c.leans.mean_points)}pts beat-close ${pct(c.leans.beat_close)}`);
+  }
   lines.push('');
   lines.push('By ISO week (game date):');
   for (const [w, s] of Object.entries(summary.by_week)) lines.push(row(w, s));
