@@ -32,10 +32,10 @@
  */
 
 import { americanToProb } from './marketFeatureService.js';
+import { PICK_OVER, PICK_UNDER } from '../config/pickThresholds.js';
 
 export const PROPS = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
-export const PICK_OVER = 56;
-export const PICK_UNDER = 44;
+export { PICK_OVER, PICK_UNDER };
 
 const round = (x, d = 4) => (x == null || Number.isNaN(x) ? null : Math.round(x * 10 ** d) / 10 ** d);
 const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : null);

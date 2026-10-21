@@ -29,6 +29,7 @@ import { predictProps as mlPredictProps } from '../ml/mlPredictionService.js';
 import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './opponentMatchupService.js';
 import { opponentContext, ensureTeamGameStatsFresh } from './teamContextService.js';
 import { distinctLines, scoreBookEdges } from './bestBetService.js';
+import { pickFor } from '../config/pickThresholds.js';
 
 dotenv.config();
 
@@ -802,7 +803,7 @@ function edgeOverUnder(overProbability) {
   const prob = Math.max(5, Math.min(95, overProbability));
   const edgeStrength = Math.abs(prob - 50);
   const confidence = edgeStrength >= 9 ? 'High' : edgeStrength >= 5 ? 'Medium' : 'Low';
-  const recommendation = prob >= 56 ? 'OVER' : prob <= 44 ? 'UNDER' : null;
+  const recommendation = pickFor(prob);
   return {
     overProbability: Math.round(prob * 10) / 10,
     confidence,

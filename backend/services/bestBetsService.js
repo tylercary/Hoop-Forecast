@@ -15,11 +15,12 @@ import { getAllPredictions, normalizeGameDate } from './predictionTrackingServic
 import { getAllEventOdds, DFS_BOOKMAKERS } from './oddsEventCache.js';
 import { ensureSlatePredicted } from './batchPredictionCron.js';
 import { getTeamAbbrevFromFullName } from './teamMappingService.js';
+import { PICK_OVER, PICK_UNDER } from '../config/pickThresholds.js';
 
 export const THRESHOLDS = {
-  // Pick thresholds in unifiedPredictionService: OVER at >= 56, UNDER at <= 44
-  over_probability_min: 56,
-  under_probability_max: 44,
+  // Pick thresholds shared with unifiedPredictionService (config/pickThresholds.js)
+  over_probability_min: PICK_OVER,
+  under_probability_max: PICK_UNDER,
   // Projection at least this far from the line (edge_residual is capped there)
   min_abs_edge_residual: 1.0,
   window_hours: 36
