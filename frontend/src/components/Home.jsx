@@ -35,6 +35,31 @@ const formatPropType = (propType) => {
 
 function Home() {
   const navigate = useNavigate();
+  // Live facts for the hero line: tonight's game count and the model's record
+  const [heroFacts, setHeroFacts] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [games, edge] = await Promise.allSettled([api.get('/games/today'), api.get('/performance/edge')]);
+      if (cancelled) return;
+      const list = games.status === 'fulfilled' ? (Array.isArray(games.value.data) ? games.value.data : games.value.data?.games || []) : [];
+      const recs = edge.status === 'fulfilled' ? edge.value.data?.overall?.recommendations : null;
+      const since = edge.status === 'fulfilled' ? edge.value.data?.overall?.date_range?.[0] : null;
+      setHeroFacts({
+        games: list.length,
+        record: recs && recs.n > 0 ? { hits: recs.hits, losses: recs.n - recs.hits } : null,
+        since: since ? new Date(`${since}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+      });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const heroLine = (() => {
+    if (!heroFacts) return 'Model picks, best prices and live lines for every NBA player prop';
+    const parts = [];
+    if (heroFacts.games > 0) parts.push(`${heroFacts.games} game${heroFacts.games === 1 ? '' : 's'} tonight`);
+    if (heroFacts.record) parts.push(`model picks ${heroFacts.record.hits}-${heroFacts.record.losses}${heroFacts.since ? ` since ${heroFacts.since}` : ''}`);
+    return parts.length ? parts.join(' · ') : 'Model picks, best prices and live lines for every NBA player prop';
+  })();
   const { user, isFavorite, toggleFavorite, isTeamFavorite, toggleFavoriteTeam } = useAuth();
   const [playersWithLines, setPlayersWithLines] = useState([]);
   const [loadingLines, setLoadingLines] = useState(true);
@@ -249,7 +274,7 @@ function Home() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4 }}
-        className="relative pb-10 pt-8"
+        className="relative pb-6 pt-6 sm:pt-8"
       >
         
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
@@ -258,13 +283,13 @@ function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="text-center mb-8"
+            className="text-center mb-5"
           >
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3 leading-tight">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2 leading-tight">
               NBA Player Prop <span className="text-amber-400">Analyzer</span>
             </h1>
-            <p className="text-slate-400 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
-              AI-powered predictions for NBA player performance
+            <p className="text-slate-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed tabular-nums">
+              {heroLine}
             </p>
           </motion.div>
 
@@ -275,9 +300,9 @@ function Home() {
             transition={{ duration: 0.4, delay: 0.2 }}
             className="max-w-3xl mx-auto"
           >
-            <div className="bg-slate-800/80 backdrop-blur-xl rounded-lg shadow-2xl p-5 border border-white/5">
+            <div>
           <div className="relative">
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <div className="absolute left-5 top-1/2 transform -translate-y-1/2 pointer-events-none">
                   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -287,7 +312,8 @@ function Home() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search any NBA player or team..."
-                  className="w-full pl-12 pr-12 py-3.5 text-base bg-slate-700/50 text-white border border-slate-600/50 rounded-lg focus:outline-none focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20 placeholder-slate-400 transition-all duration-200"
+                  className="w-full pr-12 py-4 text-base sm:text-lg bg-slate-800/90 text-white border border-slate-700/70 rounded-xl shadow-lg shadow-black/20 focus:outline-none focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/10 placeholder-slate-500 transition-all duration-200"
+                  style={{ paddingLeft: '3.25rem' }}
             />
             {isSearching && (
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -295,6 +321,26 @@ function Home() {
               </div>
             )}
           </div>
+
+          {/* Quiet shortcuts for people who are not searching */}
+          {!searchQuery && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {[
+                { label: "Tonight's games", onClick: () => navigate('/games') },
+                { label: 'Best Bets', onClick: () => document.getElementById('best-bets')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                { label: 'Model record', onClick: () => navigate('/performance') }
+              ].map(chip => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={chip.onClick}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium text-slate-300 bg-slate-800/60 border border-slate-700/60 hover:border-amber-400/40 hover:text-white transition-colors"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {error && (
             <motion.div
@@ -445,11 +491,13 @@ function Home() {
 
       {/* Divider */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="border-t border-white/5 mb-8"></div>
+        <div className="border-t border-white/5 mb-6"></div>
       </div>
 
       {/* Best Bets: where the edge model disagrees most with the line */}
-      <BestBets onSelectPlayer={handleSelectPlayer} />
+      <div id="best-bets" className="scroll-mt-20">
+        <BestBets onSelectPlayer={handleSelectPlayer} />
+      </div>
 
       {/* Trending Props Section - Horizontal Scroll */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12">
