@@ -799,6 +799,63 @@ export async function predictPropFromGames(games, playerName, propType = 'points
  * Over/under verdict from an already-calibrated over probability (edge model path).
  * Picks need a real margin over the -110 break-even (52.4%).
  */
+// Bumped whenever the prediction logic changes so the slate batch re-predicts
+// stored rows made by an older version instead of treating them as current
+export const MODEL_VERSION = '2026-10-21-guard1';
+
+/** NBA season label ("2026-27") a game date belongs to. */
+function seasonLabelFor(dateValue) {
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const startYear = d.getMonth() >= 8 ? y : y - 1; // seasons start in September/October
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`;
+}
+
+/**
+ * Early-season / role-change guard.
+ *
+ * The model only knows the player's logged games. Two situations where that
+ * is not enough, and where the market line carries information the model
+ * cannot see:
+ *   - no games yet this season: last season's role (and its garbage-time
+ *     minutes) may be gone. Shrink the stated probability halfway to 50.
+ *   - the line sits far from the player's 10-game average (below 75% or
+ *     above 133%): the book is pricing a changed role (minutes restriction,
+ *     new starter ahead, return from injury). Shrink again.
+ * Shrinking only ever moves toward 50: it can turn a pick into a lean and
+ * cap confidence at Medium, never create a pick or flip a side. Returns the
+ * adjusted verdict and a caution object (null when nothing applied).
+ */
+function applyEarlySeasonGuard(ouResult, { games, propType, line, gameDate }) {
+  if (!ouResult || !(line > 0)) return { ouResult, caution: null };
+  const reasons = [];
+  let factor = 1;
+  const season = seasonLabelFor(gameDate || new Date());
+  const seasonGames = games.filter(g => (g.season && g.season === season) || (!g.season && seasonLabelFor(g.date || g.game_date) === season)).length;
+  if (seasonGames === 0) { reasons.push('no_games_this_season'); factor *= 0.5; }
+  const last10 = games.slice(0, 10).map(g => getPropValue(g, propType));
+  const avg10 = last10.length ? last10.reduce((s, v) => s + v, 0) / last10.length : 0;
+  const ratio = avg10 > 0 ? line / avg10 : null;
+  if (ratio != null && (ratio < 0.75 || ratio > 1.33)) { reasons.push(ratio < 0.75 ? 'line_far_below_average' : 'line_far_above_average'); factor *= 0.6; }
+  if (!reasons.length) return { ouResult, caution: null };
+
+  const rawProb = ouResult.overProbability;
+  const prob = Math.round((50 + (rawProb - 50) * factor) * 10) / 10;
+  const adjusted = edgeOverUnder(prob);
+  if (adjusted.confidence === 'High') adjusted.confidence = 'Medium';
+  return {
+    ouResult: adjusted,
+    caution: {
+      reasons,
+      factor: Math.round(factor * 100) / 100,
+      raw_over_probability: rawProb,
+      season_games: seasonGames,
+      line_over_avg10: ratio != null ? Math.round(ratio * 100) / 100 : null
+    }
+  };
+}
+
 function edgeOverUnder(overProbability) {
   const prob = Math.max(5, Math.min(95, overProbability));
   const edgeStrength = Math.abs(prob - 50);
@@ -909,6 +966,14 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     ouResult = calculateEnhancedOverUnder(finalPredictedValue, features.vegasLine, sigma, matchupEdge, features.volatility, calibration.prob_shrink);
   }
 
+  // Season-start and role-change caution (see applyEarlySeasonGuard)
+  const guarded = applyEarlySeasonGuard(ouResult, {
+    games, propType, line: features.vegasLine,
+    gameDate: nextGameInfo?.commence_time || nextGameInfo?.date || null
+  });
+  ouResult = guarded.ouResult;
+  const caution = guarded.caution;
+
   const predictedValueRounded = Math.max(0, Math.round(finalPredictedValue * 10) / 10);
 
   let injuryContext = null;
@@ -945,6 +1010,8 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     anchor_weight: useEdge ? null : calibration.anchor_weight,
     edge_residual: edgeResidual != null ? Math.round(edgeResidual * 100) / 100 : null,
     model_variant: useEdge ? 'edge' : 'anchored',
+    model_version: MODEL_VERSION,
+    caution,
     analysis,
     confidence: ouResult.confidence,
     error_margin: Math.round(sigma * 10) / 10,

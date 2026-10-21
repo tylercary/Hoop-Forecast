@@ -203,6 +203,7 @@ export async function selectBestBets({ now = Date.now() } = {}) {
       model_value: Number.isFinite(Number(p.model_value)) ? Math.round(Number(p.model_value) * 10) / 10 : null,
       edge_residual: Number.isFinite(Number(p.edge_residual)) ? Math.round(Number(p.edge_residual) * 100) / 100 : null,
       confidence: p.confidence || null,
+      caution: p.caution || null,
       best_price: bestPrice(entry, side, line),
       player_image: null
     };

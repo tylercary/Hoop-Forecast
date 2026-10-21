@@ -448,6 +448,8 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
     anchor_weight: prediction.anchor_weight ?? null,
     edge_residual: prediction.edge_residual ?? null,
     model_variant: prediction.model_variant ?? null,
+    model_version: prediction.model_version ?? null,
+    caution: prediction.caution ?? null,
     sigma: prediction.error_margin ?? null,
     over_probability: prediction.over_probability || null,
     edge_strength: prediction.edge_strength || null,
@@ -480,7 +482,8 @@ export function storePrediction(playerName, prediction, gameHistory, nextGameInf
   };
 
   if (existing) {
-    const changed = existing.predicted_value !== predictionRecord.predicted_value ||
+    const changed = existing.model_version !== predictionRecord.model_version ||
+      existing.predicted_value !== predictionRecord.predicted_value ||
       existing.betting_line !== predictionRecord.betting_line ||
       existing.over_probability !== predictionRecord.over_probability ||
       existing.recommendation !== predictionRecord.recommendation;

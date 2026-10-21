@@ -93,6 +93,7 @@ export async function generatePropPrediction(games, playerName, propType, nextGa
       analysis: prediction.analysis || null,
       stats: prediction.stats || null,
       model_value: prediction.model_value ?? null,
+      caution: prediction.caution ?? null,
       opponent: prediction.opponent || null,
       best_bet: prediction.best_bet ?? null,
       book_edges: prediction.book_edges ?? null
@@ -167,6 +168,7 @@ export async function generateAllPropPredictions(games, playerName, allProps, ne
       analysis: prediction.analysis || null,
       stats: prediction.stats || null,
       model_value: prediction.model_value ?? null,
+      caution: prediction.caution ?? null,
       betting_line: vegasLine,
       best_bet: prediction.best_bet ?? null,
       book_edges: prediction.book_edges ?? null

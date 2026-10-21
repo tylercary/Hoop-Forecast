@@ -956,6 +956,10 @@ function PlayerDetail() {
                     propData?.prediction_model_value ??
                     (selectedProp === 'points' ? comparisonData.model_value : null) ?? null;
                   const modelEdge = (modelValue != null && line != null) ? modelValue - line : null;
+                  const caution = propPredictions[selectedProp]?.caution ?? propData?.prediction_caution ?? null;
+                  const cautionLabel = caution
+                    ? (caution.reasons?.includes('no_games_this_season') ? 'last season data' : 'role change?')
+                    : null;
                   
                   // Get prop labels
                   const propLabels = {
@@ -1113,7 +1117,8 @@ function PlayerDetail() {
                           ? [
                               modelValue != null ? `model ${modelValue.toFixed(1)}` : propLabel,
                               modelEdge != null ? `${modelEdge > 0 ? '+' : ''}${modelEdge.toFixed(1)} vs line` : null,
-                              recommendation ? `${isLean ? 'leans' : 'pick:'} ${recommendation.toLowerCase()}` : null
+                              recommendation ? `${isLean ? 'leans' : 'pick:'} ${recommendation.toLowerCase()}` : null,
+                              cautionLabel
                             ].filter(Boolean).join(' · ')
                           : null}
                         infoTooltip="The projection blends the model's own number with the market line. 'Model' is the raw model output; 'vs line' is how far it sits from the consensus line."

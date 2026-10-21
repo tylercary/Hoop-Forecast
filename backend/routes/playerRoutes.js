@@ -604,6 +604,7 @@ router.get('/:id/compare', async (req, res) => {
       errorMargin: p.error_margin,
       recommendation: p.recommendation,
       over_probability: p.over_probability ?? null,
+      caution: p.caution ?? null,
       analysis: p.analysis || null,
       stats: p.stats || null,
       best_bet: p.best_bet ?? null,
@@ -743,6 +744,7 @@ router.get('/:id/compare', async (req, res) => {
               prediction_recommendation: prediction.recommendation || null,
               prediction_over_probability: prediction.over_probability ?? null,
               prediction_model_value: prediction.model_value ?? null,
+              prediction_caution: prediction.caution ?? null,
               prediction_stats: prediction.stats || null,
               // Best bet across books and the per-(book, line, side) table behind it
               best_bet: prediction.best_bet ?? null,

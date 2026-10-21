@@ -7,7 +7,7 @@
 
 import axios from 'axios';
 import { getPlayerStats, mapEspnToNbaAbbrev } from './nbaApiService.js';
-import { predictPropsFromGames } from './unifiedPredictionService.js';
+import { predictPropsFromGames, MODEL_VERSION } from './unifiedPredictionService.js';
 import { getMatchupInjuries } from './injuryService.js';
 import { getTeamAbbrevFromFullName } from './teamMappingService.js';
 import { predictGameOutcome } from './gameOutcomePredictionService.js';
@@ -121,6 +121,7 @@ function trackedRecords() {
     if (!p.next_game?.date || p.evaluated) continue;
     map.set(`${(p.player_name || '').toLowerCase()}|${p.prop_type}|${p.next_game.date}`, {
       line: p.betting_line ?? null,
+      version: p.model_version ?? null,
       at: new Date(p.updated_at || p.created_at || 0).getTime()
     });
   }
@@ -129,6 +130,7 @@ function trackedRecords() {
 
 function isCurrent(rec, line, now) {
   if (!rec) return false;
+  if (rec.version !== MODEL_VERSION) return false; // made by older prediction logic
   const sameLine = rec.line == null || line == null || Math.abs(Number(rec.line) - Number(line)) < 0.01;
   return sameLine && now - rec.at < FRESH_MS;
 }
