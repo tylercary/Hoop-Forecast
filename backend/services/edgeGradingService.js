@@ -112,9 +112,29 @@ export function eligibleRows(predictions, variant = 'edge') {
         ? Number(p.best_bet.odds) : -110,
       book: p.best_bet && (p.best_bet.side || '').toUpperCase() === p.recommendation ? (p.best_bet.bookmaker || null) : null,
       variant: variantOf(p),
+      // The first prediction ever shown for this game (before any line move or
+      // re-prediction), graded against ITS line, so the record also answers
+      // "what if I bet it when it first appeared"
+      first: firstShown(p, line, proj),
     });
   }
   return rows;
+}
+
+function firstShown(p, finalLine, finalProj) {
+  const f = p.first_prediction;
+  const line = f && f.betting_line > 0 ? Number(f.betting_line) : finalLine;
+  const proj = f && f.predicted_value != null ? f.predicted_value : finalProj;
+  const rec = f ? (f.recommendation === 'OVER' || f.recommendation === 'UNDER' ? f.recommendation : null)
+    : (p.recommendation === 'OVER' || p.recommendation === 'UNDER' ? p.recommendation : null);
+  const side = rec || (proj != null && proj !== line ? (proj > line ? 'OVER' : 'UNDER') : null);
+  const actual = p.actual_value;
+  return {
+    line, proj, rec, side,
+    prob: f && typeof f.over_probability === 'number' ? f.over_probability : (typeof p.over_probability === 'number' ? p.over_probability : null),
+    over: actual == null || line == null ? null : actual > line ? 1 : actual < line ? 0 : null,
+    revised: !!f,
+  };
 }
 
 /** Slope of outcome on stated probability, both centred at 50% (calibrateProps.mjs). */
@@ -266,6 +286,19 @@ export function summarize(rows) {
     under: hitBlock(recPairs.filter(([a]) => a === 0)),
     ...roiBlock(rows.filter(r => r.rec)),
   };
+  // Same record, graded as it was FIRST shown (its own line and side)
+  const firstRecs = rows.filter(r => r.first?.rec && r.first.over != null);
+  const firstPairs = firstRecs.map(r => [r.first.rec === 'OVER' ? 1 : 0, r.first.over]);
+  const finalSide = (r) => r.rec || (r.proj != null && r.proj !== r.line ? (r.proj > r.line ? 'OVER' : 'UNDER') : null);
+  const sideChanged = rows.filter(r => r.first?.side && finalSide(r) && r.first.side !== finalSide(r));
+  const firstPick = {
+    ...hitBlock(firstPairs),
+    over: hitBlock(firstPairs.filter(([a]) => a === 1)),
+    under: hitBlock(firstPairs.filter(([a]) => a === 0)),
+    revised_rows: rows.filter(r => r.first?.revised).length,
+    side_changed: sideChanged.length,
+    line_moved: rows.filter(r => r.first?.revised && r.first.line !== r.line).length,
+  };
   const byConfidence = {};
   for (const tier of ['High', 'Medium', 'Low']) {
     const sub = recs.filter(r => r.confidence === tier);
@@ -316,6 +349,7 @@ export function summarize(rows) {
     date_range: dates.length ? [dates[0], dates[dates.length - 1]] : null,
     over_rate: decided.length ? round(mean(decided.map(r => r.over))) : null,
     recommendations,
+    first_pick: firstPick,
     by_confidence: byConfidence,
     leans: leanBlock,
     prob_buckets: finish(probBuckets),
@@ -368,6 +402,9 @@ export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
         side, pick: !!r.rec, prob: r.prob == null ? null : (side === 'UNDER' ? round(100 - r.prob, 1) : round(r.prob, 1)),
         projection: r.proj, actual: r.actual, result: r.over == null ? 'push' : won ? 'hit' : 'miss',
         confidence: r.confidence, odds: r.rec ? r.odds : null, book: r.rec ? r.book : null,
+        first_side: r.first?.side || null, first_line: r.first?.line ?? null, first_pick: !!r.first?.rec,
+        first_result: r.first?.side && r.first.over != null ? ((r.first.side === 'OVER') === (r.first.over === 1) ? 'hit' : 'miss') : null,
+        side_changed: !!(r.first?.side && side && r.first.side !== side),
         units: r.rec ? round(unitsFor(won, r.odds), 2) : null,
         clv_line: clvById.get(r.id)?.clv_line ?? null,
         clv_points: clvById.get(r.id)?.clv_points ?? null,

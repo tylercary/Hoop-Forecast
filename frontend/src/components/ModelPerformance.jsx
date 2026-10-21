@@ -202,6 +202,7 @@ function ModelPerformance() {
   const weeks = Object.entries(byWeek).sort(([a], [b]) => b.localeCompare(a)).slice(0, 12);
   const bins = Object.entries(overall.prob_bins || {}).filter(([, v]) => v.n >= 10);
   const confidence = overall.by_confidence || {};
+  const firstPick = overall.first_pick || { n: 0, hits: 0, side_changed: 0 };
 
   return (
     <div className="space-y-6">
@@ -211,7 +212,9 @@ function ModelPerformance() {
           <Tile
             title="Picks"
             value={recs.n ? pct(recs.hit_rate) : '-'}
-            sub={recs.n ? `${recs.hits}-${recs.n - recs.hits}${recs.pushes ? `-${recs.pushes}` : ''} · break-even 52.4%` : 'No picks graded yet'}
+            sub={recs.n
+              ? `${recs.hits}-${recs.n - recs.hits}${recs.pushes ? `-${recs.pushes}` : ''} final · ${firstPick.n ? `${firstPick.hits}-${firstPick.n - firstPick.hits} as first shown` : 'break-even 52.4%'}`
+              : 'No picks graded yet'}
             color={rateColor(recs.hit_rate, recs.n)}
             icon={Zap} iconColor="text-amber-400" accent delay={0.05}
           />
@@ -240,7 +243,7 @@ function ModelPerformance() {
           <Tile
             title="Graded"
             value={graded}
-            sub={`${overall.pushes || 0} pushes · line went over ${pct(overall.over_rate, 0)} of the time`}
+            sub={`${overall.pushes || 0} pushes · ${firstPick.side_changed || 0} changed side before tip · line went over ${pct(overall.over_rate, 0)}`}
             color="text-white"
             icon={CheckCircle} iconColor="text-slate-400" delay={0.3}
           />
@@ -405,6 +408,11 @@ function ModelPerformance() {
                           {!r.pick && <span className="text-[10px] font-normal text-slate-500 ml-1">lean</span>}
                         </span>
                       ) : <span className="text-slate-500">-</span>}
+                      {r.side_changed && r.first_side && (
+                        <div className="text-[10px] font-normal text-slate-500" title="Side shown when the prop first appeared">
+                          was {r.first_side === 'OVER' ? 'O' : 'U'} {r.first_line != null ? r.first_line.toFixed(1) : ''}{r.first_result ? ` · ${r.first_result}` : ''}
+                        </div>
+                      )}
                     </td>
                     <td className={`py-2 px-2 text-right text-xs font-medium tabular-nums ${r.prob >= 56 ? 'text-emerald-400' : r.prob >= 52.4 ? 'text-amber-400' : 'text-slate-400'}`}>{r.prob != null ? `${r.prob.toFixed(0)}%` : '-'}</td>
                     <td className="py-2 px-2 text-right text-white font-semibold tabular-nums">{r.actual != null ? r.actual : '-'}</td>
