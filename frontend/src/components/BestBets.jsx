@@ -95,11 +95,13 @@ function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
             {pick.caution ? (
               <span
                 className="inline-flex items-center rounded-full border border-slate-600/70 bg-slate-800/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-300"
-                title={pick.caution.reasons?.includes('no_games_this_season')
+                title={pick.caution.leans_only
+                  ? `Picks are held until a player has ${pick.caution.min_games} games this season; shown as a lean and still graded`
+                  : pick.caution.reasons?.includes('no_games_this_season')
                   ? 'No games yet this season: the model is working from last season and the stated edge has been reduced'
                   : 'The line sits far from this player\'s recent average, which usually means a changed role; the stated edge has been reduced'}
               >
-                {pick.caution.reasons?.includes('no_games_this_season') ? 'Last season data' : 'Role change?'}
+                {pick.caution.leans_only ? `Early season · ${pick.caution.season_games}/${pick.caution.min_games} games` : pick.caution.reasons?.includes('no_games_this_season') ? 'Last season data' : 'Role change?'}
               </span>
             ) : pick.confidence && (
               <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${

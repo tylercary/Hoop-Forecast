@@ -29,7 +29,7 @@ import { predictProps as mlPredictProps } from '../ml/mlPredictionService.js';
 import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './opponentMatchupService.js';
 import { opponentContext, ensureTeamGameStatsFresh } from './teamContextService.js';
 import { distinctLines, scoreBookEdges } from './bestBetService.js';
-import { pickFor } from '../config/pickThresholds.js';
+import { pickFor, EARLY_SEASON_MIN_GAMES } from '../config/pickThresholds.js';
 
 dotenv.config();
 
@@ -801,7 +801,7 @@ export async function predictPropFromGames(games, playerName, propType = 'points
  */
 // Bumped whenever the prediction logic changes so the slate batch re-predicts
 // stored rows made by an older version instead of treating them as current
-export const MODEL_VERSION = '2026-10-21-guard1';
+export const MODEL_VERSION = '2026-10-21-guard2';
 
 /** NBA season label ("2026-27") a game date belongs to. */
 function seasonLabelFor(dateValue) {
@@ -838,12 +838,20 @@ function applyEarlySeasonGuard(ouResult, { games, propType, line, gameDate }) {
   const avg10 = last10.length ? last10.reduce((s, v) => s + v, 0) / last10.length : 0;
   const ratio = avg10 > 0 ? line / avg10 : null;
   if (ratio != null && (ratio < 0.75 || ratio > 1.33)) { reasons.push(ratio < 0.75 ? 'line_far_below_average' : 'line_far_above_average'); factor *= 0.6; }
+  // Too few games this season to trust a pick either way: show the lean,
+  // keep grading it, but do not call it a pick
+  const tooEarly = EARLY_SEASON_MIN_GAMES > 0 && seasonGames < EARLY_SEASON_MIN_GAMES;
+  if (tooEarly && !reasons.includes('no_games_this_season')) reasons.push('few_games_this_season');
   if (!reasons.length) return { ouResult, caution: null };
 
   const rawProb = ouResult.overProbability;
   const prob = Math.round((50 + (rawProb - 50) * factor) * 10) / 10;
   const adjusted = edgeOverUnder(prob);
   if (adjusted.confidence === 'High') adjusted.confidence = 'Medium';
+  if (tooEarly) {
+    adjusted.recommendation = null;
+    adjusted.confidence = 'Low';
+  }
   return {
     ouResult: adjusted,
     caution: {
@@ -851,6 +859,8 @@ function applyEarlySeasonGuard(ouResult, { games, propType, line, gameDate }) {
       factor: Math.round(factor * 100) / 100,
       raw_over_probability: rawProb,
       season_games: seasonGames,
+      min_games: EARLY_SEASON_MIN_GAMES,
+      leans_only: tooEarly,
       line_over_avg10: ratio != null ? Math.round(ratio * 100) / 100 : null
     }
   };

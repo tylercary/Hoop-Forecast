@@ -958,7 +958,7 @@ function PlayerDetail() {
                   const modelEdge = (modelValue != null && line != null) ? modelValue - line : null;
                   const caution = propPredictions[selectedProp]?.caution ?? propData?.prediction_caution ?? null;
                   const cautionLabel = caution
-                    ? (caution.reasons?.includes('no_games_this_season') ? 'last season data' : 'role change?')
+                    ? (caution.leans_only ? `early season (${caution.season_games}/${caution.min_games} games)` : caution.reasons?.includes('no_games_this_season') ? 'last season data' : 'role change?')
                     : null;
                   
                   // Get prop labels
