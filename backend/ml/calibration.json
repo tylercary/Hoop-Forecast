@@ -51,5 +51,11 @@
     "prob_shrink": 0.2,
     "fitted_on": 3387,
     "fitted_at": "2026-10-19"
+  },
+  "_edge_prob_shrink": {
+    "value": 0.2,
+    "fitted_on": 3678,
+    "fitted_at": "2026-10-25",
+    "note": "pooled slope of realised over rate on stated over probability, this season only; applied to the edge model path"
   }
 }

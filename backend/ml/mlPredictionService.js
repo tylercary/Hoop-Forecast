@@ -7,6 +7,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { loadLiveProbabilityMap } from './probabilityMap.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -354,6 +355,10 @@ function getEdgeMetadata() {
   if (_edgeMetadata === undefined) {
     try {
       _edgeMetadata = JSON.parse(fs.readFileSync(EDGE_METADATA_FILE, 'utf8'));
+      // A map refitted on this season's graded picks replaces the one trained
+      // on last season (see ml/recalibrate_probability_map.py)
+      const live = loadLiveProbabilityMap();
+      if (live) _edgeMetadata = { ..._edgeMetadata, probability_map: live };
     } catch {
       _edgeMetadata = null;
     }

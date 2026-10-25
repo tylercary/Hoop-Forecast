@@ -30,6 +30,7 @@ import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './o
 import { opponentContext, ensureTeamGameStatsFresh } from './teamContextService.js';
 import { distinctLines, scoreBookEdges } from './bestBetService.js';
 import { pickFor, EARLY_SEASON_MIN_GAMES } from '../config/pickThresholds.js';
+import { overProbabilityFromMap } from '../ml/probabilityMap.js';
 
 dotenv.config();
 
@@ -801,7 +802,7 @@ export async function predictPropFromGames(games, playerName, propType = 'points
  */
 // Bumped whenever the prediction logic changes so the slate batch re-predicts
 // stored rows made by an older version instead of treating them as current
-export const MODEL_VERSION = '2026-10-21-guard2';
+export const MODEL_VERSION = '2026-10-25-calib1';
 
 /** NBA season label ("2026-27") a game date belongs to. */
 function seasonLabelFor(dateValue) {
@@ -867,9 +868,14 @@ function applyEarlySeasonGuard(ouResult, { games, propType, line, gameDate }) {
 }
 
 function edgeOverUnder(overProbability) {
+  // overProbability already carries the live calibration shrink
+  // (ml/probabilityMap.js), so the same number feeds the page, Best Bets and
+  // the per-book scoring
   const prob = Math.max(5, Math.min(95, overProbability));
   const edgeStrength = Math.abs(prob - 50);
-  const confidence = edgeStrength >= 9 ? 'High' : edgeStrength >= 5 ? 'Medium' : 'Low';
+  // No 'High' tier: live grading showed the far-from-50 picks hit no better
+  // than the rest, so distance from 50 does not earn a stronger label
+  const confidence = edgeStrength >= 5 ? 'Medium' : 'Low';
   const recommendation = pickFor(prob);
   return {
     overProbability: Math.round(prob * 10) / 10,
@@ -961,9 +967,9 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     const cap = Math.max(1, features.vegasLine * 0.15);
     edgeResidual = Math.max(-cap, Math.min(cap, edge.residual));
     finalPredictedValue = features.vegasLine + edgeResidual;
-    const pm = edge.probabilityMap;
-    const z = pm.intercept + pm.coef_residual * edge.residual + pm.coef_residual_over_line * (edge.residual / features.vegasLine);
-    ouResult = edgeOverUnder(100 / (1 + Math.exp(-z)));
+    // Probability from the shared map on the CAPPED residual (one formula for
+    // the page, Best Bets and the per-book scoring)
+    ouResult = edgeOverUnder(overProbabilityFromMap(edge.probabilityMap, edge.residual, features.vegasLine));
   } else {
     // Fallback (no line, or edge model unavailable): anchor the blended model
     // value to the line by the calibrated share of its deviation, capped at

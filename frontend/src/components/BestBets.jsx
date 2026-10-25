@@ -103,13 +103,7 @@ function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
               >
                 {pick.caution.leans_only ? `Early season · ${pick.caution.season_games}/${pick.caution.min_games} games` : pick.caution.reasons?.includes('no_games_this_season') ? 'Last season data' : 'Role change?'}
               </span>
-            ) : pick.confidence && (
-              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                CONFIDENCE_STYLES[pick.confidence] || CONFIDENCE_STYLES.Low
-              }`}>
-                {pick.confidence}
-              </span>
-            )}
+            ) : null}
           </div>
 
           <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-slate-900 to-transparent" />

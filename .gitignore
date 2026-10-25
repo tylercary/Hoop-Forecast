@@ -78,3 +78,4 @@ backend/data/backups/
 # Odds API historical snapshots (backfillHistoricalOdds.mjs) and the enriched export
 backend/data/odds_history/
 backend/data/predictions_export_fv_market.json
+backend/data/edge_recalibration.*

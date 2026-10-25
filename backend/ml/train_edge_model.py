@@ -230,6 +230,7 @@ def load_rows(path, families=(), backfill=None):
         row['_prop'] = prop
         row['_date'] = (p.get('created_at') or '')[:10]
         row['_target'] = float(actual) - float(line)
+        row['_live'] = 1.0 if p.get('model_variant') == 'edge' else 0.0  # this season's pipeline
         rows.append(row)
     df = pd.DataFrame(rows)
     return df.astype({c: float for c in df.columns if not c.startswith('_')})
@@ -241,9 +242,13 @@ def time_split(df):
     return cut, df[df['_date'] < cut], df[df['_date'] >= cut]
 
 
+LIVE_WEIGHT = 1.0  # set from --live-weight; rows from this season count this many times
+
+
 def fit_booster(df, feature_names, seed=None):
     params = XGB_PARAMS if seed is None else dict(XGB_PARAMS, seed=seed)
-    d = xgb.DMatrix(df[feature_names].values, label=df['_target'].values, feature_names=feature_names)
+    weight = np.where(df['_live'].values > 0, LIVE_WEIGHT, 1.0) if '_live' in df.columns else None
+    d = xgb.DMatrix(df[feature_names].values, label=df['_target'].values, feature_names=feature_names, weight=weight)
     return xgb.train(params, d, N_ROUNDS)
 
 
@@ -350,6 +355,7 @@ def build_metadata(final, df, feature_names, prob_map, metrics, families, untrai
         'rows': int(len(df)), 'date_range': [df['_date'].min(), df['_date'].max()],
         'feature_names': feature_names, 'props': PROPS, 'excluded_features': sorted(EXCLUDE),
         'context_families': families, 'untrained_features': untrained, 'feature_coverage': coverage,
+        'live_weight': LIVE_WEIGHT, 'live_rows': int(df['_live'].sum()) if '_live' in df.columns else None,
         'xgb_params': XGB_PARAMS, 'n_rounds': N_ROUNDS,
         'probability_map': prob_map, 'metrics': metrics,
         'top_features': [{'name': k, 'gain': round(v, 2)} for k, v in top],
@@ -374,6 +380,16 @@ def train(args, candidate):
     df = load_rows(args.inp, families, backfill)
     if backfill is not None:
         print(f'backfill: {backfill.hits} rows matched to a game, {backfill.misses} unmatched, {backfill.mismatches} stat mismatches')
+    # Last season's archive came from an older pipeline. Rows from this season
+    # are weighted up, and once there are enough of them the archive is dropped.
+    global LIVE_WEIGHT
+    LIVE_WEIGHT = args.live_weight
+    live_rows = int(df['_live'].sum()) if '_live' in df.columns else 0
+    if args.live_only or (args.live_only_min_rows and live_rows >= args.live_only_min_rows):
+        df = df[df['_live'] > 0]
+        print(f'training on this season only: {len(df)} rows')
+    else:
+        print(f'training on {len(df)} rows, {live_rows} from this season weighted x{LIVE_WEIGHT}')
     if len(df) < args.min_rows:
         print(f'Only {len(df)} usable rows (< {args.min_rows}); not training')
         sys.exit(1)
@@ -522,6 +538,9 @@ def main():
     ap.add_argument('--no-save', action='store_true', help='report held-out metrics only; leave the saved model alone')
     ap.add_argument('--seeds', type=int, default=1,
                     help='also report held-out metrics averaged over this many seeds (column sampling makes one run noisy)')
+    ap.add_argument('--live-weight', type=float, default=3.0, help='sample weight for rows from this season (default 3)')
+    ap.add_argument('--live-only', action='store_true', help='train on this season only')
+    ap.add_argument('--live-only-min-rows', type=int, default=8000, help='switch to this season only once it has this many rows (0 = never)')
     ap.add_argument('--candidate', action='store_true', help='train to *.candidate.json and score the live model on the same held-out slice')
     ap.add_argument('--promote', action='store_true', help='replace the live model with the candidate if it passes the gates')
     ap.add_argument('--force', action='store_true', help='with --promote: promote even if a gate fails')

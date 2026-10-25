@@ -13,6 +13,7 @@
  * when no sportsbook posts a line.
  */
 
+import { overProbabilityFromMap } from '../ml/probabilityMap.js';
 import { createHash } from 'crypto';
 import { DFS_BOOKMAKERS } from './oddsEventCache.js';
 import { americanToProb, mainLinePerBook } from './marketFeatureService.js';
@@ -50,11 +51,8 @@ export function linesHash(lines) {
 
 /** P(over) from the fitted probability map, as a fraction in [0.05, 0.95]. */
 export function overProbabilityAt(probabilityMap, residual, line) {
-  if (!probabilityMap || !Number.isFinite(residual) || !(line > 0)) return null;
-  const z = probabilityMap.intercept + probabilityMap.coef_residual * residual +
-    probabilityMap.coef_residual_over_line * (residual / line);
-  const p = 1 / (1 + Math.exp(-z));
-  return Math.max(0.05, Math.min(0.95, p));
+  const p = overProbabilityFromMap(probabilityMap, residual, line);
+  return p == null ? null : p / 100;
 }
 
 /** Expected profit per $1 staked at American odds for a side with probability p. */

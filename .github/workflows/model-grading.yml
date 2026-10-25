@@ -49,13 +49,21 @@ jobs:
           node backend/scripts/refreshTeamGameStats.mjs 2025-26 2026-27
           node backend/scripts/backfillGameLogs.mjs --in "$EXPORT"
 
+      - name: Pull this season's live predictions (no features)
+        run: node backend/scripts/pullPredictions.mjs --all --out backend/data/predictions_export_live.json
+
       - name: Grade the live edge model
         run: node backend/scripts/gradeEdgeModel.mjs --in "$EXPORT" | tee backend/data/edge_grading.txt
 
       - name: Train candidate and run the promotion gate
         run: >-
-          python3 backend/ml/train_edge_model.py --candidate --promote --in "$EXPORT"
+          python3 backend/ml/train_edge_model.py --candidate --promote --live-weight 3 --in "$EXPORT"
           | tee backend/data/edge_retrain.txt
+
+      - name: Refit the probability map on this season's picks (kept only if it validates better)
+        run: >-
+          python3 backend/ml/recalibrate_probability_map.py --in backend/data/predictions_export_live.json --write
+          | tee backend/data/edge_recalibration.txt
 
       - name: Upload grading output
         if: always()
@@ -67,6 +75,8 @@ jobs:
             backend/data/edge_grading.txt
             backend/data/edge_retrain.txt
             backend/data/edge_promotion.json
+            backend/data/edge_recalibration.json
+            backend/data/edge_recalibration.txt
             backend/ml/models/edge_xgb_metadata.candidate.json
           if-no-files-found: warn
           retention-days: 90
@@ -75,11 +85,15 @@ jobs:
         id: decision
         run: |
           promoted=$(jq -r '.promoted' backend/data/edge_promotion.json)
+          recalibrated=$(jq -r '.written // false' backend/data/edge_recalibration.json 2>/dev/null || echo false)
+          if [ "$promoted" = "true" ] || [ "$recalibrated" = "true" ]; then open_pr=true; else open_pr=false; fi
           echo "promoted=$promoted" >> "$GITHUB_OUTPUT"
+          echo "recalibrated=$recalibrated" >> "$GITHUB_OUTPUT"
+          echo "open_pr=$open_pr" >> "$GITHUB_OUTPUT"
           echo "Promoted: $promoted ($(jq -r '.reason' backend/data/edge_promotion.json))"
 
       - name: Write the pull request body
-        if: steps.decision.outputs.promoted == 'true'
+        if: steps.decision.outputs.open_pr == 'true'
         run: |
           {
             echo "Weekly retrain of the pooled edge model. The candidate passed the promotion gate"
@@ -105,7 +119,7 @@ jobs:
           } > backend/data/edge_pr_body.md
 
       - name: Open a pull request with the promoted model
-        if: steps.decision.outputs.promoted == 'true'
+        if: steps.decision.outputs.open_pr == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           base: main
@@ -114,6 +128,7 @@ jobs:
           add-paths: |
             backend/ml/models/edge_xgb_model.json
             backend/ml/models/edge_xgb_metadata.json
+            backend/ml/models/edge_probability_map.json
           commit-message: 'Promote retrained edge model (weekly grading run ${{ github.run_id }})'
           title: 'Promote retrained edge model'
           body-path: backend/data/edge_pr_body.md
