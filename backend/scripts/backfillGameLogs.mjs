@@ -4,7 +4,7 @@
  * export, so the edge-model trainer can reconstruct what the stored feature
  * vectors lack: the opponent, home flag and minutes of each game.
  *
- *   node backend/scripts/backfillGameLogs.mjs [--in backend/data/predictions_export_fv.json] [--out backend/data/backfill_gamelogs.json]
+ *   node backend/scripts/backfillGameLogs.mjs [--in ...] [--out ...] [--refresh]   (--refresh re-fetches every player)
  *
  * Output: { players: { "<player name>": { espn_id, games: [{ d, e, o, h, min, pts, reb, ast, fg3m }] } } }
  * (d = date, e = ESPN event id, o = opponent, h = home). Both files are gitignored.
@@ -73,7 +73,10 @@ const result = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : {
 console.log(`${names.length} players, ESPN seasons ${[...seasonYears].join(', ')}`);
 
 let done = 0;
-const queue = names.filter(n => !result.players[n]?.games?.length);
+// --refresh re-fetches players already on file too (needed once a new season
+// starts, otherwise their logs stay frozen at the first pull)
+const REFRESH = args.includes('--refresh');
+const queue = names.filter(n => REFRESH || !result.players[n]?.games?.length);
 async function worker() {
   while (queue.length) {
     const name = queue.shift();

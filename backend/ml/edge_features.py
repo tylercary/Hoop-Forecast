@@ -32,7 +32,13 @@ MARKET_KEYS = ['mkt_over_prob', 'mkt_line_spread', 'mkt_n_books', 'mkt_pinnacle_
 OPPONENT_KEYS = ['opp_pts_allowed_rel', 'opp_reb_allowed_rel', 'opp_ast_allowed_rel', 'opp_fg3m_allowed_rel',
                  'opp_pace_rel', 'opp_def_rating_rel', 'opp_games_n', 'opp_stat_allowed_rel']
 RISK_KEYS = ['game_spread_abs', 'teammates_out_key']
-FAMILIES = {'market': MARKET_KEYS, 'opponent': OPPONENT_KEYS + ['is_home'], 'risk': RISK_KEYS + ['min_under25_share_10']}
+# Current-season context: base fields from buildMLFeatures.seasonFeatures (JS) /
+# Backfill.season_fields (trainer), plus the per-prop derived pair below
+SEASON_BASE_KEYS = ['cur_season_games', 'cur_season_share_10', 'cur_season_pts_avg', 'cur_season_reb_avg',
+                    'cur_season_ast_avg', 'cur_season_threes_avg', 'cur_season_min_avg', 'prev_season_min_avg', 'min_delta_season']
+SEASON_KEYS = SEASON_BASE_KEYS + ['cur_season_stat_avg', 'cur_season_stat_minus_line']
+FAMILIES = {'market': MARKET_KEYS, 'opponent': OPPONENT_KEYS + ['is_home'], 'risk': RISK_KEYS + ['min_under25_share_10'],
+            'season': SEASON_KEYS}
 
 SHRINK_GAMES = 20
 LEAGUE_MIN_ROWS = 100
@@ -178,6 +184,10 @@ def derived_features(fv, prop, line, ctx=None):
     out['line_over_avg10'] = line / max(out['stat_avg_10'], 0.5)
     for p in PROPS:
         out[f'prop_{p}'] = 1 if p == prop else 0
+    # Current-season average for this prop (twin of buildEdgeRow)
+    parts = [_num(fv.get(f'cur_season_{part}_avg')) for part in STAT_PARTS[prop]]
+    out['cur_season_stat_avg'] = None if any(v is None for v in parts) else sum(parts)
+    out['cur_season_stat_minus_line'] = None if out['cur_season_stat_avg'] is None else out['cur_season_stat_avg'] - line
     out.update(market_features(ctx.get('market'), line))
     out.update(opponent_features(ctx.get('opponent'), prop))
     out.update(risk_features(ctx.get('risk')))

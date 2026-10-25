@@ -70,8 +70,8 @@ from sklearn.linear_model import LogisticRegression
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
-from edge_features import (PROPS, STAT_PARTS, FAMILIES, derived_features as _derived_features,  # noqa: E402
-                           opponent_context, minutes_under_share)
+from edge_features import (PROPS, STAT_PARTS, FAMILIES, SEASON_BASE_KEYS, derived_features as _derived_features,  # noqa: E402
+                           opponent_context, minutes_under_share, season_for_date)
 
 MODELS_DIR = os.path.join(SCRIPT_DIR, 'models')
 DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data')
@@ -100,7 +100,11 @@ N_ROUNDS = 400
 GATE_THRESHOLD = '1.0'   # |residual| bucket the sign-accuracy gate uses
 RESIDUAL_THRESHOLDS = (0.0, 0.5, 1.0, 1.5, 2.0, 3.0)
 MIN_FRESH_ROWS = 500     # held-out rows newer than the incumbent needed for a fair comparison
-DEFAULT_FAMILIES = 'market,opponent,risk'
+# market and risk tested 2026-10-25: no gain on live rows. 'season' (current-season
+# context) hurt while this season had only three nights of rows (the model
+# memorised them), so it joins automatically once training runs on this
+# season only (see train()).
+DEFAULT_FAMILIES = 'opponent'
 
 
 def derived_features(row, prop, line, ctx=None):
@@ -182,6 +186,36 @@ class Backfill:
         mins = [by_date[d] for d in reversed(dates) if d in by_date]
         return mins
 
+    def window_games(self, record):
+        """The backfilled games the feature vector was built from (oldest first)."""
+        games = self.players.get(record.get('player_name'), {}).get('games') or []
+        by_date = {g['d']: g for g in games}
+        dates = [part[:10] for part in (record.get('game_history_hash') or '').split('|') if part]
+        return [by_date[d] for d in reversed(dates) if d in by_date]
+
+    def season_fields(self, record):
+        """Current-season context for a stored row (twin of JS seasonFeatures)."""
+        out = {k: None for k in SEASON_BASE_KEYS}
+        window = self.window_games(record)
+        target_date = self.iso_date((record.get('next_game') or {}).get('date')) or (record.get('created_at') or '')[:10]
+        if not window or not target_date:
+            return out
+        target = season_for_date(target_date)
+        start = int(target[:4])
+        prev_label = f'{start - 1}-{str(start)[-2:]}'
+        cur = [g for g in window if season_for_date(g['d']) == target]
+        prev = [g for g in window if season_for_date(g['d']) == prev_label]
+        mean = lambda arr, k: (sum(float(g.get(k) or 0) for g in arr) / len(arr)) if arr else None
+        last10 = window[-10:]
+        out['cur_season_games'] = len(cur)
+        out['cur_season_share_10'] = (sum(1 for g in last10 if season_for_date(g['d']) == target) / len(last10)) if last10 else None
+        out['cur_season_pts_avg'] = mean(cur, 'pts'); out['cur_season_reb_avg'] = mean(cur, 'reb')
+        out['cur_season_ast_avg'] = mean(cur, 'ast'); out['cur_season_threes_avg'] = mean(cur, 'fg3m')
+        out['cur_season_min_avg'] = mean(cur, 'min'); out['prev_season_min_avg'] = mean(prev, 'min')
+        out['min_delta_season'] = (out['cur_season_min_avg'] - out['prev_season_min_avg']
+                                   if out['cur_season_min_avg'] is not None and out['prev_season_min_avg'] is not None else None)
+        return out
+
     def context(self, record):
         """({'opponent':..., 'risk':...}, is_home, min_under25_share_10) for one record."""
         stored = record.get('edge_context') or {}
@@ -225,6 +259,13 @@ def load_rows(path, families=(), backfill=None):
                 fv['is_home'] = int(bool(is_home))
             if share is not None or 'min_under25_share_10' not in fv:
                 fv['min_under25_share_10'] = share
+            # Rows stored before the current-season features existed get them
+            # reconstructed from the backfilled game logs
+            if 'cur_season_games' not in fv:
+                fv.update(backfill.season_fields(p))
+        else:
+            for k in SEASON_BASE_KEYS:
+                fv.setdefault(k, None)
         row = {k: v for k, v in fv.items() if k not in exclude}
         row.update({k: v for k, v in derived_features(fv, prop, float(line), ctx).items() if k not in exclude})
         row['_prop'] = prop
@@ -376,7 +417,7 @@ def load_live(models_dir):
 
 def train(args, candidate):
     families = [f for f in args.families.split(',') if f]
-    backfill = Backfill(args.gamelogs, args.team_stats) if any(f in families for f in ('opponent', 'risk')) else None
+    backfill = Backfill(args.gamelogs, args.team_stats) if any(f in families for f in ('opponent', 'risk', 'season')) else None
     df = load_rows(args.inp, families, backfill)
     if backfill is not None:
         print(f'backfill: {backfill.hits} rows matched to a game, {backfill.misses} unmatched, {backfill.mismatches} stat mismatches')
@@ -388,6 +429,12 @@ def train(args, candidate):
     if args.live_only or (args.live_only_min_rows and live_rows >= args.live_only_min_rows):
         df = df[df['_live'] > 0]
         print(f'training on this season only: {len(df)} rows')
+        if 'season' not in families:
+            # Rows carry current-season context by now; let the model use it
+            families = families + ['season']
+            df = load_rows(args.inp, families, backfill)
+            df = df[df['_live'] > 0]
+            print(f"  with the current-season feature family ({len(df)} rows)")
     else:
         print(f'training on {len(df)} rows, {live_rows} from this season weighted x{LIVE_WEIGHT}')
     if len(df) < args.min_rows:

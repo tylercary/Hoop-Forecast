@@ -254,7 +254,13 @@ function buildMLFeatures(gameLogs, propType, context = {}) {
     })(),
 
     // Upcoming game is home? (unknown -> 0, matching the old default)
-    is_home: context.isHome === true || context.isHome === 1 ? 1 : 0
+    is_home: context.isHome === true || context.isHome === 1 ? 1 : 0,
+
+    // Current-season context (twin: train_edge_model.py Backfill.season_fields).
+    // Early in a season the window is mostly last season's games, which may
+    // describe a different role; these let the model learn how much to trust
+    // them. null = unknown (no games yet), never 0.
+    ...seasonFeatures(recentGames, referenceDate)
   };
 
   // Replace NaN with 0
@@ -265,6 +271,45 @@ function buildMLFeatures(gameLogs, propType, context = {}) {
   });
 
   return features;
+}
+
+/** NBA season label ("2026-27") for a date; seasons start in October. Twin: edge_features.season_for_date */
+function seasonLabelOf(dateValue) {
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return null;
+  const start = d.getMonth() >= 9 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${start}-${String(start + 1).slice(-2)}`;
+}
+
+const SEASON_FEATURE_KEYS = ['cur_season_games', 'cur_season_share_10', 'cur_season_pts_avg', 'cur_season_reb_avg',
+  'cur_season_ast_avg', 'cur_season_threes_avg', 'cur_season_min_avg', 'prev_season_min_avg', 'min_delta_season'];
+
+/**
+ * Current-season context from the feature window (games oldest first) for the
+ * season the upcoming game (referenceDate) belongs to.
+ */
+function seasonFeatures(gamesOldestFirst, referenceDate) {
+  const target = seasonLabelOf(referenceDate);
+  const out = Object.fromEntries(SEASON_FEATURE_KEYS.map(k => [k, null]));
+  if (!target) return out;
+  const seasonOf = (g) => g.season || seasonLabelOf(g.date || g.game_date);
+  const cur = gamesOldestFirst.filter(g => seasonOf(g) === target);
+  const prevLabel = `${parseInt(target, 10) - 1}-${String(parseInt(target, 10)).slice(-2)}`;
+  const prev = gamesOldestFirst.filter(g => seasonOf(g) === prevLabel);
+  const num = (g, keys) => { for (const k of keys) { const v = parseFloat(g[k]); if (!isNaN(v)) return v; } return 0; };
+  const mean = (arr, keys) => arr.length ? arr.reduce((s, g) => s + num(g, keys), 0) / arr.length : null;
+  const last10 = gamesOldestFirst.slice(-10);
+  out.cur_season_games = cur.length;
+  out.cur_season_share_10 = last10.length ? last10.filter(g => seasonOf(g) === target).length / last10.length : null;
+  out.cur_season_pts_avg = mean(cur, ['pts', 'points']);
+  out.cur_season_reb_avg = mean(cur, ['reb', 'rebounds']);
+  out.cur_season_ast_avg = mean(cur, ['ast', 'assists']);
+  out.cur_season_threes_avg = mean(cur, ['tpm', 'fg3m', 'threes_made', 'threes']);
+  out.cur_season_min_avg = mean(cur, ['minutes', 'min']);
+  out.prev_season_min_avg = mean(prev, ['minutes', 'min']);
+  out.min_delta_season = out.cur_season_min_avg != null && out.prev_season_min_avg != null
+    ? out.cur_season_min_avg - out.prev_season_min_avg : null;
+  return out;
 }
 
 /**
@@ -428,6 +473,11 @@ function buildEdgeRow(features, prop, line, context = {}) {
   row.line_minus_season = line - row.stat_avg_season;
   row.line_over_avg10 = line / Math.max(row.stat_avg_10, 0.5);
   for (const p of EDGE_PROPS) row[`prop_${p}`] = p === prop ? 1 : 0;
+  // Current-season average for THIS prop (null until the player has a game this season)
+  const seasonParts = parts.map(part => features[`cur_season_${part}_avg`]);
+  row.cur_season_stat_avg = seasonParts.every(v => v != null && Number.isFinite(Number(v)))
+    ? seasonParts.reduce((sum, v) => sum + Number(v), 0) : null;
+  row.cur_season_stat_minus_line = row.cur_season_stat_avg == null ? null : row.cur_season_stat_avg - line;
   Object.assign(row, marketFeatures(context.market || null, line));
   Object.assign(row, opponentFeatures(context.opponent || null, prop));
   Object.assign(row, riskFeatures(context.risk || null));
