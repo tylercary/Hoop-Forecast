@@ -220,7 +220,8 @@ router.get('/:id/prediction/:propType', async (req, res) => {
     }
     
     // Get team abbreviation - next game info will come from Odds API
-    const teamAbbrev = stats.player?.team?.abbreviation || stats.team || null;
+    const teamAbbrev = (typeof stats.player?.team === 'string' ? stats.player.team : stats.player?.team?.abbreviation)
+      || stats.team || stats.games?.[0]?.team || stats.games?.[0]?.teamAbbrev || null;
     
     // Next game info will be populated from Odds API when we fetch betting lines
     let nextGame = null;
@@ -285,7 +286,22 @@ router.get('/:id/prediction/:propType', async (req, res) => {
               team: teamAbbrev,
               commence_time: gameInfo.commence_time
             };
-            
+
+            // Injuries on both teams, as the compare route does, so the
+            // prediction (and its factors) see the same context either way
+            try {
+              const matchupInjuries = await getMatchupInjuries(teamAbbrev, opponent, gameInfo.event_id || null);
+              if (matchupInjuries?.hasPlayerTeamInjuries || matchupInjuries?.hasOpponentInjuries) {
+                injuryData = {
+                  playerTeamInjuries: matchupInjuries.playerTeamInjuries,
+                  opponentInjuries: matchupInjuries.opponentInjuries,
+                  playerTeamAbbrev: teamAbbrev,
+                  opponentAbbrev: opponent
+                };
+              }
+            } catch (injuryError) {
+              console.warn('[Prediction] Injury lookup failed:', injuryError.message);
+            }
           }
         }
       } catch (oddsError) {
