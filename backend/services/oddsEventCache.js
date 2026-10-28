@@ -7,7 +7,7 @@
  * every relevant sportsbook, and everyone reads from the result.
  *
  * Credits: a request costs (markets returned) x (region units), and every 10
- * named bookmakers count as one region unit. 16 books = 2 units, so one
+ * named bookmakers count as one region unit. 15 books = 2 units, so one
  * refresh of a game is 8 markets x 2 = 16 credits on a 5M/month key.
  *
  * Spend is kept predictable three ways:
@@ -61,15 +61,20 @@ const API_BASE = 'https://api.the-odds-api.com/v4';
 // US sportsbooks and DFS pick'em sites that post NBA player props, plus
 // Pinnacle as a sharp reference. (us + us2 + us_dfs regions; the exchanges
 // in us_ex and the AU/UK books are left out as irrelevant to US bettors.)
+// DraftKings Pick 6 is left out: it read as a second DraftKings in the book
+// list while being a pick'em product with its own lines and fixed prices.
 export const BOOKMAKERS = [
   'fanduel', 'draftkings', 'betmgm', 'williamhill_us', 'betrivers', 'fanatics',
   'espnbet', 'hardrockbet', 'betparx', 'ballybet', 'bovada', 'betonlineag',
-  'prizepicks', 'underdog', 'pick6',
+  'prizepicks', 'underdog',
   'pinnacle'
 ];
 
 // Pick'em sites: real lines, but fixed symmetric prices rather than market odds
+// ('pick6' stays so rows already in the odds cache are still treated as DFS)
 export const DFS_BOOKMAKERS = new Set(['prizepicks', 'underdog', 'pick6']);
+// Books never shown or used even if present in cached data
+export const HIDDEN_BOOKMAKERS = new Set(['pick6']);
 
 export const PROP_MARKETS = [
   'player_points', 'player_rebounds', 'player_assists', 'player_threes',
@@ -325,7 +330,7 @@ function loadFromDisk() {
     if (saved?.version !== CACHE_FILE_VERSION) return;
     if (Array.isArray(saved.events?.events)) eventsCache = { events: saved.events.events, fetchedAt: Number(saved.events.fetchedAt) || 0 };
     for (const [id, entry] of Object.entries(saved.odds || {})) {
-      if (entry?.event?.id && entry.data && Number.isFinite(entry.fetchedAt)) oddsCache.set(id, entry);
+      if (entry?.event?.id && entry.data && Number.isFinite(entry.fetchedAt)) oddsCache.set(id, { ...entry, data: dropHiddenBooks(entry.data) });
     }
     if (saved.usage) Object.assign(usage, saved.usage);
     usage.blockedUntil = null;
@@ -414,6 +419,13 @@ const fmtDuration = (ms) => {
   return m >= 60 ? `${sign}${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}m` : `${sign}${m}m`;
 };
 
+/** The response without HIDDEN_BOOKMAKERS, so nothing downstream ever sees them. */
+function dropHiddenBooks(data) {
+  if (!data || !Array.isArray(data.bookmakers)) return data;
+  if (!data.bookmakers.some(b => HIDDEN_BOOKMAKERS.has(b.key))) return data;
+  return { ...data, bookmakers: data.bookmakers.filter(b => !HIDDEN_BOOKMAKERS.has(b.key)) };
+}
+
 async function fetchEventOdds(event) {
   const res = await axios.get(`${API_BASE}/sports/basketball_nba/events/${event.id}/odds`, {
     params: {
@@ -456,7 +468,8 @@ export async function getEventOdds(event, { maxAgeMs = 0, view = false } = {}) {
 
   const label = `${event.away_team} @ ${event.home_team}`;
   const request = fetchEventOdds(event)
-    .then(data => {
+    .then(raw => {
+      const data = dropHiddenBooks(raw);
       oddsCache.set(event.id, { event, data, fetchedAt: Date.now() });
       scheduleSave();
       const tip = tipTime(event);
