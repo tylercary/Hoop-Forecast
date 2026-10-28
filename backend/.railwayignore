@@ -3,3 +3,7 @@ ml/data/*.csv
 ml/__pycache__/
 .env
 .DS_Store
+ml/data/
+data/predictions_export*.json
+data/*.sqlite*
+data/backups/
