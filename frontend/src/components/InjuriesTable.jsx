@@ -80,7 +80,7 @@ function Row({ inj, index }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-medium text-white truncate">{inj.playerName}</span>
-          {tier && <span className={`eyebrow text-[10px] ${tier.cls}`}>{tier.text}</span>}
+          {tier && <span className={`text-[10px] font-semibold uppercase tracking-wide ${tier.cls}`}>{tier.text}</span>}
         </div>
         <div className="text-xs text-slate-400 truncate">
           {reasonOf(inj)}{reported ? <span className="text-slate-600"> · {reported}</span> : null}
@@ -104,8 +104,8 @@ function TeamColumn({ team, label, injuries, delay }) {
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="min-w-0">
       <div className="flex items-baseline justify-between gap-2 pb-2 mb-1 border-b border-slate-700/60">
         <div className="flex items-baseline gap-2 min-w-0">
-          <span className="font-display text-lg font-bold text-white tracking-tight">{team || '—'}</span>
-          {label && <span className="eyebrow text-slate-500">{label}</span>}
+          <span className="text-base font-semibold text-white">{team || '—'}</span>
+          {label && <span className="text-[11px] text-slate-500 uppercase tracking-wide">{label}</span>}
         </div>
         <span className={`text-xs ${out ? 'text-slate-400' : 'text-slate-500'}`}>{summary}</span>
       </div>
