@@ -16,6 +16,7 @@ import Comments from './Comments';
 import InjuriesTable from './InjuriesTable';
 import PropMetricCard from './PropMetricCard';
 import PredictionReasoning from './PredictionReasoning';
+import PickFactors from './PickFactors';
 import { getSportsbookDisplayName } from '../utils/sportsbookLogos';
 import { getGameSeason, getSeasonsInStats } from '../utils/seasons';
 import {
@@ -1195,6 +1196,13 @@ function PlayerDetail() {
                 })()}
                 </div>
               </motion.div>
+
+              {/* What is influencing the pick for this prop */}
+              {(() => {
+                const factors = propPredictions[selectedProp]?.factors ?? comparisonData?.props?.[selectedProp]?.prediction_factors ?? null;
+                const labels = { points: 'points', assists: 'assists', rebounds: 'rebounds', threes: '3-pointers', pra: 'PRA', pr: 'pts + reb', pa: 'pts + ast', ra: 'reb + ast' };
+                return <PickFactors factors={factors} propLabel={labels[selectedProp] || selectedProp} signedIn={!!user} onSignIn={openAuthModal} />;
+              })()}
 
               {/* Social Prediction Poll */}
               {user && comparisonData?.next_game?.date && comparisonData?.props?.[selectedProp]?.line && (() => {

@@ -31,6 +31,7 @@ import { opponentContext, ensureTeamGameStatsFresh } from './teamContextService.
 import { distinctLines, scoreBookEdges } from './bestBetService.js';
 import { pickFor, EARLY_SEASON_MIN_GAMES } from '../config/pickThresholds.js';
 import { MODEL_VERSION } from '../config/modelVersion.js';
+import { buildPickFactors } from './pickFactorsService.js';
 import { overProbabilityFromMap } from '../ml/probabilityMap.js';
 
 dotenv.config();
@@ -1019,6 +1020,18 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     injuryContext
   });
 
+  // What is influencing the verdict, for the player page (pickFactorsService)
+  let factors = null;
+  try {
+    factors = buildPickFactors({
+      propType, line: features.vegasLine, games, values: games.map(g => getPropValue(g, propType)), features,
+      edgeContext, injuryData, playerName, caution, modelValue: rawPrediction,
+      edgeResidual: useEdge ? edgeResidual : null, opponent: opponentAbbrev, nextGameInfo
+    });
+  } catch (factorErr) {
+    console.warn('[Factors] Could not build pick factors:', factorErr.message);
+  }
+
   const predictionResult = {
     player: playerName,
     [`predicted_${propType}`]: predictedValueRounded,
@@ -1030,6 +1043,7 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
     model_variant: useEdge ? 'edge' : 'anchored',
     model_version: MODEL_VERSION,
     caution,
+    factors,
     analysis,
     confidence: ouResult.confidence,
     error_margin: Math.round(sigma * 10) / 10,
