@@ -30,6 +30,7 @@ import { buildMatchupFeatures, getMatchupEdge, resolveOpponentAbbrev } from './o
 import { opponentContext, ensureTeamGameStatsFresh } from './teamContextService.js';
 import { distinctLines, scoreBookEdges } from './bestBetService.js';
 import { pickFor, EARLY_SEASON_MIN_GAMES } from '../config/pickThresholds.js';
+import { MODEL_VERSION } from '../config/modelVersion.js';
 import { overProbabilityFromMap } from '../ml/probabilityMap.js';
 
 dotenv.config();
@@ -800,9 +801,10 @@ export async function predictPropFromGames(games, playerName, propType = 'points
  * Over/under verdict from an already-calibrated over probability (edge model path).
  * Picks need a real margin over the -110 break-even (52.4%).
  */
-// Bumped whenever the prediction logic changes so the slate batch re-predicts
-// stored rows made by an older version instead of treating them as current
-export const MODEL_VERSION = '2026-10-25-calib1';
+// Bumped whenever the prediction logic changes (backend/config/modelVersion.js)
+// so the slate batch re-predicts stored rows made by an older version and the
+// live record grades only the current one
+export { MODEL_VERSION };
 
 /** NBA season label ("2026-27") a game date belongs to. */
 function seasonLabelFor(dateValue) {

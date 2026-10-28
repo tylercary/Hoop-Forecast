@@ -16,6 +16,11 @@ import { Target, BarChart3, CheckCircle, XCircle, Clock, MinusCircle, Zap, Scale
  * snapshots the market just before tip-off, and price CLV is how many no-vig
  * probability points the pick's side gained by the close. Positive means the
  * books moved toward the pick.
+ *
+ * Only the model version running now is graded into the numbers (the backend
+ * default, version=current). Earlier versions keep their own record in the
+ * "Earlier versions" panel so a change to the model never hides behind, or
+ * gets credit for, what the previous one did.
  */
 
 const PROP_LABELS = {
@@ -99,13 +104,14 @@ function ModelPerformance() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [allVersions, setAllVersions] = useState(false);
 
-  useEffect(() => { fetchPerformance(); }, []);
+  useEffect(() => { fetchPerformance(); }, [allVersions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchPerformance = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/performance/edge');
+      const res = await api.get('/performance/edge', { params: { version: allVersions ? 'all' : 'current' } });
       setData(res.data);
       setError(null);
     } catch (err) {
@@ -138,13 +144,14 @@ function ModelPerformance() {
     );
   }
 
-  const { overall, by_prop: byProp = {}, by_week: byWeek = {}, recent = [], pending = { n: 0, picks: 0 }, thresholds } = data;
+  const { overall, by_prop: byProp = {}, by_week: byWeek = {}, recent = [], pending = { n: 0, picks: 0 }, thresholds, model_version: modelVersion, other_versions: otherVersions = {} } = data;
   const recs = overall?.recommendations || { n: 0, hits: 0 };
   const leans = overall?.leans || { n: 0, hits: 0 };
   const graded = overall?.n || 0;
   const since = overall?.date_range?.[0];
   const clv = overall?.clv || null;
   const hasClv = !!(clv && clv.n);
+  const earlier = Object.entries(otherVersions).sort(([a], [b]) => b.localeCompare(a));
 
   const header = (
     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6">
@@ -154,8 +161,21 @@ function ModelPerformance() {
           Model Performance
         </h3>
         <p className="panel-subtitle mt-1">
-          Live record of the edge model{since ? ` since ${fmtDate(since)}` : ''} · picks need {thresholds?.over ?? 56}% or better · graded after every game
+          {allVersions ? 'Every model version' : 'Current model'}{since ? ` since ${fmtDate(since)}` : ''} · picks need {thresholds?.over ?? 56}% or better · graded after every game
         </p>
+        {modelVersion && (
+          <p className="text-[11px] text-slate-500 mt-1">
+            {allVersions ? 'Mixing all versions' : `Version ${modelVersion}`}
+            {(earlier.length > 0 || allVersions) && (
+              <>
+                {' · '}
+                <button type="button" onClick={() => setAllVersions(v => !v)} className="text-amber-400/80 hover:text-amber-300 underline underline-offset-2">
+                  {allVersions ? 'show the current version only' : 'include earlier versions'}
+                </button>
+              </>
+            )}
+          </p>
+        )}
       </div>
       {pending?.n > 0 && (
         <div className="text-xs text-slate-400 flex items-center gap-1.5">
@@ -165,6 +185,38 @@ function ModelPerformance() {
       )}
     </div>
   );
+
+  // Record of each version no longer running, kept apart from the live numbers
+  const earlierPanel = earlier.length > 0 && !allVersions ? (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="panel p-6">
+      <h4 className="panel-title mb-1">Earlier versions</h4>
+      <p className="panel-subtitle mb-4">Retired models keep their own record here and are not counted above</p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-700/60">
+            <th className="text-left py-2">Version</th>
+            <th className="text-left py-2">Games</th>
+            <th className="text-right py-2">Picks</th>
+            <th className="text-right py-2">Hit rate</th>
+            <th className="text-right py-2">Units</th>
+            <th className="text-right py-2">Leans</th>
+          </tr>
+        </thead>
+        <tbody>
+          {earlier.map(([v, s]) => (
+            <tr key={v} className="border-b border-slate-800/80">
+              <td className="py-2 text-slate-300 whitespace-nowrap">{v === 'unversioned' ? 'Opening week' : v}</td>
+              <td className="py-2 text-slate-500 text-xs whitespace-nowrap">{s.date_range ? `${fmtDate(s.date_range[0])} – ${fmtDate(s.date_range[1])}` : '-'}</td>
+              <td className="py-2 text-right text-slate-300 tabular-nums">{s.picks?.n ? `${s.picks.hits}-${s.picks.n - s.picks.hits}` : '-'}</td>
+              <td className={`py-2 text-right font-semibold tabular-nums ${rateColor(s.picks?.hit_rate, s.picks?.n || 0)}`}>{s.picks?.n ? pct(s.picks.hit_rate) : '-'}</td>
+              <td className={`py-2 text-right tabular-nums ${unitsColor(s.picks?.units)}`}>{s.picks?.n ? signed(s.picks.units) : '-'}</td>
+              <td className={`py-2 text-right tabular-nums ${rateColor(s.leans?.hit_rate, s.leans?.n || 0)}`}>{s.leans?.n ? `${pct(s.leans.hit_rate, 0)} (${s.leans.n})` : '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </motion.div>
+  ) : null;
 
   if (graded === 0) {
     return (
@@ -186,6 +238,7 @@ function ModelPerformance() {
             <ClvTile clv={clv} delay={0.05} />
           </div>
         )}
+        {earlierPanel}
       </div>
     );
   }
@@ -214,7 +267,7 @@ function ModelPerformance() {
             value={recs.n ? pct(recs.hit_rate) : '-'}
             sub={recs.n
               ? `${recs.hits}-${recs.n - recs.hits}${recs.pushes ? `-${recs.pushes}` : ''} final · ${firstPick.n ? `${firstPick.hits}-${firstPick.n - firstPick.hits} as first shown` : 'break-even 52.4%'}`
-              : 'No picks graded yet'}
+              : 'No picks graded yet · held until players have 5 games this season'}
             color={rateColor(recs.hit_rate, recs.n)}
             icon={Zap} iconColor="text-amber-400" accent delay={0.05}
           />
@@ -431,6 +484,8 @@ function ModelPerformance() {
           </div>
         </motion.div>
       )}
+
+      {earlierPanel}
     </div>
   );
 }

@@ -33,6 +33,7 @@
 
 import { americanToProb } from './marketFeatureService.js';
 import { PICK_OVER, PICK_UNDER } from '../config/pickThresholds.js';
+import { MODEL_VERSION } from '../config/modelVersion.js';
 
 export const PROPS = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
 export { PICK_OVER, PICK_UNDER };
@@ -56,6 +57,22 @@ function variantOf(p) {
   return p.model_variant || 'legacy';
 }
 
+/** Version stamp of a record; rows stored before versions were recorded are 'unversioned'. */
+function versionOf(p) {
+  return p.model_version || 'unversioned';
+}
+
+/**
+ * Whether a record belongs to the version being graded.
+ * 'current' = MODEL_VERSION (what the site runs now), 'all' = every version,
+ * anything else = that exact stamp.
+ */
+function inVersion(p, version) {
+  if (!version || version === 'all') return true;
+  const want = version === 'current' ? MODEL_VERSION : version;
+  return versionOf(p) === want;
+}
+
 /** YYYY-MM-DD from an ISO string or a display date such as "Mar 28, 2026". */
 function isoDate(value) {
   if (!value || typeof value !== 'string') return null;
@@ -70,7 +87,7 @@ function isoDate(value) {
  * duplicate of a record (see predictionTrackingService.dedupeGamePredictions),
  * and the newest graded record is the one that counts.
  */
-export function eligibleRows(predictions, variant = 'edge') {
+export function eligibleRows(predictions, variant = 'edge', version = 'all') {
   const rows = [];
   const seen = new Map(); // player|prop|date -> index in rows
   const stamp = (p) => new Date(p.updated_at || p.created_at || 0).getTime();
@@ -78,6 +95,7 @@ export function eligibleRows(predictions, variant = 'edge') {
     if (!p.evaluated || p.expired || p.dnp) continue;
     if (p.actual_value == null || p.betting_line == null || !(p.betting_line > 0)) continue;
     if (variant !== 'all' && variantOf(p) !== variant) continue;
+    if (!inVersion(p, version)) continue;
     const proj = p.predicted_value ?? p.predicted_points;
     const line = p.betting_line;
     const actual = p.actual_value;
@@ -112,6 +130,7 @@ export function eligibleRows(predictions, variant = 'edge') {
         ? Number(p.best_bet.odds) : -110,
       book: p.best_bet && (p.best_bet.side || '').toUpperCase() === p.recommendation ? (p.best_bet.bookmaker || null) : null,
       variant: variantOf(p),
+      version: versionOf(p),
       // The first prediction ever shown for this game (before any line move or
       // re-prediction), graded against ITS line, so the record also answers
       // "what if I bet it when it first appeared"
@@ -147,6 +166,10 @@ export function calibrationSlope(rows) {
     num += x * y; den += x * x; n++;
   }
   if (n < 30 || den === 0) return null;
+  // With every stated probability within a couple of points of 50 the slope is
+  // noise (a 0.5-point spread leverages tiny outcome differences into huge
+  // numbers), so it is only reported once the probabilities actually spread
+  if (Math.sqrt(den / n) < 0.02) return null;
   return num / den;
 }
 
@@ -235,11 +258,12 @@ export function closingLineValue(p) {
 }
 
 /** Rows with a closing snapshot (graded or not), for CLV. */
-export function clvRows(predictions, variant = 'edge') {
+export function clvRows(predictions, variant = 'edge', version = 'all') {
   const rows = [];
   for (const p of predictions) {
     if (p.expired || p.dnp || !p.closing) continue;
     if (variant !== 'all' && variantOf(p) !== variant) continue;
+    if (!inVersion(p, version)) continue;
     const clv = closingLineValue(p);
     if (!clv) continue;
     const date = isoDate(p.next_game && p.next_game.date) || isoDate(p.created_at) || '';
@@ -363,11 +387,15 @@ export function summarize(rows) {
 /**
  * Full grading summary for a prediction array.
  * @param {object[]} predictions raw predictionTrackingService records
- * @param {{variant?: string}} opts
+ * @param {{variant?: string, version?: string}} opts
+ *   version: 'all' (default, every version), 'current' (MODEL_VERSION only:
+ *   what the site shows), or an exact version stamp. With a version filter the
+ *   summary also carries `other_versions`: the pick and lean record of every
+ *   version left out, so the opening-week model stays visible but apart.
  */
-export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
-  const rows = eligibleRows(predictions, variant);
-  const clv = clvRows(predictions, variant);
+export function gradeEdgePredictions(predictions, { variant = 'edge', version = 'all' } = {}) {
+  const rows = eligibleRows(predictions, variant, version);
+  const clv = clvRows(predictions, variant, version);
   const clvById = new Map(clv.map(r => [r.id, r]));
   const byProp = {};
   for (const prop of PROPS) {
@@ -380,13 +408,33 @@ export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
   for (const w of weeks) byWeek[w] = { ...summarize(rows.filter(r => r.week === w)), clv: clvBlock(clv.filter(r => r.week === w)) };
 
   const variants = {};
+  const versions = {};
   for (const p of predictions) {
     if (!p.evaluated || p.actual_value == null || p.betting_line == null) continue;
     const v = variantOf(p);
     variants[v] = (variants[v] || 0) + 1;
+    if (variant === 'all' || v === variant) versions[versionOf(p)] = (versions[versionOf(p)] || 0) + 1;
+  }
+  // Versions not being graded: a compact record each, so they stay on view
+  // without mixing into the current model's numbers
+  const otherVersions = {};
+  if (version !== 'all') {
+    const allRows = eligibleRows(predictions, variant, 'all');
+    for (const v of Object.keys(versions).sort()) {
+      if (v === (version === 'current' ? MODEL_VERSION : version)) continue;
+      const sub = allRows.filter(r => r.version === v);
+      if (!sub.length) continue;
+      const s = summarize(sub);
+      otherVersions[v] = {
+        n: s.n, date_range: s.date_range,
+        picks: { n: s.recommendations.n, hits: s.recommendations.hits, hit_rate: s.recommendations.hit_rate, units: s.recommendations.units },
+        leans: { n: s.leans.n, hits: s.leans.hits, hit_rate: s.leans.hit_rate },
+        calibration_slope: s.calibration_slope,
+      };
+    }
   }
   // Still waiting on a result (the current model only)
-  const pending = predictions.filter(p => !p.evaluated && (variant === 'all' || variantOf(p) === variant));
+  const pending = predictions.filter(p => !p.evaluated && (variant === 'all' || variantOf(p) === variant) && inVersion(p, version));
   const pendingPicks = pending.filter(p => p.recommendation === 'OVER' || p.recommendation === 'UNDER');
   const nextTip = pending.map(p => p.next_game?.commence_time).filter(Boolean).sort()[0] || null;
 
@@ -415,8 +463,12 @@ export function gradeEdgePredictions(predictions, { variant = 'edge' } = {}) {
   return {
     generated_at: new Date().toISOString(),
     variant,
+    version,
+    model_version: MODEL_VERSION,
     thresholds: { over: PICK_OVER, under: PICK_UNDER },
     evaluated_by_variant: variants,
+    evaluated_by_version: versions,
+    other_versions: otherVersions,
     pending: { n: pending.length, picks: pendingPicks.length, next_tip: nextTip },
     overall: { ...summarize(rows), clv: clvBlock(clv) },
     by_prop: byProp,
@@ -431,8 +483,9 @@ export function formatGradingReport(summary) {
   const num = (x, d = 3) => (x == null ? '-' : x.toFixed(d));
   const lines = [];
   const o = summary.overall;
-  lines.push(`Edge model grading  (variant=${summary.variant}, generated ${summary.generated_at.slice(0, 16).replace('T', ' ')} UTC)`);
+  lines.push(`Edge model grading  (variant=${summary.variant}, version=${summary.version || 'all'}, generated ${summary.generated_at.slice(0, 16).replace('T', ' ')} UTC)`);
   lines.push(`Evaluated records with a line, by variant: ${Object.entries(summary.evaluated_by_variant).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}`);
+  if (summary.evaluated_by_version) lines.push(`By model version: ${Object.entries(summary.evaluated_by_version).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}  (running: ${summary.model_version})`);
   if (!o.n) {
     lines.push(`No evaluated '${summary.variant}' predictions with a betting line yet.`);
     return lines.join('\n');

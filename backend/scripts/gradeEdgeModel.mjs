@@ -37,6 +37,7 @@ const opt = (name, fallback) => {
 
 const DATA_DIR = path.join(__dirname, '../data');
 const VARIANT = opt('--variant', 'edge');
+const VERSION = opt('--version', 'all'); // 'all', 'current' (what the site grades), or a version stamp
 const OUT = opt('--out', path.join(DATA_DIR, 'edge_grading.json'));
 const candidates = ['predictions_export_fv.json', 'predictions_export.json', 'predictions.json'].map(f => path.join(DATA_DIR, f));
 let IN = opt('--in', null);
@@ -58,7 +59,7 @@ const raw = JSON.parse(fs.readFileSync(IN, 'utf8'));
 const predictions = raw.predictions || raw;
 console.log(`Loaded ${predictions.length} predictions from ${path.relative(process.cwd(), IN)}${raw.exported_at ? ` (exported ${raw.exported_at.slice(0, 16)} from ${raw.source})` : ''}\n`);
 
-const summary = gradeEdgePredictions(predictions, { variant: VARIANT });
+const summary = gradeEdgePredictions(predictions, { variant: VARIANT, version: VERSION });
 summary.source = { file: path.basename(IN), exported_at: raw.exported_at || null, records: predictions.length };
 console.log(formatGradingReport(summary));
 

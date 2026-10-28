@@ -97,25 +97,31 @@ router.get('/export', (req, res) => {
 });
 
 /**
- * GET /api/performance/edge?variant=edge
+ * GET /api/performance/edge?variant=edge&version=current
  * How the edge model's live picks have graded out: hit rates, stated vs
  * realised over probability, leans, calibration, per prop and per ISO week.
  * Same summary as backend/scripts/gradeEdgeModel.mjs; recomputed from the
- * in-memory store at most every 10 minutes per variant.
+ * in-memory store at most every 10 minutes per variant+version.
+ *
+ * version=current (default) grades only rows made by the model version that
+ * is running now; earlier versions come back summarised in `other_versions`.
+ * version=all mixes every version; version=<stamp> grades that one.
  */
 const EDGE_GRADING_TTL_MS = 10 * 60 * 1000;
 const EDGE_VARIANTS = new Set(['edge', 'anchored', 'legacy', 'all']);
-const edgeGradingCache = new Map(); // variant -> { at, summary }
+const edgeGradingCache = new Map(); // variant|version -> { at, summary }
 
 router.get('/edge', (req, res) => {
   try {
     const variant = EDGE_VARIANTS.has(req.query.variant) ? req.query.variant : 'edge';
-    const hit = edgeGradingCache.get(variant);
+    const version = typeof req.query.version === 'string' && /^[\w.-]{1,40}$/.test(req.query.version) ? req.query.version : 'current';
+    const key = `${variant}|${version}`;
+    const hit = edgeGradingCache.get(key);
     if (!hit || Date.now() - hit.at > EDGE_GRADING_TTL_MS) {
-      const summary = gradeEdgePredictions(getAllPredictions(), { variant });
-      edgeGradingCache.set(variant, { at: Date.now(), summary });
+      const summary = gradeEdgePredictions(getAllPredictions(), { variant, version });
+      edgeGradingCache.set(key, { at: Date.now(), summary });
     }
-    const { at, summary } = edgeGradingCache.get(variant);
+    const { at, summary } = edgeGradingCache.get(key);
     res.set('Cache-Control', 'public, max-age=600');
     res.json({ ...summary, cached_at: new Date(at).toISOString() });
   } catch (error) {
