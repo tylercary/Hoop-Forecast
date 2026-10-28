@@ -723,11 +723,22 @@ export async function predictPropsFromGames(games, playerName, lines, nextGameIn
   ensureTeamGameStatsFresh(); // background; this call reads whatever is on file
   const opponentCtx = opponentAbbrev ? opponentContext(opponentAbbrev, gameDate) : null;
   const lastName = playerName.toLowerCase().split(' ').pop();
-  const teammatesOutKey = injuryData?.playerTeamInjuries
-    ? injuryData.playerTeamInjuries.filter(inj => inj.structuredStatus === 'out' && inj.impactScore >= 80 &&
-        !inj.playerName?.toLowerCase().includes(lastName)).length
+  const teamOut = injuryData?.playerTeamInjuries
+    ? injuryData.playerTeamInjuries.filter(inj => inj.structuredStatus === 'out' && !inj.playerName?.toLowerCase().includes(lastName))
     : null;
-  const risk = { game_spread_abs: options.gameSpread?.abs ?? null, teammates_out_key: teammatesOutKey };
+  const oppOut = injuryData?.opponentInjuries ? injuryData.opponentInjuries.filter(inj => inj.structuredStatus === 'out') : null;
+  const teammatesOutKey = teamOut ? teamOut.filter(inj => inj.impactScore >= 80).length : null;
+  // Impact-weighted absences: sum over players out of (impact - 50) / 10, so
+  // a 90-impact star counts 4 and a 55 bench player 0.5. Recorded on every
+  // prediction (edge_context) so a retrain can learn what the line already
+  // prices in; the shipped model does not use the risk family yet.
+  const impactSum = (list) => (list ? Math.round(list.reduce((s, inj) => s + Math.max(0, ((inj.impactScore ?? 50) - 50)) / 10, 0) * 100) / 100 : null);
+  const risk = {
+    game_spread_abs: options.gameSpread?.abs ?? null,
+    teammates_out_key: teammatesOutKey,
+    teammates_out_impact: impactSum(teamOut),
+    opp_out_impact: impactSum(oppOut)
+  };
   const edgeContextRecord = {
     opponent: opponentAbbrev, game_date: gameDate, is_home: nextGameInfo?.isHome ?? null,
     ...(opponentCtx || {}), ...risk

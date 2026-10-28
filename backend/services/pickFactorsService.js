@@ -144,9 +144,9 @@ export function buildPickFactors(p) {
       detail: `Listed ${self.status || st}${self.injury && self.injury !== 'Not specified' ? ` (${self.injury})` : ''}${self.comment ? `: ${self.comment}` : '.'}`,
     });
   }
-  // Rotation players (impact score 70+: roughly 20+ minutes a night) are
+  // Rotation players (impact score 65+: roughly 20+ minutes a night) are
   // named; deeper bench absences are counted so nothing on the report is lost
-  const ROTATION = 70;
+  const ROTATION = 65;
   const byImpact = (a, b) => (b.impactScore ?? 0) - (a.impactScore ?? 0);
   const names = (l) => {
     const n = l.map(i => i.playerName);
@@ -158,11 +158,15 @@ export function buildPickFactors(p) {
   const keyDoubt = teamInj.filter(i => !isSelf(i) && (i.structuredStatus === 'questionable' || i.structuredStatus === 'doubtful') && (i.impactScore ?? 0) >= ROTATION).sort(byImpact);
   if (keyOut.length || keyDoubt.length) {
     const top = keyOut.filter(i => (i.impactScore ?? 0) >= 80).length;
+    // Not an over signal: the book raises the line when a star sits, and in
+    // the graded record props with a key teammate out have gone over LESS
+    // often (47.6% vs 49.3%, two out 41%). Shown as a caution: the role
+    // changes and the line already prices it.
     out.push({
-      key: 'teammates', label: 'Teammates out', effect: keyOut.length ? 'over' : 'neutral',
+      key: 'teammates', label: 'Teammates out', effect: top ? 'caution' : 'neutral',
       weight: top >= 2 || keyOut.length >= 3 ? 3 : keyOut.length ? 2 : 1,
       detail: [
-        keyOut.length ? `${names(keyOut)} ${keyOut.length > 1 ? 'are' : 'is'} out${benchOut ? ` (plus ${benchOut} deeper on the bench)` : ''}, which usually means more shots and minutes.` : null,
+        keyOut.length ? `${names(keyOut)} ${keyOut.length > 1 ? 'are' : 'is'} out${benchOut ? ` (plus ${benchOut} deeper on the bench)` : ''}: more shots and minutes, but the line already prices that in.` : null,
         keyDoubt.length ? `${names(keyDoubt)} ${keyDoubt.length > 1 ? 'are' : 'is'} ${keyDoubt.every(i => i.structuredStatus === 'doubtful') ? 'doubtful' : 'questionable'}.` : null,
       ].filter(Boolean).join(' '),
     });

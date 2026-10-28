@@ -265,41 +265,48 @@ function getPlayerImageUrl(playerName) {
 const impactScoreCache = new NodeCache({ stdTTL: 604800, useClones: false });
 
 /**
- * Calculate impact score from actual player stats (MPG, PPG, APG, RPG, etc.)
- * Formula: base 40 + minutes component (up to 35) + scoring (up to 20) + production (up to 5)
- * Result: ~50 for end-of-bench, ~80 for quality starter, ~95-100 for MVP-level
+ * Impact score (45..100) from a player's own game log: how much the team
+ * loses when he sits. Roughly: 50 end of bench, 70 rotation player, 80
+ * quality starter, 90+ All-NBA.
+ *
+ * Built from the last 30 games in which the player logged 10+ minutes, so
+ * an injury exit, a garbage-time cameo or a slow first week does not drag a
+ * star down (the previous 15-game window scored Jalen Williams 78 off two
+ * 7-10 minute playoff games and three quiet October nights).
+ *   minutes      up to 30  (34+ mpg)
+ *   scoring      up to 18  (27+ ppg)
+ *   usage        up to  7  (20+ true shot attempts: FGA + 0.44 FTA)
+ *   all-around   up to  5  (18+ reb+ast+stl+blk; steals and blocks are the
+ *                           only defensive signal the box score gives)
+ * No qualifying games -> null (caller stores 45: a deep-bench or inactive
+ * player).
  */
 function computeImpactFromStats(games) {
   if (!games || games.length === 0) return null;
-
-  // Use last 15 games (or all if fewer) for a stable average
-  const recent = games.slice(0, 15);
-
-  const avg = (field) => {
-    const vals = recent.map(g => {
-      const v = g[field];
-      if (v == null) return 0;
-      // Minutes can be "32:10" string format
-      if (typeof v === 'string' && v.includes(':')) return parseInt(v, 10) || 0;
-      return Number(v) || 0;
-    });
-    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  const num = (v) => {
+    if (v == null) return 0;
+    if (typeof v === 'string' && v.includes(':')) return parseInt(v, 10) || 0; // "32:10"
+    return Number(v) || 0;
   };
+  const healthy = games.filter(g => num(g.minutes) >= 10).slice(0, 30);
+  if (healthy.length === 0) return null;
+  const avg = (f) => healthy.reduce((a, g) => a + f(g), 0) / healthy.length;
 
-  const mpg = avg('minutes');
-  const ppg = avg('pts');
-  const rpg = avg('reb');
-  const apg = avg('ast');
-  const spg = avg('stl');
-  const bpg = avg('blk');
+  const mpg = avg(g => num(g.minutes));
+  const ppg = avg(g => num(g.pts ?? g.points));
+  const usage = avg(g => num(g.fga ?? g.field_goals_attempted) + 0.44 * num(g.fta ?? g.free_throws_attempted));
+  const allAround = avg(g => num(g.reb ?? g.rebounds) + num(g.ast ?? g.assists) + num(g.stl ?? g.steals) + num(g.blk ?? g.blocks));
 
-  // Components
-  const minutesComponent = Math.min(mpg / 36, 1.0) * 35;    // 36+ mpg = max 35 pts
-  const scoringComponent = Math.min(ppg / 28, 1.0) * 20;     // 28+ ppg = max 20 pts
-  const productionComponent = Math.min((apg + rpg + spg + bpg) / 20, 1.0) * 5; // versatility bonus
-
-  const score = Math.round(40 + minutesComponent + scoringComponent + productionComponent);
-  return Math.min(score, 100);
+  const score = 40
+    + Math.min(mpg / 34, 1) * 30
+    + Math.min(ppg / 27, 1) * 18
+    + Math.min(usage / 20, 1) * 7
+    + Math.min(allAround / 18, 1) * 5;
+  // Fewer than 8 qualifying games: shrink toward a rotation player's 65, the
+  // sample is too thin to call anyone a star or a scrub
+  const n = healthy.length;
+  const shrunk = n >= 8 ? score : 65 + (score - 65) * (n / 8);
+  return Math.max(45, Math.min(100, Math.round(shrunk)));
 }
 
 /**

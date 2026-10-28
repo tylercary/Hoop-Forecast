@@ -31,7 +31,7 @@ OPP_PART_KEY = {'pts': 'opp_pts_allowed_rel', 'reb': 'opp_reb_allowed_rel', 'ast
 MARKET_KEYS = ['mkt_over_prob', 'mkt_line_spread', 'mkt_n_books', 'mkt_pinnacle_minus_line', 'mkt_line_minus_mean']
 OPPONENT_KEYS = ['opp_pts_allowed_rel', 'opp_reb_allowed_rel', 'opp_ast_allowed_rel', 'opp_fg3m_allowed_rel',
                  'opp_pace_rel', 'opp_def_rating_rel', 'opp_games_n', 'opp_stat_allowed_rel']
-RISK_KEYS = ['game_spread_abs', 'teammates_out_key']
+RISK_KEYS = ['game_spread_abs', 'teammates_out_key', 'teammates_out_impact', 'opp_out_impact']
 # Current-season context: base fields from buildMLFeatures.seasonFeatures (JS) /
 # Backfill.season_fields (trainer), plus the per-prop derived pair below
 SEASON_BASE_KEYS = ['cur_season_games', 'cur_season_share_10', 'cur_season_pts_avg', 'cur_season_reb_avg',
@@ -158,7 +158,7 @@ def opponent_features(ctx, prop):
 
 def risk_features(ctx):
     ctx = ctx or {}
-    return {'game_spread_abs': _num(ctx.get('game_spread_abs')), 'teammates_out_key': _num(ctx.get('teammates_out_key'))}
+    return {k: _num(ctx.get(k)) for k in RISK_KEYS}
 
 
 def minutes_under_share(minutes_recent_last, threshold=25, n=10):

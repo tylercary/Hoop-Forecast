@@ -445,9 +445,12 @@ function opponentFeatures(opponent, prop) {
   return out;
 }
 
-/** risk: { game_spread_abs, teammates_out_key } (or null). Twin: edge_features.risk_features */
+/** risk: { game_spread_abs, teammates_out_key, teammates_out_impact, opp_out_impact } (or null). Twin: edge_features.risk_features */
 function riskFeatures(risk) {
-  return { game_spread_abs: num(risk?.game_spread_abs), teammates_out_key: num(risk?.teammates_out_key) };
+  return {
+    game_spread_abs: num(risk?.game_spread_abs), teammates_out_key: num(risk?.teammates_out_key),
+    teammates_out_impact: num(risk?.teammates_out_impact), opp_out_impact: num(risk?.opp_out_impact)
+  };
 }
 
 /**

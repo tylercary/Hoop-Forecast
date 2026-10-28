@@ -70,7 +70,7 @@ from sklearn.linear_model import LogisticRegression
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
-from edge_features import (PROPS, STAT_PARTS, FAMILIES, SEASON_BASE_KEYS, derived_features as _derived_features,  # noqa: E402
+from edge_features import (PROPS, STAT_PARTS, FAMILIES, SEASON_BASE_KEYS, RISK_KEYS, derived_features as _derived_features,  # noqa: E402
                            opponent_context, minutes_under_share, season_for_date)
 
 MODELS_DIR = os.path.join(SCRIPT_DIR, 'models')
@@ -226,7 +226,7 @@ class Backfill:
         is_home = game['h'] if game else stored.get('is_home')
         mins = self.minutes_before(record, game) if game else []
         share = minutes_under_share(mins) if len(mins) >= 10 else None
-        risk = {'game_spread_abs': stored.get('game_spread_abs'), 'teammates_out_key': stored.get('teammates_out_key')}
+        risk = {k: stored.get(k) for k in RISK_KEYS}
         return {'opponent': opp_ctx, 'risk': risk}, is_home, share
 
 
