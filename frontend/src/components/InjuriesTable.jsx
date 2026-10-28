@@ -101,13 +101,13 @@ function TeamColumn({ team, label, injuries, delay }) {
   const summary = list.length === 0 ? 'No one listed'
     : [out ? `${out} out` : null, maybe ? `${maybe} questionable` : null].filter(Boolean).join(' · ') || `${list.length} listed`;
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="rounded-lg bg-slate-800/40 border border-slate-700/60 px-4 py-3">
-      <div className="flex items-baseline justify-between gap-2 mb-1">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="min-w-0">
+      <div className="flex items-baseline justify-between gap-2 pb-2 mb-1 border-b border-slate-700/60">
         <div className="flex items-baseline gap-2 min-w-0">
-          <span className="text-sm font-semibold text-slate-200">{team || '—'}</span>
+          <span className="text-base font-semibold text-white">{team || '—'}</span>
           {label && <span className="text-[11px] text-slate-500 uppercase tracking-wide">{label}</span>}
         </div>
-        <span className={`text-xs ${out ? 'text-slate-300' : 'text-slate-500'}`}>{summary}</span>
+        <span className={`text-xs ${out ? 'text-slate-400' : 'text-slate-500'}`}>{summary}</span>
       </div>
       {list.length === 0 ? (
         <p className="text-xs text-slate-500 py-3">Nobody on the injury report.</p>
@@ -138,9 +138,9 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="panel p-6">
       <h3 className="panel-title mb-4">Injuries</h3>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <TeamColumn team={ownTeam} label="Player's team" injuries={own} delay={0.05} />
-        <TeamColumn team={oppTeam} label="Opponent" injuries={opp} delay={0.1} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-6 lg:gap-y-0 lg:divide-x lg:divide-slate-700/60">
+        <div className="lg:pr-10 min-w-0"><TeamColumn team={ownTeam} label="Player's team" injuries={own} delay={0.05} /></div>
+        <div className="lg:pl-10 min-w-0"><TeamColumn team={oppTeam} label="Opponent" injuries={opp} delay={0.1} /></div>
       </div>
     </motion.div>
   );
