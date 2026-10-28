@@ -535,18 +535,6 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
               cursor={{ fill: 'rgba(148, 163, 184, 0.08)', radius: 4 }}
             />
 
-            {/* Average over the games shown */}
-            {average != null && (
-              <ReferenceLine
-                y={average}
-                stroke="#fbbf24"
-                strokeOpacity={0.55}
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={<AvgLabel />}
-              />
-            )}
-
             <Bar
               dataKey="points"
               radius={[4, 4, 0, 0]}
@@ -559,6 +547,18 @@ function PredictionChart({ stats, prediction, bettingLine, selectedProp, loading
               ))}
               <LabelList dataKey="points" content={<BarValue />} />
             </Bar>
+
+            {/* Average over the games shown; drawn after the bars so its label is never covered */}
+            {average != null && (
+              <ReferenceLine
+                y={average}
+                stroke="#fbbf24"
+                strokeOpacity={0.55}
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={<AvgLabel />}
+              />
+            )}
 
             {/* Draggable betting line */}
             {line != null && (
