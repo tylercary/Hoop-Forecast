@@ -9,9 +9,7 @@ import { resolveImageUrl } from '../utils/api';
  * a two-way player at a glance. Rotation-level players (impact 65+) are
  * listed in full; deeper bench absences collapse into one line.
  *
- * Statuses follow the official report: Out, Doubtful, Questionable,
- * Probable. The summary line at the top is built the same way the
- * "What's driving this pick" factors are, so the two never disagree.
+ * Statuses follow the official report: Out, Doubtful, Questionable, Probable.
  */
 
 const ROTATION = 65;
@@ -137,22 +135,9 @@ function InjuriesTable({ injuries, playerTeam, opponentTeam }) {
   const ownTeam = injuries?.player_team?.team || playerTeam || null;
   const oppTeam = injuries?.opponent?.team || opponentTeam || null;
 
-  const keyOut = (list) => list.filter(i => ['out', 'doubtful'].includes(statusOf(i)) && (i.impactScore ?? 0) >= 78).length;
-  const headline = (() => {
-    if (!own.length && !opp.length) return 'Nobody on either injury report';
-    const a = keyOut(own), b = keyOut(opp);
-    const parts = [];
-    if (ownTeam) parts.push(a ? `${ownTeam} missing ${a} starter${a > 1 ? 's' : ''}` : `${ownTeam} at full strength up top`);
-    if (oppTeam) parts.push(b ? `${oppTeam} missing ${b} starter${b > 1 ? 's' : ''}` : `${oppTeam} at full strength up top`);
-    return parts.join(' · ');
-  })();
-
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="panel p-6">
-      <div className="mb-4">
-        <h3 className="panel-title mb-1">Injuries</h3>
-        <p className="panel-subtitle">{headline} · Star, Starter and Rotation reflect each player's impact score</p>
-      </div>
+      <h3 className="panel-title mb-4">Injuries</h3>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <TeamColumn team={ownTeam} label="Player's team" injuries={own} delay={0.05} />
         <TeamColumn team={oppTeam} label="Opponent" injuries={opp} delay={0.1} />
