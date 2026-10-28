@@ -144,23 +144,38 @@ export function buildPickFactors(p) {
       detail: `Listed ${self.status || st}${self.injury && self.injury !== 'Not specified' ? ` (${self.injury})` : ''}${self.comment ? `: ${self.comment}` : '.'}`,
     });
   }
-  const keyOut = teamInj.filter(i => !isSelf(i) && i.structuredStatus === 'out' && (i.impactScore ?? 0) >= 80);
-  const keyDoubt = teamInj.filter(i => !isSelf(i) && (i.structuredStatus === 'questionable' || i.structuredStatus === 'doubtful') && (i.impactScore ?? 0) >= 80);
+  // Rotation players (impact score 70+: roughly 20+ minutes a night) are
+  // named; deeper bench absences are counted so nothing on the report is lost
+  const ROTATION = 70;
+  const byImpact = (a, b) => (b.impactScore ?? 0) - (a.impactScore ?? 0);
+  const names = (l) => {
+    const n = l.map(i => i.playerName);
+    return n.length <= 1 ? n.join('') : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
+  };
+  const teamOut = teamInj.filter(i => !isSelf(i) && i.structuredStatus === 'out').sort(byImpact);
+  const keyOut = teamOut.filter(i => (i.impactScore ?? 0) >= ROTATION);
+  const benchOut = teamOut.length - keyOut.length;
+  const keyDoubt = teamInj.filter(i => !isSelf(i) && (i.structuredStatus === 'questionable' || i.structuredStatus === 'doubtful') && (i.impactScore ?? 0) >= ROTATION).sort(byImpact);
   if (keyOut.length || keyDoubt.length) {
-    const names = (l) => l.map(i => i.playerName).join(', ');
+    const top = keyOut.filter(i => (i.impactScore ?? 0) >= 80).length;
     out.push({
-      key: 'teammates', label: 'Teammates out', effect: keyOut.length ? 'over' : 'neutral', weight: keyOut.length >= 2 ? 3 : 2,
+      key: 'teammates', label: 'Teammates out', effect: keyOut.length ? 'over' : 'neutral',
+      weight: top >= 2 || keyOut.length >= 3 ? 3 : keyOut.length ? 2 : 1,
       detail: [
-        keyOut.length ? `${names(keyOut)} ${keyOut.length > 1 ? 'are' : 'is'} out, which usually means more shots and minutes.` : null,
-        keyDoubt.length ? `${names(keyDoubt)} ${keyDoubt.length > 1 ? 'are' : 'is'} questionable.` : null,
+        keyOut.length ? `${names(keyOut)} ${keyOut.length > 1 ? 'are' : 'is'} out${benchOut ? ` (plus ${benchOut} deeper on the bench)` : ''}, which usually means more shots and minutes.` : null,
+        keyDoubt.length ? `${names(keyDoubt)} ${keyDoubt.length > 1 ? 'are' : 'is'} ${keyDoubt.every(i => i.structuredStatus === 'doubtful') ? 'doubtful' : 'questionable'}.` : null,
       ].filter(Boolean).join(' '),
     });
   }
-  const oppOut = oppInj.filter(i => i.structuredStatus === 'out' && (i.impactScore ?? 0) >= 80);
-  if (oppOut.length) {
+  const oppOut = oppInj.filter(i => i.structuredStatus === 'out' && (i.impactScore ?? 0) >= ROTATION).sort(byImpact);
+  const oppDoubt = oppInj.filter(i => (i.structuredStatus === 'questionable' || i.structuredStatus === 'doubtful') && (i.impactScore ?? 0) >= 80).sort(byImpact);
+  if (oppOut.length || oppDoubt.length) {
     out.push({
-      key: 'opp_injuries', label: `${opp || 'Opponent'} injuries`, effect: 'over', weight: oppOut.length >= 2 ? 2 : 1,
-      detail: `${oppOut.map(i => i.playerName).join(', ')} out for ${opp || 'the opponent'}, thinning the defense.`,
+      key: 'opp_injuries', label: `${opp || 'Opponent'} injuries`, effect: oppOut.length ? 'over' : 'neutral', weight: oppOut.length >= 2 ? 2 : 1,
+      detail: [
+        oppOut.length ? `${names(oppOut)} out for ${opp || 'the opponent'}, thinning the defense.` : null,
+        oppDoubt.length ? `${names(oppDoubt)} ${oppDoubt.length > 1 ? 'are' : 'is'} questionable.` : null,
+      ].filter(Boolean).join(' '),
     });
   }
 

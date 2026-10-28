@@ -999,8 +999,8 @@ function finalizePrediction({ rawPrediction, features, propType, playerName, gam
   if (injuryData) {
     const lastName = playerName.toLowerCase().split(' ').pop();
     const keyInjuries = (injuryData.playerTeamInjuries || [])
-      .filter(inj => inj.impactScore >= 80 && !inj.playerName?.toLowerCase().includes(lastName));
-    const oppKeyInjuries = (injuryData.opponentInjuries || []).filter(inj => inj.impactScore >= 80);
+      .filter(inj => inj.structuredStatus === 'out' && inj.impactScore >= 70 && !inj.playerName?.toLowerCase().includes(lastName));
+    const oppKeyInjuries = (injuryData.opponentInjuries || []).filter(inj => inj.structuredStatus === 'out' && inj.impactScore >= 70);
     if (keyInjuries.length > 0) {
       const names = keyInjuries.map(i => i.playerName).join(', ');
       injuryContext = `Key teammate${keyInjuries.length > 1 ? 's' : ''} ${names} ${keyInjuries.length > 1 ? 'are' : 'is'} out, which may increase usage and opportunity.`;
