@@ -6,9 +6,10 @@ import { useAuth } from '../contexts/AuthContext';
 import PredictionRow, { goToPlayer } from './PredictionRow';
 import { getUserPredictions, getUserRecord, resolvePendingPredictions, syncUserRecord, deletePrediction } from '../services/firestoreService';
 
+
 function Tile({ label, value, sub, accent = 'text-white' }) {
   return (
-    <div className="px-5 py-3 first:pl-0 last:pr-0">
+    <div className="py-3 sm:px-5 sm:first:pl-0 sm:last:pr-0">
       <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">{label}</p>
       <p className={`text-2xl font-bold tabular-nums leading-none ${accent}`}>{value}</p>
       {sub && <p className="text-xs text-slate-500 mt-1.5">{sub}</p>}
