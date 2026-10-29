@@ -762,24 +762,17 @@ function Home() {
                 {/* Player Image */}
                 <div className="flex justify-center pt-5 pb-2.5">
                 {player.player_image ? (
-                  /* NBA headshots are head-and-shoulders with a lot of air, so a
-                     plain circle crop leaves the face ~40px tall and looks soft.
-                     Zoom in on the face inside the circle instead. */
-                  <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-slate-500/40 group-hover:ring-amber-400 shadow-xl transition-all duration-300 bg-slate-800">
-                    <img
-                      src={resolveImageUrl(player.player_image)}
-                      alt={player.name}
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                      style={{ transform: 'scale(1.45)', transformOrigin: '50% 42%' }}
-                      onError={(e) => {
-                        const wrap = e.target.parentElement;
-                        wrap.style.display = 'none';
-                        const fallback = wrap.nextElementSibling;
-                        if (fallback) fallback.style.display = 'flex';
-                      }}
-                    />
-                  </div>
+                  <img
+                    src={resolveImageUrl(player.player_image)}
+                    alt={player.name}
+                    loading="lazy"
+                      className="w-24 h-24 rounded-full object-cover ring-2 ring-slate-500/40 group-hover:ring-amber-400 shadow-xl transition-all duration-300"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      const fallback = e.target.nextElementSibling;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
                 ) : null}
                 <div 
                     className={`${player.player_image ? 'hidden' : 'flex'} w-24 h-24 rounded-full bg-gradient-to-br from-slate-500 via-slate-400 to-slate-500 items-center justify-center ring-2 ring-slate-500/40 group-hover:ring-amber-400 shadow-xl transition-all duration-300`}
