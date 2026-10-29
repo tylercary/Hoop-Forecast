@@ -1,35 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Trophy, TrendingUp, Target, UserPlus, Check, Clock, Star, ChevronRight } from 'lucide-react';
-import { resolveImageUrl } from '../utils/api';
+import { User, UserPlus, Check, Clock, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTeamLogo } from '../utils/teamLogos';
+import PredictionRow, { Avatar, goToPlayer } from './PredictionRow';
 import {
   getUserProfile,
   getUserPredictions,
-  getUserRecord,
   getFriendshipStatus,
   sendFriendRequest,
 } from '../services/firestoreService';
 
-const PROP_LABELS = {
-  points: 'Pts',
-  assists: 'Ast',
-  rebounds: 'Reb',
-  threes: '3PM',
-  steals: 'Stl',
-  blocks: 'Blk',
-  turnovers: 'TO',
-  pra: 'PRA',
-  pr: 'P+R',
-  pa: 'P+A',
-  ra: 'R+A',
-  points_rebounds: 'P+R',
-  points_assists: 'P+A',
-  rebounds_assists: 'R+A',
-  points_rebounds_assists: 'PRA',
-};
+function Tile({ label, value, sub, accent = 'text-white' }) {
+  return (
+    <div className="px-5 py-3 first:pl-0 last:pr-0">
+      <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">{label}</p>
+      <p className={`text-2xl font-bold tabular-nums leading-none ${accent}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-500 mt-1.5">{sub}</p>}
+    </div>
+  );
+}
+
+function FavoriteRow({ onClick, leading, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 py-2.5 text-left group"
+    >
+      {leading}
+      <span className="flex-1 min-w-0 truncate text-sm font-medium text-white group-hover:text-amber-300 transition-colors">
+        {label}
+      </span>
+      <ChevronRight size={14} className="flex-none text-slate-600 group-hover:text-amber-300 transition-colors" />
+    </button>
+  );
+}
 
 function UserProfile() {
   const { userId } = useParams();
@@ -37,7 +44,6 @@ function UserProfile() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [predictions, setPredictions] = useState([]);
-  const [record, setRecord] = useState({ wins: 0, losses: 0, pushes: 0 });
   const [friendStatus, setFriendStatus] = useState(null); // null, 'pending', 'accepted'
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
@@ -50,16 +56,10 @@ function UserProfile() {
     async function load() {
       setLoading(true);
       try {
-        const [prof, preds, rec] = await Promise.all([
-          getUserProfile(userId),
-          getUserPredictions(userId),
-          getUserRecord(userId),
-        ]);
+        const [prof, preds] = await Promise.all([getUserProfile(userId), getUserPredictions(userId)]);
         setProfile(prof);
         setPredictions(preds);
-        setRecord(rec);
 
-        // Check friendship status
         if (user && user.uid !== userId) {
           const status = await getFriendshipStatus(user.uid, userId);
           setFriendStatus(status);
@@ -93,23 +93,19 @@ function UserProfile() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="bg-slate-800 rounded-lg p-8 animate-pulse h-40" />
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-slate-800 rounded-lg p-4 animate-pulse h-20" />
-          ))}
-        </div>
+      <div className="space-y-6">
+        <div className="panel h-40 animate-pulse" />
+        <div className="panel h-64 animate-pulse" />
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700 text-center">
-        <User className="mx-auto mb-4 text-slate-600" size={48} />
-        <h3 className="text-xl font-bold text-white mb-2">User not found</h3>
-        <p className="text-slate-400">This profile doesn't exist.</p>
+      <div className="panel p-10 text-center">
+        <User className="mx-auto mb-3 text-slate-600" size={36} />
+        <h3 className="text-lg font-semibold text-white mb-1">User not found</h3>
+        <p className="text-sm text-slate-400">This profile doesn't exist.</p>
       </div>
     );
   }
@@ -118,240 +114,159 @@ function UserProfile() {
   const displayName = profile.displayName || 'User';
   const initial = displayName[0]?.toUpperCase() || '?';
 
-  // Always derive record from actual predictions (single source of truth)
+  // Always derive the record from the predictions themselves.
   const wins = predictions.filter((p) => p.result === 'win').length;
   const losses = predictions.filter((p) => p.result === 'loss').length;
   const pushes = predictions.filter((p) => p.result === 'push').length;
-  const total = wins + losses + pushes;
-  const winPct = total > 0 ? ((wins / (wins + losses || 1)) * 100).toFixed(1) : '0.0';
+  const pending = predictions.filter((p) => !p.result).length;
+  const decided = wins + losses;
+  const winPct = decided > 0 ? ((wins / decided) * 100).toFixed(1) : null;
+
+  const hasPlayers = profile.favorites?.length > 0;
+  const hasTeams = profile.favoriteTeams?.length > 0;
 
   return (
     <div className="space-y-6">
-      {/* Profile Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 p-6"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      {/* Header */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="panel p-6">
+        <div className="flex items-start sm:items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4 min-w-0">
             {profile.photoURL ? (
               <img
                 src={profile.photoURL}
                 alt={displayName}
-                className="w-16 h-16 rounded-full object-cover ring-2 ring-amber-400/30"
+                className="w-16 h-16 rounded-full object-cover ring-1 ring-slate-600 flex-none"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">{initial}</span>
+              <div className="w-16 h-16 rounded-full bg-amber-400 flex items-center justify-center flex-none">
+                <span className="text-slate-900 text-2xl font-bold">{initial}</span>
               </div>
             )}
-            <div>
-              <h2 className="text-2xl font-bold text-white">{displayName}</h2>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-white truncate">{displayName}</h2>
               <p className="text-sm text-slate-400">
-                {total > 0 ? `${wins}-${losses}-${pushes} · ${winPct}% win rate` : 'No predictions yet'}
+                {predictions.length === 0
+                  ? 'No picks yet'
+                  : `${predictions.length} pick${predictions.length === 1 ? '' : 's'}${
+                      winPct ? ` · ${winPct}% on decided picks` : ''
+                    }`}
               </p>
             </div>
           </div>
 
-          {/* Friend actions */}
           {user && !isOwnProfile && (
-            <div>
-              {friendStatus?.status === 'accepted' ? (
-                <span className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  <Check size={16} /> Friends
-                </span>
-              ) : friendStatus?.status === 'pending' ? (
-                <span className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400/20 text-amber-400 border border-amber-400/30">
-                  <Clock size={16} /> Pending
-                </span>
-              ) : (
-                <button
-                  onClick={handleSendFriendRequest}
-                  disabled={sendingRequest}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-slate-900 hover:bg-amber-300 transition-colors disabled:opacity-50"
-                >
-                  <UserPlus size={16} /> Add Friend
-                </button>
-              )}
-            </div>
+            friendStatus?.status === 'accepted' ? (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-emerald-400 border border-emerald-500/40 bg-emerald-500/15">
+                <Check size={15} /> Friends
+              </span>
+            ) : friendStatus?.status === 'pending' ? (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-amber-400 border border-amber-400/40 bg-amber-500/15">
+                <Clock size={15} /> Request sent
+              </span>
+            ) : (
+              <button
+                onClick={handleSendFriendRequest}
+                disabled={sendingRequest}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold bg-amber-400 text-slate-900 hover:bg-amber-300 transition-colors disabled:opacity-50"
+              >
+                <UserPlus size={15} /> Add friend
+              </button>
+            )
           )}
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-            <Trophy className="mx-auto mb-1 text-amber-400" size={18} />
-            <p className="text-lg font-bold text-white">{wins}-{losses}-{pushes}</p>
-            <p className="text-xs text-slate-400">Record</p>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-            <TrendingUp className="mx-auto mb-1 text-emerald-400" size={18} />
-            <p className="text-lg font-bold text-white">{winPct}%</p>
-            <p className="text-xs text-slate-400">Win Rate</p>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-            <Target className="mx-auto mb-1 text-blue-400" size={18} />
-            <p className="text-lg font-bold text-white">{predictions.length}</p>
-            <p className="text-xs text-slate-400">Total Picks</p>
-          </div>
+        <div className="mt-5 pt-5 border-t border-slate-700/60 grid grid-cols-2 sm:grid-cols-4 sm:divide-x divide-slate-700/60 gap-y-4">
+          <Tile label="Record" value={`${wins}–${losses}–${pushes}`} sub="win – loss – push" />
+          <Tile label="Win rate" value={winPct ? `${winPct}%` : '—'} sub={decided ? `${decided} decided` : 'nothing decided yet'} accent={winPct ? 'text-emerald-400' : 'text-slate-500'} />
+          <Tile label="Picks" value={predictions.length} sub="all time" />
+          <Tile label="Pending" value={pending} sub="waiting on games" accent={pending ? 'text-amber-400' : 'text-white'} />
         </div>
-      </motion.div>
+      </motion.section>
 
-      {/* Favorite Players */}
-      {profile.favorites?.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-            <Star className="text-amber-400 fill-amber-400" size={18} />
-            Favorite Players
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {profile.favorites.map((fav) => (
-              <motion.div
-                key={fav.playerId}
-                whileHover={{ scale: 1.01 }}
-                onClick={() => {
-                  const nameSlug = encodeURIComponent(fav.playerName.toLowerCase().replace(/\s+/g, '-'));
-                  navigate(`/player/${fav.playerId}/${nameSlug}`, {
-                    state: { player: { id: fav.playerId, first_name: fav.playerName.split(' ')[0] || '', last_name: fav.playerName.split(' ').slice(1).join(' ') || '' } },
-                  });
-                }}
-                className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 hover:border-amber-400/50 p-3 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <img
-                      src={resolveImageUrl(`/images/players/${fav.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`)}
-                      alt={fav.playerName}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-600"
-                      onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }}
+      {/* Favorites */}
+      {(hasPlayers || hasTeams) && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="panel p-6"
+        >
+          <h3 className="panel-title mb-4">Favorites</h3>
+          <div
+            className={`grid grid-cols-1 ${
+              hasPlayers && hasTeams ? 'lg:grid-cols-2 lg:divide-x lg:divide-slate-700/60' : ''
+            } gap-y-6 lg:gap-y-0`}
+          >
+            {hasPlayers && (
+              <div className={hasTeams ? 'lg:pr-10' : ''}>
+                <div className="flex items-baseline justify-between border-b border-slate-700/60 pb-2 mb-1">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Players</span>
+                  <span className="text-xs text-slate-500">{profile.favorites.length}</span>
+                </div>
+                <div className="divide-y divide-slate-800">
+                  {profile.favorites.map((fav) => (
+                    <FavoriteRow
+                      key={fav.playerId}
+                      label={fav.playerName}
+                      leading={<Avatar name={fav.playerName} size="w-8 h-8" textSize="text-[10px]" />}
+                      onClick={() => goToPlayer(navigate, fav)}
                     />
-                    <div className="hidden w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 items-center justify-center ring-2 ring-slate-600">
-                      <span className="text-white text-xs font-bold">{fav.playerName.split(' ').map((n) => n[0]).join('')}</span>
-                    </div>
-                  </div>
-                  <span className="text-white text-sm font-semibold group-hover:text-amber-300 transition-colors truncate flex-1">{fav.playerName}</span>
-                  <ChevronRight size={14} className="text-slate-500 group-hover:text-amber-300 transition-colors flex-shrink-0" />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Favorite Teams */}
-      {profile.favoriteTeams?.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-            <Star className="text-amber-400 fill-amber-400" size={18} />
-            Favorite Teams
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {profile.favoriteTeams.map((fav) => (
-              <motion.div
-                key={fav.teamAbbreviation}
-                whileHover={{ scale: 1.01 }}
-                onClick={() => navigate(`/team/${fav.teamAbbreviation}`)}
-                className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 hover:border-amber-400/50 p-3 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  {getTeamLogo(fav.teamAbbreviation) && (
-                    <img src={getTeamLogo(fav.teamAbbreviation)} alt={fav.teamName} className="w-8 h-8 object-contain flex-shrink-0" />
-                  )}
-                  <span className="text-white text-sm font-semibold group-hover:text-amber-300 transition-colors truncate flex-1">{fav.teamName}</span>
-                  <ChevronRight size={14} className="text-slate-500 group-hover:text-amber-300 transition-colors flex-shrink-0" />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Recent Predictions */}
-      <h3 className="text-lg font-bold text-white">Recent Predictions</h3>
-      {predictions.length === 0 ? (
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg p-6 border border-slate-700 text-center">
-          <p className="text-slate-400">No predictions yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {predictions.slice(0, 20).map((pred, index) => (
-            <motion.div
-              key={pred.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
-              onClick={() => {
-                const nameSlug = encodeURIComponent(pred.playerName.toLowerCase().replace(/\s+/g, '-'));
-                navigate(`/player/${pred.playerId}/${nameSlug}`, {
-                  state: {
-                    player: {
-                      id: pred.playerId,
-                      first_name: pred.playerName.split(' ')[0] || '',
-                      last_name: pred.playerName.split(' ').slice(1).join(' ') || '',
-                    },
-                  },
-                });
-              }}
-              className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-slate-700 hover:border-amber-400/50 p-4 cursor-pointer transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <img
-                      src={resolveImageUrl(`/images/players/${pred.playerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_').trim()}.png`)}
-                      alt={pred.playerName}
-                      className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-600"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextElementSibling.style.display = 'flex';
-                      }}
-                    />
-                    <div className="hidden w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 items-center justify-center ring-2 ring-slate-600">
-                      <span className="text-white text-sm font-bold">
-                        {pred.playerName.split(' ').map((n) => n[0]).join('')}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold group-hover:text-amber-300 transition-colors">
-                      {pred.playerName}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {PROP_LABELS[pred.propType] || pred.propType} · {pred.opponent ? `vs ${pred.opponent} · ` : ''}{pred.gameDate}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                    pred.pick === 'over'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                  }`}>
-                    {pred.pick === 'over' ? 'OVER' : 'UNDER'} {parseFloat(pred.line).toFixed(1)}
-                  </span>
-                  {pred.result ? (
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                      pred.result === 'win'
-                        ? 'bg-emerald-600/30 text-emerald-300'
-                        : pred.result === 'loss'
-                        ? 'bg-rose-600/30 text-rose-300'
-                        : 'bg-amber-500/30 text-amber-300'
-                    }`}>
-                      {pred.result.toUpperCase()}
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-700 text-slate-400">
-                      PENDING
-                    </span>
-                  )}
+                  ))}
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
+            )}
+            {hasTeams && (
+              <div className={hasPlayers ? 'lg:pl-10' : ''}>
+                <div className="flex items-baseline justify-between border-b border-slate-700/60 pb-2 mb-1">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Teams</span>
+                  <span className="text-xs text-slate-500">{profile.favoriteTeams.length}</span>
+                </div>
+                <div className="divide-y divide-slate-800">
+                  {profile.favoriteTeams.map((fav) => (
+                    <FavoriteRow
+                      key={fav.teamAbbreviation}
+                      label={fav.teamName}
+                      leading={
+                        getTeamLogo(fav.teamAbbreviation) ? (
+                          <img src={getTeamLogo(fav.teamAbbreviation)} alt="" className="w-8 h-8 object-contain flex-none" />
+                        ) : (
+                          <span className="w-8 h-8 flex-none rounded-full bg-slate-700 text-[10px] font-semibold text-slate-200 flex items-center justify-center">
+                            {fav.teamAbbreviation}
+                          </span>
+                        )
+                      }
+                      onClick={() => navigate(`/team/${fav.teamAbbreviation}`)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.section>
       )}
+
+      {/* Recent picks */}
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="panel p-6"
+      >
+        <div className="flex items-baseline justify-between mb-2">
+          <h3 className="panel-title">Recent picks</h3>
+          {predictions.length > 20 && <span className="text-xs text-slate-500">last 20 of {predictions.length}</span>}
+        </div>
+        {predictions.length === 0 ? (
+          <p className="text-sm text-slate-400 py-6 text-center">No picks yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-800">
+            {predictions.slice(0, 20).map((pred) => (
+              <PredictionRow key={pred.id} pred={pred} onClick={() => goToPlayer(navigate, pred)} />
+            ))}
+          </div>
+        )}
+      </motion.section>
     </div>
   );
 }
