@@ -1,13 +1,14 @@
 import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import InfoTooltip from './InfoTooltip';
+import LeanMeter from './LeanMeter';
 
 /**
  * Reusable metric card component for prop analysis
  * Supports a `locked` prop to blur values and show a sign-in prompt
  */
 
-function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, infoTooltip, infoTooltipLabel, progressBar, customValue, valueSize = 'text-3xl', index = 0, unified = true, locked = false, onSignIn }) {
+function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, infoTooltip, infoTooltipLabel, progressBar, meter, customValue, valueSize = 'text-3xl', index = 0, unified = true, locked = false, onSignIn }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -49,7 +50,14 @@ function PropMetricCard({ title, value, subtitle, color = 'text-white', icon, in
         </div>
       ) : (
         <>
-          {/* Progress Bar (for Cover Probability) */}
+          {/* Meter from even toward the lean's side */}
+          {meter !== undefined && (
+            <div className="mb-3">
+              <LeanMeter lean={meter} delay={index * 0.03 + 0.05} />
+            </div>
+          )}
+
+          {/* Progress Bar */}
           {progressBar != null && (
             <div className="mb-3">
               <div className="w-full bg-slate-700/60 rounded-full h-1.5 overflow-hidden">

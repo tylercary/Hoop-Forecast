@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import api, { resolveImageUrl } from '../utils/api';
 import { getTeamLogo } from '../utils/teamLogos';
 import { getSportsbookDisplayName } from '../utils/sportsbookLogos';
+import LeanMeter from './LeanMeter';
+import { describeLean, formatEdge } from '../utils/lean';
 
 const PROP_LABELS = {
   points: 'Points',
@@ -51,10 +53,11 @@ function initials(name) {
 function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
   const isOver = pick.side === 'over';
   const sideColor = isOver ? 'text-emerald-400' : 'text-rose-400';
-  const sideBg = isOver ? 'bg-emerald-500/80' : 'bg-rose-500/80';
   const gameTime = formatGameTime(pick.commence_time);
   const prob = pick.side_probability;
   const residual = pick.edge_residual;
+  // The card reads the distance from even, not the probability (see utils/lean.js)
+  const lean = describeLean(isOver ? prob : prob != null ? 100 - prob : null, Boolean(pick.pick));
 
   return (
     <motion.div
@@ -144,12 +147,12 @@ function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
             </div>
             <div className="text-right">
               <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                {pick.pick ? 'Pick' : 'Lean'}
+                {lean ? lean.label : pick.pick ? 'Pick' : 'Lean'}
               </p>
               {locked ? (
                 <div className="relative flex h-7 items-center justify-end">
                   <span className={`select-none blur-sm opacity-50 text-2xl font-bold tabular-nums ${sideColor}`} aria-hidden="true">
-                    88%
+                    +8
                   </span>
                   <span
                     role="button"
@@ -164,18 +167,15 @@ function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
                 </div>
               ) : (
                 <p className={`text-2xl font-bold leading-none tabular-nums ${sideColor}`}>
-                  {prob != null ? `${Math.round(prob)}%` : '—'}
+                  {lean ? formatEdge(lean.edge) : '—'}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Probability bar on the side's color */}
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-            <div
-              className={`h-full rounded-full ${sideBg} ${locked ? 'opacity-30' : ''}`}
-              style={{ width: `${locked ? 50 : Math.min(100, Math.max(0, prob ?? 0))}%` }}
-            />
+          {/* Meter from even toward the side */}
+          <div className="mt-2">
+            <LeanMeter lean={locked ? null : lean} muted={locked} labels={false} />
           </div>
 
           {/* Model vs line */}
@@ -184,6 +184,9 @@ function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
             {' '}vs line <span className="font-semibold text-slate-200">{pick.line}</span>
             {!locked && residual != null && (
               <span className="text-slate-500"> ({residual > 0 ? '+' : ''}{residual.toFixed(1)})</span>
+            )}
+            {!locked && lean && (
+              <span className="text-slate-500"> · {Math.round(lean.percent)}% chance</span>
             )}
           </p>
 

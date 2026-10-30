@@ -15,6 +15,7 @@ import GameLogTable from './GameLogTable';
 import Comments from './Comments';
 import InjuriesTable from './InjuriesTable';
 import PropMetricCard from './PropMetricCard';
+import { describeLean, formatEdge, leanColor } from '../utils/lean';
 import PredictionReasoning from './PredictionReasoning';
 import PickFactors from './PickFactors';
 import { getSportsbookDisplayName } from '../utils/sportsbookLogos';
@@ -23,7 +24,6 @@ import {
   calculateCoverProbability,
   calculateExpectedValue,
   calculateBetRating,
-  getCoverProbabilityColor,
   getEVColor,
   getBetRatingColor
 } from '../utils/propCalculations';
@@ -995,6 +995,10 @@ function PlayerDetail() {
                       ? calculateCoverProbability(prediction, line, errorMargin, recommendation !== 'UNDER')
                       : 50.0;
                   
+                  const lean = coverProbability != null && recommendation && recommendation !== 'PUSH'
+                    ? describeLean(recommendation === 'UNDER' ? 100 - coverProbability : coverProbability, !isLean)
+                    : null;
+
                   // Get odds for EV calculation (use best odds from all_bookmakers or single bookmaker)
                   // IMPORTANT: Only use odds from bookmakers with the SAME line as consensus
                   const bestOverOdds = propData?.all_bookmakers?.length > 0
@@ -1131,17 +1135,17 @@ function PlayerDetail() {
                         onSignIn={openAuthModal}
                       />
                       
-                      {/* Cover Probability */}
+                      {/* Lean: distance from even, on a meter that is full at a pick */}
                       <PropMetricCard
-                        title="Cover Probability"
-                        value={hasPrediction && coverProbability != null
-                          ? `${coverProbability.toFixed(0)}%`
+                        title="Lean"
+                        value={hasPrediction && lean
+                          ? formatEdge(lean.edge)
                           : loadingPredictions[selectedProp] ? 'Loading...' : 'N/A'}
-                        color={hasPrediction && coverProbability != null ? getCoverProbabilityColor(coverProbability) : 'text-slate-400'}
-                        progressBar={hasPrediction && coverProbability != null ? coverProbability : null}
-                        subtitle={hasPrediction && coverProbability != null && recommendation ? `chance of the ${recommendation.toLowerCase()}` : null}
-                        infoTooltip="The probability that the bet will cover based on our model's prediction and historical performance."
-                        infoTooltipLabel="Cover Probability"
+                        color={hasPrediction && lean ? leanColor(lean) : 'text-slate-400'}
+                        meter={hasPrediction && lean ? lean : null}
+                        subtitle={hasPrediction && lean ? `${lean.label} · ${Math.round(lean.percent)}% chance` : null}
+                        infoTooltip="How far the model sits from a coin flip, in probability points. The meter fills toward the side it favours and is full where a lean becomes a pick. The calibrated chance of that side is in the fine print."
+                        infoTooltipLabel="Lean"
                         valueSize="text-2xl"
                         index={2}
                         locked={!user}
