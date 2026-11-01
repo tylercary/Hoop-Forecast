@@ -9,5 +9,8 @@
  * History:
  *   2026-10-25-calib1  probabilities shrunk to this season's measured
  *                      calibration, picks held until five games this season
+ *   2026-10-31-livemap1 residual -> P(over) map refit on this season's 8,023
+ *                      graded rows with separate over/under slopes; the
+ *                      pooled 0.2 shrink retired (the map is calibrated itself)
  */
-export const MODEL_VERSION = '2026-10-25-calib1';
+export const MODEL_VERSION = '2026-10-31-livemap1';

@@ -1,0 +1,78 @@
+{
+  "map": {
+    "intercept": -0.11641724274525553,
+    "coef_pos": 0.05328198058657416,
+    "coef_neg": 0.15866826471582068,
+    "coef_rel_pos": 0.14232111278227505,
+    "coef_rel_neg": -0.12790164732341056
+  },
+  "fitted_on": 8023,
+  "fitted_at": "2026-10-31",
+  "date_range": [
+    "2026-10-20",
+    "2026-10-31"
+  ],
+  "source": "live graded edge rows",
+  "metrics": {
+    "validation_rows": 2703,
+    "validation_from": "2026-10-28",
+    "validation_log_loss_shipped": 0.6924,
+    "validation_log_loss_live": 0.689,
+    "validation_picks_live": {
+      "over": {
+        "hits": 8,
+        "n": 18,
+        "hit_rate": 0.444
+      },
+      "under": {
+        "hits": 107,
+        "n": 158,
+        "hit_rate": 0.677
+      }
+    },
+    "in_sample_buckets": {
+      "30-35": {
+        "n": 32,
+        "stated_over": 0.333,
+        "actual_over": 0.375
+      },
+      "35-40": {
+        "n": 158,
+        "stated_over": 0.384,
+        "actual_over": 0.424
+      },
+      "40-45": {
+        "n": 858,
+        "stated_over": 0.432,
+        "actual_over": 0.416
+      },
+      "45-50": {
+        "n": 6338,
+        "stated_over": 0.479,
+        "actual_over": 0.481
+      },
+      "50-55": {
+        "n": 615,
+        "stated_over": 0.509,
+        "actual_over": 0.496
+      },
+      "55-60": {
+        "n": 19,
+        "stated_over": 0.554,
+        "actual_over": 0.474
+      }
+    },
+    "in_sample_picks": {
+      "over": {
+        "hits": 0,
+        "n": 0,
+        "hit_rate": null
+      },
+      "under": {
+        "hits": 441,
+        "n": 714,
+        "hit_rate": 0.618
+      }
+    }
+  }
+}
