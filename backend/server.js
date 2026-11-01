@@ -165,8 +165,8 @@ async function runRetrain() {
     }
 
     const { execSync } = await import('child_process');
-    execSync('node backend/scripts/retrainFromTracking.js --incremental', {
-      cwd: path.join(__dirname, '..'),
+    execSync(`node ${path.join(__dirname, 'scripts', 'retrainFromTracking.js')} --incremental`, {
+      cwd: __dirname,
       stdio: 'inherit',
       timeout: 600000
     });

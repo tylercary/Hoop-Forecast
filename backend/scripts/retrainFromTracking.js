@@ -18,7 +18,10 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PROJECT_ROOT = path.join(__dirname, '../..');
+// The backend folder is the working directory: on Railway the service root IS
+// backend/, so nothing may assume a backend/ prefix or a repo root above it
+const BACKEND_DIR = path.join(__dirname, '..');
+const ML = (file) => path.join(BACKEND_DIR, 'ml', file);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
 const RETRAIN_LOG = path.join(DATA_DIR, 'retrain_log.json');
 
@@ -65,7 +68,7 @@ async function main() {
 
   const { execSync } = await import('child_process');
   const execOptions = {
-    cwd: PROJECT_ROOT,
+    cwd: BACKEND_DIR,
     encoding: 'utf8',
     timeout: 300000 // 5 minutes
   };
@@ -77,7 +80,7 @@ async function main() {
 
   let buildResult = null;
   try {
-    const buildOutput = execSync('python3 backend/ml/build_training_set.py', {
+    const buildOutput = execSync(`python3 ${ML('build_training_set.py')}`, {
       ...execOptions,
       stdio: ['pipe', 'pipe', 'pipe']
     });
@@ -102,7 +105,7 @@ async function main() {
   console.log('='.repeat(60));
 
   try {
-    execSync('node backend/ml/featureEngineering.js', {
+    execSync(`node ${ML('featureEngineering.js')}`, {
       ...execOptions,
       stdio: 'inherit',
       timeout: 120000
@@ -117,7 +120,7 @@ async function main() {
   console.log(`Step 3: Training XGBoost models (${mode})...`);
   console.log('='.repeat(60));
 
-  const trainArgs = ['python3', 'backend/ml/train_xgboost.py'];
+  const trainArgs = ['python3', ML('train_xgboost.py')];
   if (incremental) trainArgs.push('--incremental');
   if (hasRetrainData) trainArgs.push('--retrain-data');
 
