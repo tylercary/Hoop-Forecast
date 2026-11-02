@@ -1,65 +1,60 @@
 {
   "map": {
-    "intercept": -0.11641724274525553,
-    "coef_pos": 0.05328198058657416,
-    "coef_neg": 0.15866826471582068,
-    "coef_rel_pos": 0.14232111278227505,
-    "coef_rel_neg": -0.12790164732341056
+    "intercept": -0.12596583282994664,
+    "coef_pos": 0.026756024983009625,
+    "coef_neg": 0.16264782484758403,
+    "coef_rel_pos": 0.13890531582707447,
+    "coef_rel_neg": -0.004101634200621792
   },
-  "fitted_on": 8023,
-  "fitted_at": "2026-10-31",
+  "fitted_on": 9068,
+  "fitted_at": "2026-11-02",
   "date_range": [
     "2026-10-20",
-    "2026-10-31"
+    "2026-11-02"
   ],
   "source": "live graded edge rows",
   "metrics": {
-    "validation_rows": 2703,
-    "validation_from": "2026-10-28",
-    "validation_log_loss_shipped": 0.6924,
-    "validation_log_loss_live": 0.689,
+    "validation_rows": 2999,
+    "validation_from": "2026-10-29",
+    "validation_log_loss_shipped": 0.6931,
+    "validation_log_loss_live": 0.6875,
     "validation_picks_live": {
       "over": {
-        "hits": 8,
-        "n": 18,
-        "hit_rate": 0.444
+        "hits": 5,
+        "n": 14,
+        "hit_rate": 0.357
       },
       "under": {
-        "hits": 107,
-        "n": 158,
-        "hit_rate": 0.677
+        "hits": 77,
+        "n": 117,
+        "hit_rate": 0.658
       }
     },
     "in_sample_buckets": {
       "30-35": {
-        "n": 32,
-        "stated_over": 0.333,
-        "actual_over": 0.375
+        "n": 38,
+        "stated_over": 0.332,
+        "actual_over": 0.447
       },
       "35-40": {
-        "n": 158,
-        "stated_over": 0.384,
-        "actual_over": 0.424
+        "n": 212,
+        "stated_over": 0.382,
+        "actual_over": 0.406
       },
       "40-45": {
-        "n": 858,
-        "stated_over": 0.432,
-        "actual_over": 0.416
+        "n": 1257,
+        "stated_over": 0.431,
+        "actual_over": 0.42
       },
       "45-50": {
-        "n": 6338,
-        "stated_over": 0.479,
-        "actual_over": 0.481
+        "n": 7469,
+        "stated_over": 0.475,
+        "actual_over": 0.475
       },
       "50-55": {
-        "n": 615,
-        "stated_over": 0.509,
-        "actual_over": 0.496
-      },
-      "55-60": {
-        "n": 19,
-        "stated_over": 0.554,
-        "actual_over": 0.474
+        "n": 86,
+        "stated_over": 0.525,
+        "actual_over": 0.512
       }
     },
     "in_sample_picks": {
@@ -69,9 +64,9 @@
         "hit_rate": null
       },
       "under": {
-        "hits": 441,
-        "n": 714,
-        "hit_rate": 0.618
+        "hits": 653,
+        "n": 1069,
+        "hit_rate": 0.611
       }
     }
   }
