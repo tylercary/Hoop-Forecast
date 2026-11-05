@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Target, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -50,7 +50,7 @@ function initials(name) {
   return (name || '').split(' ').map(part => part[0]).join('').slice(0, 2);
 }
 
-function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
+function BestBetCard({ pick, index, locked, onSelect, onSignIn, related }) {
   const isOver = pick.side === 'over';
   const sideColor = isOver ? 'text-emerald-400' : 'text-rose-400';
   const gameTime = formatGameTime(pick.commence_time);
@@ -178,6 +178,15 @@ function BestBetCard({ pick, index, locked, onSelect, onSignIn }) {
             <LeanMeter lean={locked ? null : lean} muted={locked} labels={false} />
           </div>
 
+          {/* Combo props repeat one read on a player: say so, so the card's concentration is visible */}
+          {related && (
+            <p className="mt-2 text-[11px] text-slate-500">
+              {related.leadProp
+                ? <>Same read as the <span className="font-medium text-slate-400">{related.leadProp}</span> {related.side}: one game, one outcome</>
+                : <>Same read on <span className="font-medium text-slate-400">{related.others.length} more prop{related.others.length === 1 ? '' : 's'}</span> below: one game, one outcome</>}
+            </p>
+          )}
+
           {/* Model vs line */}
           <p className={`mt-2 text-[11px] text-slate-400 tabular-nums ${locked ? 'blur-[3px] select-none' : ''}`} aria-hidden={locked}>
             Model <span className="font-semibold text-slate-200">{locked ? '—' : pick.projection ?? '—'}</span>
@@ -263,6 +272,26 @@ function BestBets({ onSelectPlayer }) {
   const picks = data?.picks || [];
   const locked = !user;
 
+  // Picks on one player's game and side are a single read spread over combo
+  // props. The first card in feed order leads; the rest point back to it.
+  const related = useMemo(() => {
+    const groups = new Map();
+    picks.forEach((pick, i) => {
+      const key = `${pick.player}|${pick.game_date}|${pick.side}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(i);
+    });
+    const out = new Array(picks.length).fill(null);
+    groups.forEach((indexes) => {
+      if (indexes.length < 2) return;
+      const label = (i) => PROP_LABELS[picks[i].prop_type] || picks[i].prop_type;
+      const side = picks[indexes[0]].side;
+      out[indexes[0]] = { side, others: indexes.slice(1).map(label) };
+      indexes.slice(1).forEach((i) => { out[i] = { side, leadProp: label(indexes[0]) }; });
+    });
+    return out;
+  }, [picks]);
+
   const scrollRow = (direction) => {
     const row = rowRef.current;
     if (!row) return;
@@ -329,6 +358,7 @@ function BestBets({ onSelectPlayer }) {
                   pick={pick}
                   index={index}
                   locked={locked}
+                  related={related[index]}
                   onSignIn={openAuthModal}
                   onSelect={() => onSelectPlayer?.({
                     name: pick.player,
