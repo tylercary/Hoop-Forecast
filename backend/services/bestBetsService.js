@@ -163,7 +163,12 @@ export async function selectBestBets({ now = Date.now() } = {}) {
   }
 
   const candidates = [...latest.values()].filter(({ record }) => clearsThreshold(record));
-  candidates.sort((a, b) => Math.abs(b.record.over_probability - 50) - Math.abs(a.record.over_probability - 50));
+  // Probability first; picks held at the probability ceiling tie, so the
+  // residual as a share of the line orders them.
+  const relResidual = (r) => Math.abs(Number(r.edge_residual) || 0) / (Number(r.betting_line) || 1);
+  candidates.sort((a, b) =>
+    (Math.abs(b.record.over_probability - 50) - Math.abs(a.record.over_probability - 50))
+    || (relResidual(b.record) - relResidual(a.record)));
   const top = candidates.slice(0, MAX_ROWS);
 
   const rows = top.map(({ record: p, tip }) => {

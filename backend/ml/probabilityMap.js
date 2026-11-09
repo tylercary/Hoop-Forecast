@@ -13,7 +13,8 @@
  *
  * The residual is capped at 15% of the line (at least 1) before it enters the
  * map, and the result is shrunk toward 50 by edgeProbShrink(): the model was never trained on larger disagreements, and uncapped tails
- * produced 70%+ claims that hit about 50%.
+ * produced 70%+ claims that hit about 50%. The result is then held inside
+ * PROB_FLOOR..PROB_CEILING.
  */
 import fs from 'fs';
 import path from 'path';
@@ -41,6 +42,17 @@ export function edgeProbShrink() {
   return _shrink;
 }
 
+/**
+ * Floor and ceiling on any stated P(over), in percent. The map keeps climbing
+ * with the residual, but the record does not: through 2026-11-05, rows at the
+ * full under cap went under 58% (744 rows, 60% on the live map) while the map
+ * claimed 70%+, and the strongest-rated picks hit no more often than moderate
+ * ones. Nothing the model has graded supports a claim beyond about 62.
+ * Both bounds sit outside the pick thresholds (56 / 44), so picks are unchanged.
+ */
+export const PROB_FLOOR = 38;
+export const PROB_CEILING = 62;
+
 export function cappedResidual(residual, line) {
   const cap = Math.max(1, line * 0.15);
   return Math.max(-cap, Math.min(cap, residual));
@@ -59,7 +71,8 @@ export function overProbabilityFromMap(map, residual, line) {
     z = map.intercept + map.coef_residual * r + map.coef_residual_over_line * rel;
   }
   const raw = 100 / (1 + Math.exp(-z));
-  return 50 + (raw - 50) * edgeProbShrink();
+  const shrunk = 50 + (raw - 50) * edgeProbShrink();
+  return Math.max(PROB_FLOOR, Math.min(PROB_CEILING, shrunk));
 }
 
 let _liveMap;

@@ -33,7 +33,7 @@
 
 import { americanToProb } from './marketFeatureService.js';
 import { PICK_OVER, PICK_UNDER } from '../config/pickThresholds.js';
-import { MODEL_VERSION } from '../config/modelVersion.js';
+import { MODEL_VERSION, CURRENT_RECORD_VERSIONS } from '../config/modelVersion.js';
 
 export const PROPS = ['points', 'rebounds', 'assists', 'threes', 'pra', 'pr', 'pa', 'ra'];
 export { PICK_OVER, PICK_UNDER };
@@ -64,13 +64,14 @@ function versionOf(p) {
 
 /**
  * Whether a record belongs to the version being graded.
- * 'current' = MODEL_VERSION (what the site runs now), 'all' = every version,
+ * 'current' = MODEL_VERSION plus the versions its record continues from
+ * (same picks, see config/modelVersion.js), 'all' = every version,
  * anything else = that exact stamp.
  */
 function inVersion(p, version) {
   if (!version || version === 'all') return true;
-  const want = version === 'current' ? MODEL_VERSION : version;
-  return versionOf(p) === want;
+  if (version === 'current') return CURRENT_RECORD_VERSIONS.has(versionOf(p));
+  return versionOf(p) === version;
 }
 
 /** YYYY-MM-DD from an ISO string or a display date such as "Mar 28, 2026". */
@@ -421,7 +422,7 @@ export function gradeEdgePredictions(predictions, { variant = 'edge', version = 
   if (version !== 'all') {
     const allRows = eligibleRows(predictions, variant, 'all');
     for (const v of Object.keys(versions).sort()) {
-      if (v === (version === 'current' ? MODEL_VERSION : version)) continue;
+      if (version === 'current' ? CURRENT_RECORD_VERSIONS.has(v) : v === version) continue;
       const sub = allRows.filter(r => r.version === v);
       if (!sub.length) continue;
       const s = summarize(sub);
