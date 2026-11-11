@@ -3,10 +3,11 @@
  *
  * 50 is the real zero, so the number that reads is the distance from even
  * ("+4"), not the probability ("54%"). The meter runs from the centre and is
- * full at FULL_SCALE points, which is where the model turns a lean into a
- * pick (56 over / 44 under in backend/config/pickThresholds.js).
+ * full at that side's FULL_SCALE points, which is where the model turns a
+ * lean into a pick (56 over / 46 under in backend/config/pickThresholds.js;
+ * the under bar is nearer because moderate unders have graded best).
  */
-export const FULL_SCALE = 6;
+export const FULL_SCALE = { over: 6, under: 4 };
 
 /**
  * @param {number|null} overProbability  calibrated P(over) in percent
@@ -35,7 +36,7 @@ export function describeLean(overProbability, isPick = false) {
   return {
     edge,
     side,
-    fill: Math.min(1, abs / FULL_SCALE),
+    fill: Math.min(1, abs / (side === 'under' ? FULL_SCALE.under : FULL_SCALE.over)),
     tier,
     label,
     percent: side === 'under' ? 100 - p : p,
