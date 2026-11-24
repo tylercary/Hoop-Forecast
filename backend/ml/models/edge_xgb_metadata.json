@@ -1,11 +1,11 @@
 {
   "model": "edge",
   "target": "actual - line",
-  "trained_at": "2026-10-19",
-  "rows": 29697,
+  "trained_at": "2026-11-24",
+  "rows": 25044,
   "date_range": [
-    "2026-03-11",
-    "2026-06-13"
+    "2026-10-18",
+    "2026-11-23"
   ],
   "feature_names": [
     "ast_avg_10",
@@ -16,6 +16,15 @@
     "ast_momentum",
     "ast_std_10",
     "ast_volatility",
+    "cur_season_ast_avg",
+    "cur_season_games",
+    "cur_season_min_avg",
+    "cur_season_pts_avg",
+    "cur_season_reb_avg",
+    "cur_season_share_10",
+    "cur_season_stat_avg",
+    "cur_season_stat_minus_line",
+    "cur_season_threes_avg",
     "days_rest",
     "fg3a_avg_10",
     "fga_avg_10",
@@ -31,6 +40,7 @@
     "min_avg_10",
     "min_avg_3",
     "min_avg_5",
+    "min_delta_season",
     "min_std_10",
     "min_trend",
     "opp_ast_allowed_rel",
@@ -50,6 +60,7 @@
     "pra_avg_10",
     "pra_avg_3",
     "pra_avg_5",
+    "prev_season_min_avg",
     "prop_assists",
     "prop_pa",
     "prop_points",
@@ -115,19 +126,25 @@
     "win_streak"
   ],
   "context_families": [
-    "opponent"
+    "opponent",
+    "season"
   ],
   "untrained_features": [],
   "feature_coverage": {
-    "opp_ast_allowed_rel": 0.9909418459777082,
-    "opp_def_rating_rel": 0.9909418459777082,
-    "opp_fg3m_allowed_rel": 0.9909418459777082,
-    "opp_games_n": 0.9909418459777082,
-    "opp_pace_rel": 0.9909418459777082,
-    "opp_pts_allowed_rel": 0.9909418459777082,
-    "opp_reb_allowed_rel": 0.9909418459777082,
-    "opp_stat_allowed_rel": 0.9909418459777082
+    "cur_season_ast_avg": 0.9325586966938189,
+    "cur_season_games": 0.9976441463025076,
+    "cur_season_min_avg": 0.9325586966938189,
+    "cur_season_pts_avg": 0.9325586966938189,
+    "cur_season_reb_avg": 0.9325586966938189,
+    "cur_season_share_10": 0.9976441463025076,
+    "cur_season_stat_avg": 0.9325586966938189,
+    "cur_season_stat_minus_line": 0.9325586966938189,
+    "cur_season_threes_avg": 0.9325586966938189,
+    "min_delta_season": 0.9006548474684555,
+    "prev_season_min_avg": 0.9657402970771443
   },
+  "live_weight": 3.0,
+  "live_rows": 25044,
   "xgb_params": {
     "objective": "reg:squarederror",
     "max_depth": 4,
@@ -140,175 +157,476 @@
   },
   "n_rounds": 400,
   "probability_map": {
-    "intercept": 0.012591847568683026,
-    "coef_residual": 0.21543052989165712,
-    "coef_residual_over_line": -0.10329855215103234
+    "intercept": -0.07039251200954255,
+    "coef_residual": -0.022982420695536493,
+    "coef_residual_over_line": 0.07630759195414619
   },
   "metrics": {
-    "test_rows": 6229,
-    "test_from": "2026-04-26",
-    "mae_line": 3.73535077861615,
-    "mae_model": 3.7045990243535765,
-    "sign_accuracy": 0.5382886498635415,
+    "test_rows": 5405,
+    "test_from": "2026-11-16",
+    "mae_line": 3.8499537465309897,
+    "mae_model": 3.9277870216863926,
+    "sign_accuracy": 0.48936170212765956,
+    "log_loss": 0.6924818730797552,
+    "brier": 0.24966759017671986,
     "by_min_abs_residual": {
       "0.0": {
-        "n": 6229,
-        "sign_accuracy": 0.5382886498635415
+        "n": 5405,
+        "sign_accuracy": 0.48936170212765956
       },
       "0.5": {
-        "n": 3683,
-        "sign_accuracy": 0.5604127070323106
+        "n": 2672,
+        "sign_accuracy": 0.49101796407185627
       },
       "1.0": {
-        "n": 1921,
-        "sign_accuracy": 0.5965642894325872
+        "n": 1045,
+        "sign_accuracy": 0.4937799043062201
       },
       "1.5": {
-        "n": 943,
-        "sign_accuracy": 0.6373276776246023
+        "n": 456,
+        "sign_accuracy": 0.5219298245614035
       },
       "2.0": {
-        "n": 539,
-        "sign_accuracy": 0.640074211502783
+        "n": 239,
+        "sign_accuracy": 0.5355648535564853
       },
       "3.0": {
-        "n": 225,
-        "sign_accuracy": 0.6711111111111111
+        "n": 77,
+        "sign_accuracy": 0.44155844155844154
       }
     },
     "by_prop": {
       "points": {
-        "n": 857,
-        "sign_accuracy": 0.5495915985997666,
-        "under_rate": 0.5309218203033839
+        "n": 763,
+        "sign_accuracy": 0.49017038007863695,
+        "under_rate": 0.5190039318479686
       },
       "rebounds": {
-        "n": 815,
-        "sign_accuracy": 0.5337423312883436,
-        "under_rate": 0.5165644171779141
+        "n": 728,
+        "sign_accuracy": 0.46016483516483514,
+        "under_rate": 0.5370879120879121
       },
       "assists": {
-        "n": 747,
-        "sign_accuracy": 0.5220883534136547,
-        "under_rate": 0.5247657295850067
+        "n": 619,
+        "sign_accuracy": 0.5121163166397416,
+        "under_rate": 0.49919224555735053
       },
       "threes": {
-        "n": 721,
-        "sign_accuracy": 0.5409153952843273,
-        "under_rate": 0.5270457697642164
+        "n": 642,
+        "sign_accuracy": 0.4968847352024922,
+        "under_rate": 0.5186915887850467
       },
       "pra": {
-        "n": 887,
-        "sign_accuracy": 0.5422773393461104,
-        "under_rate": 0.5174746335963923
+        "n": 745,
+        "sign_accuracy": 0.5060402684563758,
+        "under_rate": 0.5154362416107383
       },
       "pr": {
-        "n": 791,
-        "sign_accuracy": 0.549936788874842,
-        "under_rate": 0.5284450063211126
+        "n": 698,
+        "sign_accuracy": 0.45272206303724927,
+        "under_rate": 0.518624641833811
       },
       "pa": {
-        "n": 709,
-        "sign_accuracy": 0.5317348377997179,
-        "under_rate": 0.5190409026798308
+        "n": 600,
+        "sign_accuracy": 0.49333333333333335,
+        "under_rate": 0.5266666666666666
       },
       "ra": {
-        "n": 702,
-        "sign_accuracy": 0.5327635327635327,
-        "under_rate": 0.5113960113960114
+        "n": 610,
+        "sign_accuracy": 0.5098360655737705,
+        "under_rate": 0.5
       }
     },
     "prob_bins": {
-      "30-35": {
-        "n": 133,
-        "actual_over": 0.38345864661654133
-      },
-      "35-40": {
-        "n": 277,
-        "actual_over": 0.36823104693140796
-      },
-      "40-45": {
-        "n": 919,
-        "actual_over": 0.38846572361262244
-      },
       "45-50": {
-        "n": 2614,
-        "actual_over": 0.4904361132364193
+        "n": 5321,
+        "actual_over": 0.48167637662093593
       },
       "50-55": {
-        "n": 1889,
-        "actual_over": 0.5320275277924827
-      },
-      "55-60": {
-        "n": 263,
-        "actual_over": 0.4790874524714829
-      },
-      "60-65": {
-        "n": 42,
-        "actual_over": 0.6190476190476191
+        "n": 83,
+        "actual_over": 0.5421686746987951
       }
     }
   },
   "top_features": [
     {
-      "name": "is_back_to_back",
-      "gain": 959.56
+      "name": "pts_avg_10",
+      "gain": 2712.45
     },
     {
-      "name": "reb_volatility",
-      "gain": 862.52
+      "name": "pra_avg_3",
+      "gain": 2650.58
     },
     {
-      "name": "threes_volatility",
-      "gain": 861.03
+      "name": "threes_avg_season",
+      "gain": 2564.42
     },
     {
-      "name": "ft_rate_avg_10",
-      "gain": 858.29
+      "name": "threes_avg_3",
+      "gain": 2428.33
     },
     {
-      "name": "min_avg_10",
-      "gain": 848.54
+      "name": "pr_avg_3",
+      "gain": 2347.74
     },
     {
-      "name": "stat_avg_3",
-      "gain": 843.67
+      "name": "fga_avg_10",
+      "gain": 2286.09
+    },
+    {
+      "name": "threes_avg_10",
+      "gain": 2225.71
+    },
+    {
+      "name": "cur_season_threes_avg",
+      "gain": 2216.05
     },
     {
       "name": "fg3a_avg_10",
-      "gain": 830.0
+      "gain": 2155.54
     },
     {
-      "name": "line",
-      "gain": 825.36
+      "name": "pa_avg_10",
+      "gain": 2067.99
     },
     {
-      "name": "opp_def_rating_rel",
-      "gain": 820.9
+      "name": "pts_per_min_10",
+      "gain": 2051.36
     },
     {
-      "name": "threes_avg_5",
-      "gain": 818.76
+      "name": "threes_hot_streak",
+      "gain": 2039.9
     },
     {
-      "name": "pa_avg_3",
-      "gain": 812.25
+      "name": "cur_season_games",
+      "gain": 2015.53
     },
     {
-      "name": "ast_avg_5",
-      "gain": 803.24
+      "name": "pts_hit_rate",
+      "gain": 2003.29
     },
     {
-      "name": "pts_hot_streak",
-      "gain": 799.61
-    },
-    {
-      "name": "reb_avg_3",
-      "gain": 799.11
-    },
-    {
-      "name": "opp_pts_allowed_rel",
-      "gain": 797.87
+      "name": "min_trend",
+      "gain": 1971.85
     }
-  ]
+  ],
+  "candidate_fresh_metrics": {
+    "test_rows": 5405,
+    "test_from": "2026-11-16",
+    "mae_line": 3.8499537465309897,
+    "mae_model": 3.9277870216863926,
+    "sign_accuracy": 0.48936170212765956,
+    "log_loss": 0.6924818730797552,
+    "brier": 0.24966759017671986,
+    "by_min_abs_residual": {
+      "0.0": {
+        "n": 5405,
+        "sign_accuracy": 0.48936170212765956
+      },
+      "0.5": {
+        "n": 2672,
+        "sign_accuracy": 0.49101796407185627
+      },
+      "1.0": {
+        "n": 1045,
+        "sign_accuracy": 0.4937799043062201
+      },
+      "1.5": {
+        "n": 456,
+        "sign_accuracy": 0.5219298245614035
+      },
+      "2.0": {
+        "n": 239,
+        "sign_accuracy": 0.5355648535564853
+      },
+      "3.0": {
+        "n": 77,
+        "sign_accuracy": 0.44155844155844154
+      }
+    },
+    "by_prop": {
+      "points": {
+        "n": 763,
+        "sign_accuracy": 0.49017038007863695,
+        "under_rate": 0.5190039318479686
+      },
+      "rebounds": {
+        "n": 728,
+        "sign_accuracy": 0.46016483516483514,
+        "under_rate": 0.5370879120879121
+      },
+      "assists": {
+        "n": 619,
+        "sign_accuracy": 0.5121163166397416,
+        "under_rate": 0.49919224555735053
+      },
+      "threes": {
+        "n": 642,
+        "sign_accuracy": 0.4968847352024922,
+        "under_rate": 0.5186915887850467
+      },
+      "pra": {
+        "n": 745,
+        "sign_accuracy": 0.5060402684563758,
+        "under_rate": 0.5154362416107383
+      },
+      "pr": {
+        "n": 698,
+        "sign_accuracy": 0.45272206303724927,
+        "under_rate": 0.518624641833811
+      },
+      "pa": {
+        "n": 600,
+        "sign_accuracy": 0.49333333333333335,
+        "under_rate": 0.5266666666666666
+      },
+      "ra": {
+        "n": 610,
+        "sign_accuracy": 0.5098360655737705,
+        "under_rate": 0.5
+      }
+    },
+    "prob_bins": {
+      "45-50": {
+        "n": 5321,
+        "actual_over": 0.48167637662093593
+      },
+      "50-55": {
+        "n": 83,
+        "actual_over": 0.5421686746987951
+      }
+    }
+  },
+  "incumbent": {
+    "trained_at": "2026-10-19",
+    "rows": 29697,
+    "date_range": [
+      "2026-03-11",
+      "2026-06-13"
+    ],
+    "metrics": {
+      "test_rows": 5405,
+      "test_from": "2026-11-16",
+      "mae_line": 3.8499537465309897,
+      "mae_model": 3.930978138160084,
+      "sign_accuracy": 0.5006475485661425,
+      "log_loss": 0.7004169508474869,
+      "brier": 0.2535552236880904,
+      "by_min_abs_residual": {
+        "0.0": {
+          "n": 5405,
+          "sign_accuracy": 0.5006475485661425
+        },
+        "0.5": {
+          "n": 2789,
+          "sign_accuracy": 0.49480100394406595
+        },
+        "1.0": {
+          "n": 1290,
+          "sign_accuracy": 0.4728682170542636
+        },
+        "1.5": {
+          "n": 554,
+          "sign_accuracy": 0.4620938628158845
+        },
+        "2.0": {
+          "n": 256,
+          "sign_accuracy": 0.48046875
+        },
+        "3.0": {
+          "n": 69,
+          "sign_accuracy": 0.5362318840579711
+        }
+      },
+      "by_prop": {
+        "points": {
+          "n": 763,
+          "sign_accuracy": 0.5045871559633027,
+          "under_rate": 0.5190039318479686
+        },
+        "rebounds": {
+          "n": 728,
+          "sign_accuracy": 0.4793956043956044,
+          "under_rate": 0.5370879120879121
+        },
+        "assists": {
+          "n": 619,
+          "sign_accuracy": 0.5266558966074314,
+          "under_rate": 0.49919224555735053
+        },
+        "threes": {
+          "n": 642,
+          "sign_accuracy": 0.5264797507788161,
+          "under_rate": 0.5186915887850467
+        },
+        "pra": {
+          "n": 745,
+          "sign_accuracy": 0.48456375838926175,
+          "under_rate": 0.5154362416107383
+        },
+        "pr": {
+          "n": 698,
+          "sign_accuracy": 0.4899713467048711,
+          "under_rate": 0.518624641833811
+        },
+        "pa": {
+          "n": 600,
+          "sign_accuracy": 0.495,
+          "under_rate": 0.5266666666666666
+        },
+        "ra": {
+          "n": 610,
+          "sign_accuracy": 0.5049180327868853,
+          "under_rate": 0.5
+        }
+      },
+      "prob_bins": {
+        "35-40": {
+          "n": 71,
+          "actual_over": 0.5070422535211268
+        },
+        "40-45": {
+          "n": 249,
+          "actual_over": 0.5662650602409639
+        },
+        "45-50": {
+          "n": 1372,
+          "actual_over": 0.45699708454810495
+        },
+        "50-55": {
+          "n": 2694,
+          "actual_over": 0.4929472902746845
+        },
+        "55-60": {
+          "n": 797,
+          "actual_over": 0.4742785445420326
+        },
+        "60-65": {
+          "n": 148,
+          "actual_over": 0.41216216216216217
+        },
+        "65-70": {
+          "n": 38,
+          "actual_over": 0.5526315789473685
+        }
+      }
+    },
+    "heldout_rows_after_incumbent_training": 5405,
+    "fresh_metrics": {
+      "test_rows": 5405,
+      "test_from": "2026-11-16",
+      "mae_line": 3.8499537465309897,
+      "mae_model": 3.930978138160084,
+      "sign_accuracy": 0.5006475485661425,
+      "log_loss": 0.7004169508474869,
+      "brier": 0.2535552236880904,
+      "by_min_abs_residual": {
+        "0.0": {
+          "n": 5405,
+          "sign_accuracy": 0.5006475485661425
+        },
+        "0.5": {
+          "n": 2789,
+          "sign_accuracy": 0.49480100394406595
+        },
+        "1.0": {
+          "n": 1290,
+          "sign_accuracy": 0.4728682170542636
+        },
+        "1.5": {
+          "n": 554,
+          "sign_accuracy": 0.4620938628158845
+        },
+        "2.0": {
+          "n": 256,
+          "sign_accuracy": 0.48046875
+        },
+        "3.0": {
+          "n": 69,
+          "sign_accuracy": 0.5362318840579711
+        }
+      },
+      "by_prop": {
+        "points": {
+          "n": 763,
+          "sign_accuracy": 0.5045871559633027,
+          "under_rate": 0.5190039318479686
+        },
+        "rebounds": {
+          "n": 728,
+          "sign_accuracy": 0.4793956043956044,
+          "under_rate": 0.5370879120879121
+        },
+        "assists": {
+          "n": 619,
+          "sign_accuracy": 0.5266558966074314,
+          "under_rate": 0.49919224555735053
+        },
+        "threes": {
+          "n": 642,
+          "sign_accuracy": 0.5264797507788161,
+          "under_rate": 0.5186915887850467
+        },
+        "pra": {
+          "n": 745,
+          "sign_accuracy": 0.48456375838926175,
+          "under_rate": 0.5154362416107383
+        },
+        "pr": {
+          "n": 698,
+          "sign_accuracy": 0.4899713467048711,
+          "under_rate": 0.518624641833811
+        },
+        "pa": {
+          "n": 600,
+          "sign_accuracy": 0.495,
+          "under_rate": 0.5266666666666666
+        },
+        "ra": {
+          "n": 610,
+          "sign_accuracy": 0.5049180327868853,
+          "under_rate": 0.5
+        }
+      },
+      "prob_bins": {
+        "35-40": {
+          "n": 71,
+          "actual_over": 0.5070422535211268
+        },
+        "40-45": {
+          "n": 249,
+          "actual_over": 0.5662650602409639
+        },
+        "45-50": {
+          "n": 1372,
+          "actual_over": 0.45699708454810495
+        },
+        "50-55": {
+          "n": 2694,
+          "actual_over": 0.4929472902746845
+        },
+        "55-60": {
+          "n": 797,
+          "actual_over": 0.4742785445420326
+        },
+        "60-65": {
+          "n": 148,
+          "actual_over": 0.41216216216216217
+        },
+        "65-70": {
+          "n": 38,
+          "actual_over": 0.5526315789473685
+        }
+      }
+    }
+  },
+  "promoted_at": "2026-11-24T00:44:47+00:00",
+  "replaced": {
+    "trained_at": "2026-10-19",
+    "rows": 29697,
+    "date_range": [
+      "2026-03-11",
+      "2026-06-13"
+    ]
+  }
 }
